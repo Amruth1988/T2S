@@ -4,6 +4,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val ttsApiKey = providers.environmentVariable("TTS_API_KEY").orElse("").get()
+
 val signingStoreFile = providers.gradleProperty("T2S_KEYSTORE_FILE")
     .orElse(providers.environmentVariable("T2S_KEYSTORE_FILE"))
     .orNull
@@ -34,6 +36,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+        buildConfigField("String", "TTS_API_KEY", "\"${ttsApiKey}\"")
     }
 
     signingConfigs {
@@ -56,6 +59,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {
