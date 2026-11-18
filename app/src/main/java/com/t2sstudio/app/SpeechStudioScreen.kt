@@ -73,7 +73,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
-    var voiceMenuExpanded by remember { mutableStateOf(false) }
+    var voiceSearch by remember { mutableStateOf("") }
     var selectedVoice by remember { mutableStateOf<Voice?>(null) }
     val availableVoices = remember { mutableStateListOf<Voice>() }
 
@@ -222,29 +222,87 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text("Voice", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-            val genderVoices = availableVoices.filter { voice ->
-                val voiceName = voice.name.lowercase(Locale.ROOT)
-                if (selectedGender == "Female") voiceName.contains("female") || voiceName.contains("woman")
-                else voiceName.contains("male") && !voiceName.contains("female") || voiceName.contains("man") && !voiceName.contains("woman")
-            }
-            TextButton(onClick = { voiceMenuExpanded = true }, enabled = genderVoices.isNotEmpty()) {
-                Text(
-                    selectedVoice?.takeIf { it in genderVoices }?.name
-                        ?: if (engineReady) "No ${selectedGender.lowercase()} voice installed" else "Loading voices…",
-                    color = T2SOrange
-                )
-            }
-            DropdownMenu(expanded = voiceMenuExpanded, onDismissRequest = { voiceMenuExpanded = false }) {
-                genderVoices.forEach { voice ->
-                    DropdownMenuItem(
-                        text = { Text(voice.name) },
-                        onClick = { selectedVoice = voice; voiceMenuExpanded = false }
-                    )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Choose a voice", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+            OutlinedTextField(
+                value = voiceSearch,
+                onValueChange = { voiceSearch = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text("Search voices by name or language…") },
+                label = { Text("Search voice") }
+            )
+            val genderMatches = availableVoices.filter { voice ->
+                val name = voice.name.lowercase(Locale.ROOT)
+                if (selectedGender == "Female") {
+                    name.contains("female") || name.contains("woman") || name.contains("fem")
+                } else {
+                    (name.contains("male") && !name.contains("female")) ||
+                        (name.contains("man") && !name.contains("woman"))
                 }
             }
-            Text("Only voices installed on this device are listed.", fontSize = 11.sp, color = T2SSecondaryText)
+            val voicePool = genderMatches.ifEmpty { availableVoices }
+            val filteredVoices = voicePool.filter { voice ->
+                val searchable = "${voice.name} ${voice.locale.displayName} ${voice.locale.toLanguageTag()}".lowercase(Locale.ROOT)
+                searchable.contains(voiceSearch.trim().lowercase(Locale.ROOT))
+            }
+            Text(
+                if (availableVoices.isEmpty() && engineReady) {
+                    "No ${selectedLanguage.lowercase()} voices found. Install voice data in Android Settings."
+                } else if (genderMatches.isEmpty() && availableVoices.isNotEmpty()) {
+                    "Your Android engine does not label voice gender. Showing all installed ${selectedLanguage.lowercase()} voices."
+                } else {
+                    "${filteredVoices.size} installed ${selectedLanguage.lowercase()} voices"
+                },
+                fontSize = 11.sp,
+                color = T2SSecondaryText
+            )
+            filteredVoices.forEach { voice ->
+                val isSelected = selectedVoice?.name == voice.name
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = if (isSelected) T2SCream else T2SBackground)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(voice.name, fontWeight = FontWeight.SemiBold, color = T2SText, fontSize = 13.sp)
+                            Text(
+                                "${voice.locale.displayName} • ${if (voice.isNetworkConnectionRequired) "Network required" else "On-device"}",
+                                color = T2SSecondaryText,
+                                fontSize = 10.sp
+                            )
+                            if (isSelected) Text("Selected", color = T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                        TextButton(onClick = {
+                            val engine = ttsEngine
+                            if (engine != null && engineReady) {
+                                engine.stop()
+                                engine.setLanguage(voice.locale)
+                                engine.voice = voice
+                                val sample = when (voice.locale.language) {
+                                    "te" -> "నమస్కారం. ఇది నా స్వర నమూనా."
+                                    "hi" -> "नमस्ते। यह मेरी आवाज़ का नमूना है।"
+                                    else -> "Hello. This is a sample of my voice."
+                                }
+                                engine.speak(sample, TextToSpeech.QUEUE_FLUSH, Bundle(), "t2s-preview-${voice.name}")
+                                statusMessage = "Previewing ${voice.name}."
+                            }
+                        }, enabled = engineReady) { Text("▶ Preview", color = T2SOrange, fontSize = 11.sp) }
+                        TextButton(onClick = {
+                            selectedVoice = voice
+                            ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
+                            statusMessage = "${voice.name} selected."
+                        }) { Text(if (isSelected) "✓" else "Select", color = T2SOrange, fontSize = 11.sp) }
+                    }
+                }
+            }
+            if (filteredVoices.isEmpty()) {
+                Text("No matching voices. Try another search or install additional voice data in Android Settings.", color = T2SSecondaryText, fontSize = 12.sp)
+            }
+            Text("Voice search and previews use speech voices installed on this device. Availability depends on your Android TTS engine.", fontSize = 11.sp, color = T2SSecondaryText)
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
