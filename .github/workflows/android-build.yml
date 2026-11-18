@@ -63,6 +63,14 @@ jobs:
           test -s app/build/outputs/apk/release/app-release.apk
           cp app/build/outputs/apk/release/app-release.apk T2S.apk
 
+      - name: Upload APK to this build
+        if: always() && github.event_name != 'pull_request' && hashFiles('T2S.apk') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: T2S-APK
+          path: T2S.apk
+          if-no-files-found: error
+          retention-days: 30
       - name: Publish T2S.apk as a direct download
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
