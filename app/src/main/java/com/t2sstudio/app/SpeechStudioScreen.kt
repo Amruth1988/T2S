@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -428,27 +429,22 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             enabled = false
                         )
                         filteredOnline.forEach { voice ->
-                            DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
-                                        Text("Online • ${voice.gender}", color = T2SSecondaryText, fontSize = 11.sp)
-                                    }
-                                },
-                                onClick = {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Column(Modifier.weight(1f).clickable {
                                     selectedOnlineVoice = voice
                                     selectedVoice = null
                                     selectedMyVoice = null
                                     voiceSearch = voice.name
                                     voiceSearchExpanded = false
-                                    statusMessage = "${voice.name} selected for online speech."
-                                },
-                                trailingIcon = {
-                                    TextButton(enabled = !isPreviewing, onClick = { previewOnlineVoice(voice.id) }) {
-                                        Text(if (isPreviewing) "…" else "▶", color = T2SOrange)
-                                    }
+                                    statusMessage = voice.name + " selected for online speech."
+                                }) {
+                                    Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
+                                    Text("Online • " + voice.gender, color = T2SSecondaryText, fontSize = 11.sp)
                                 }
-                            )
+                                TextButton(enabled = !isPreviewing, onClick = { previewOnlineVoice(voice.id) }) {
+                                    Text(if (isPreviewing) "…" else "▶ Preview", color = T2SOrange)
+                                }
+                            }
                         }
                     }
                     if (filteredPersonal.isNotEmpty()) {
