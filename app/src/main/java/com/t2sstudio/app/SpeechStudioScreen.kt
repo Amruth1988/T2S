@@ -59,7 +59,7 @@ import java.util.Locale
 private data class SpeechLanguage(val label: String, val locale: Locale)
 
 @Composable
-fun SpeechStudioScreen() {
+fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     val context = LocalContext.current
     var inputText by remember { mutableStateOf("") }
     var selectedLanguage by remember { mutableStateOf("English") }
@@ -277,6 +277,15 @@ fun SpeechStudioScreen() {
                             override fun onDone(utteranceId: String?) {
                                 isGenerating = false
                                 generatedFile = output
+                                onAudioGenerated(
+                                    AudioRecord(
+                                        id = java.util.UUID.randomUUID().toString(),
+                                        filePath = output.absolutePath,
+                                        textPreview = inputText.trim().take(180),
+                                        language = selectedLanguage,
+                                        createdAt = System.currentTimeMillis()
+                                    )
+                                )
                                 statusMessage = "Speech audio is ready and saved in T2S Studio."
                             }
                             @Deprecated("Deprecated in Java")
