@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: t2s-android-${{ github.ref }}
   cancel-in-progress: true
@@ -51,10 +54,20 @@ jobs:
       - name: Build Debug and Release APKs
         run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease
 
-      - name: Upload APKs for mobile testing
-        uses: actions/upload-artifact@v4
+      - name: Prepare direct APK download
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          test -s app/build/outputs/apk/release/app-release.apk
+          cp app/build/outputs/apk/release/app-release.apk T2S.apk
+
+      - name: Publish T2S.apk as a direct download
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
         with:
-          name: T2S-Studio-APKs
-          path: app/build/outputs/apk/**/*.apk
-          if-no-files-found: error
-          retention-days: 14
+          tag_name: t2s-build-${{ github.run_number }}
+          name: T2S Build #${{ github.run_number }}
+          files: T2S.apk
+          draft: false
+          prerelease: false
+          make_latest: false
