@@ -165,19 +165,24 @@ private fun T2SApp() {
             }
         }
     ) { innerPadding ->
-        when (selectedDestination) {
-            0 -> HomeContent(
-                projectCount = projects.size,
-                onCreate = { projectName = ""; showCreateDialog = true },
-                onProjects = { selectedDestination = 1 },
-                onRecent = { selectedDestination = 3 }
-            )
-            1 -> ProjectsContent(projects = projects, onCreate = { projectName = ""; showCreateDialog = true })
-            3 -> RecentContent(projects = projects)
-            4 -> SimplePage("Profile", "Your account and personal preferences will appear here.")
-            else -> HomeContent(projectCount = projects.size, onCreate = { showCreateDialog = true }, onProjects = { selectedDestination = 1 }, onRecent = { selectedDestination = 3 })
-        }.let { content ->
-            Box(Modifier.fillMaxSize().padding(innerPadding)) { content }
+        Box(Modifier.fillMaxSize().padding(innerPadding)) {
+            when (selectedDestination) {
+                0 -> HomeContent(
+                    projectCount = projects.size,
+                    onCreate = { projectName = ""; showCreateDialog = true },
+                    onProjects = { selectedDestination = 1 },
+                    onRecent = { selectedDestination = 3 }
+                )
+                1 -> ProjectsContent(projects = projects, onCreate = { projectName = ""; showCreateDialog = true })
+                3 -> RecentContent(projects = projects)
+                4 -> SimplePage("Profile", "Your account and personal preferences will appear here.")
+                else -> HomeContent(
+                    projectCount = projects.size,
+                    onCreate = { projectName = ""; showCreateDialog = true },
+                    onProjects = { selectedDestination = 1 },
+                    onRecent = { selectedDestination = 3 }
+                )
+            }
         }
     }
 
