@@ -350,21 +350,26 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 }
             }
             if (filteredVoices.isEmpty()) {
-                Text("No matching voices. Try another search or install additional voice data in Android Settings.", color = T2SSecondaryText, fontSize = 12.sp)
+                Text("No matching installed voices. Check the online voice results below or install voice data in Android Settings.", color = T2SSecondaryText, fontSize = 12.sp)
             }
-            Text("Voice search and previews use speech voices installed on this device. Availability depends on your Android TTS engine.", fontSize = 11.sp, color = T2SSecondaryText)
+            Text("Installed voices are provided by your Android speech engine.", fontSize = 11.sp, color = T2SSecondaryText)
             Text("Online voices (TTS.ai)", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
             Text(onlineCatalogueStatus, fontSize = 11.sp, color = T2SSecondaryText)
+            val searchTerm = voiceSearch.trim().lowercase(Locale.ROOT)
             val matchingOnlineVoices = onlineVoices.filter { voice ->
-                voice.gender.equals(selectedGender, true)
+                voice.gender.equals(selectedGender, true) &&
+                    ("${voice.name} ${voice.language} ${voice.gender}".lowercase(Locale.ROOT).contains(searchTerm))
             }
-            Text("${matchingOnlineVoices.size} online ${selectedGender.lowercase()} voices", fontSize = 11.sp, color = T2SSecondaryText)
-            matchingOnlineVoices.take(12).forEach { voice ->
+            Text("${matchingOnlineVoices.size} matching online ${selectedGender.lowercase()} voices", fontSize = 11.sp, color = T2SSecondaryText)
+            matchingOnlineVoices.take(30).forEach { voice ->
                 FilterChip(
                     selected = selectedOnlineVoice?.id == voice.id,
                     onClick = { selectedOnlineVoice = voice; statusMessage = voice.name + " selected for online speech." },
                     label = { Text(voice.name + " • " + voice.gender, fontSize = 11.sp) }
                 )
+            }
+            if (matchingOnlineVoices.isEmpty() && onlineVoices.isNotEmpty()) {
+                Text("No online voices match this search and gender. Try a shorter name or change gender.", color = T2SSecondaryText, fontSize = 12.sp)
             }
             Text("Free anonymous online requests are limited to 500 characters each. Longer text, Telugu, or online errors automatically use Android TTS.", fontSize = 11.sp, color = T2SSecondaryText)
         }
