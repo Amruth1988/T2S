@@ -37,6 +37,7 @@ object MyVoicesClient {
         val extension = when {
             mime.contains("mpeg") || mime.contains("mp3") -> "mp3"
             mime.contains("flac") -> "flac"
+            mime.contains("mp4") || mime.contains("aac") -> "m4a"
             else -> "wav"
         }
         val temp = File(context.cacheDir, "voice_sample_${UUID.randomUUID()}.$extension")
