@@ -31,7 +31,7 @@ object TtsAiClient {
         }
     }
 
-    fun generate(text: String, language: String, voice: String, speed: Float, output: File, apiKey: String = "") {
+    fun generate(text: String, language: String, voice: String, speed: Float, output: File, apiKey: String = "", model: String? = null) {
         require(text.length <= 500) { "Online free requests are limited to 500 characters." }
         val payload = JSONObject().apply {
             put("text", text)
@@ -39,6 +39,7 @@ object TtsAiClient {
             put("voice", voice)
             put("format", "wav")
             put("speed", speed.toDouble())
+            if (!model.isNullOrBlank()) put("model", model)
         }.toString()
         val submit = URL(BASE + "/tts/").openConnection() as HttpURLConnection
         val uuid: String
