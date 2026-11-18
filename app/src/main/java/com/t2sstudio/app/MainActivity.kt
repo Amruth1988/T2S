@@ -97,7 +97,8 @@ private fun T2SApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
     var selectedDestination by remember { mutableIntStateOf(0) }
     var showCreateDialog by remember { mutableStateOf(false) }
-    var projectName by remember { mutableStateOf("") }\n    var selectedProjectId by remember { mutableStateOf<String?>(null) }
+    var projectName by remember { mutableStateOf("") }
+    var selectedProjectId by remember { mutableStateOf<String?>(null) }
     val audioRecords = remember {
         mutableStateListOf<AudioRecord>().apply { addAll(AudioHistoryStore.load(context)) }
     }
