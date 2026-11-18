@@ -86,7 +86,7 @@ fun SpeechStudioScreen() {
         runCatching {
             engine.setLanguage(locale)
             val matching = engine.voices.orEmpty()
-                .filter { it.locale.language == locale.language && !it.isNetworkConnectionRequired }
+                .filter { it.locale.language == locale.language }
                 .sortedBy { it.name.lowercase(Locale.ROOT) }
             availableVoices.clear()
             availableVoices.addAll(matching)
