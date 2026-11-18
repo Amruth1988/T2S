@@ -83,5 +83,4 @@ object MyVoicesClient {
     }
 }
 
-fun storedTtsApiKey(context: Context): String =
-    context.getSharedPreferences("t2s_private_settings", Context.MODE_PRIVATE).getString("tts_api_key", "").orEmpty()
+fun storedTtsApiKey(context: Context): String = BuildConfig.TTS_API_KEY
