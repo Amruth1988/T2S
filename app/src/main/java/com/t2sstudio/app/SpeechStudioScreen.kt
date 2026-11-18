@@ -440,6 +440,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             )
                             statusMessage = "Online speech audio is ready and saved in T2S Studio."
                         } else {
+                            output.delete()
                             val engine = ttsEngine
                             if (engine == null || !engineReady) {
                                 isGenerating = false
