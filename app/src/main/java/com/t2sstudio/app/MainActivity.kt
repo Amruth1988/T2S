@@ -67,6 +67,7 @@ import com.t2sstudio.app.ui.theme.T2SOrange
 import com.t2sstudio.app.ui.theme.T2SSecondaryText
 import com.t2sstudio.app.ui.theme.T2SText
 import com.t2sstudio.app.ui.theme.T2SStudioTheme
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -97,6 +98,9 @@ private fun T2SApp() {
     var selectedDestination by remember { mutableIntStateOf(0) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var projectName by remember { mutableStateOf("") }
+    val audioRecords = remember {
+        mutableStateListOf<AudioRecord>().apply { addAll(AudioHistoryStore.load(context)) }
+    }
     val projects = remember {
         mutableStateListOf<StudioProject>().apply {
             val saved = context.getSharedPreferences("t2s_projects", android.content.Context.MODE_PRIVATE)
@@ -188,8 +192,18 @@ private fun T2SApp() {
                     onRecent = { selectedDestination = 3 }
                 )
                 1 -> ProjectsContent(projects = projects, onCreate = { projectName = ""; showCreateDialog = true })
-                2 -> SpeechStudioScreen()
-                3 -> RecentContent(projects = projects)
+                2 -> SpeechStudioScreen(onAudioGenerated = { record ->
+                    audioRecords.add(0, record)
+                    AudioHistoryStore.save(context, audioRecords)
+                })
+                3 -> SavedAudioScreen(
+                    records = audioRecords,
+                    onDelete = { record ->
+                        audioRecords.removeAll { it.id == record.id }
+                        File(record.filePath).delete()
+                        AudioHistoryStore.save(context, audioRecords)
+                    }
+                )
                 4 -> SimplePage("Profile", "Your account and personal preferences will appear here.")
                 else -> HomeContent(
                     projectCount = projects.size,
