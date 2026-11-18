@@ -108,8 +108,16 @@ private fun T2SApp() {
             runCatching {
                 val array = org.json.JSONArray(saved)
                 for (index in 0 until array.length()) {
-                    val name = array.optString(index).trim()
-                    if (name.isNotEmpty()) add(StudioProject(name))
+                    val item = array.opt(index)
+                    val project = if (item is org.json.JSONObject) {
+                        StudioProject(
+                            item.optString("id").ifBlank { java.util.UUID.randomUUID().toString() },
+                            item.optString("name").trim()
+                        )
+                    } else {
+                        StudioProject(java.util.UUID.randomUUID().toString(), item.toString().trim())
+                    }
+                    if (project.name.isNotEmpty()) add(project)
                 }
             }
         }
@@ -118,14 +126,18 @@ private fun T2SApp() {
     fun createProject() {
         val name = projectName.trim()
         if (name.isNotEmpty()) {
-            projects.add(0, StudioProject(name))
+            val project = StudioProject(java.util.UUID.randomUUID().toString(), name)
+            projects.add(0, project)
+            selectedProjectId = project.id
             val array = org.json.JSONArray()
-            projects.forEach { array.put(it.name) }
+            projects.forEach { item ->
+                array.put(org.json.JSONObject().put("id", item.id).put("name", item.name))
+            }
             context.getSharedPreferences("t2s_projects", android.content.Context.MODE_PRIVATE)
                 .edit().putString("items", array.toString()).apply()
             projectName = ""
             showCreateDialog = false
-            selectedDestination = 1
+            selectedDestination = 2
         }
     }
 
@@ -309,8 +321,11 @@ private fun ProjectsContent(
                 items(projects, key = { it.id }) { project ->
                     val count = audioRecords.count { it.projectId == project.id }
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = if (selectedProjectId == project.id) T2SCream else T2SBackground),
-                        modifier = Modifier.fillMaxWidth().border(1.dp, T2SBorder, RoundedCornerShape(16.dp))
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selectedProjectId == project.id) T2SCream else T2SBackground
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                            .border(1.dp, T2SBorder, RoundedCornerShape(16.dp))
                             .clickable { onOpenProject(project) },
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -325,83 +340,6 @@ private fun ProjectsContent(
                         }
                     }
                 }
-            }2sstudio.app
-
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.t2sstudio.app.ui.theme.T2SBackground
-import com.t2sstudio.app.ui.theme.T2SBorder
-import com.t2sstudio.app.ui.theme.T2SCream
-import com.t2sstudio.app.ui.theme.T2SOrange
-import com.t2sstudio.app.ui.theme.T2SSecondaryText
-import com.t2sstudio.app.ui.theme.T2SText
-import com.t2sstudio.app.ui.theme.T2SStudioTheme
-import java.io.File
-
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            T2SStudioTheme {
-                T2SApp()
             }
         }
     }
