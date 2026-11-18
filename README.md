@@ -14,6 +14,9 @@ Native Android Text-to-Speech application built with Kotlin and Jetpack Compose.
 - Play, pause and stop generated audio
 - Export audio to Downloads on Android 10+ (app-specific Music storage on older Android versions)
 - Share generated WAV files through Android's secure share sheet
+- Persist generated-audio history locally on the device
+- Saved Audio library with playback, download, share and delete actions
+- Recent tab displays saved speech recordings, with missing audio files automatically excluded
 
 ## Android configuration
 - Package: `com.t2sstudio.app`
