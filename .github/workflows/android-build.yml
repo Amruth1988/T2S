@@ -25,10 +25,28 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up shared signing key
+        env:
+          T2S_SIGNING_KEY_BASE64: ${{ secrets.T2S_SIGNING_KEY_BASE64 }}
+          T2S_KEYSTORE_PASSWORD: ${{ secrets.T2S_KEYSTORE_PASSWORD }}
+          T2S_KEY_ALIAS: ${{ secrets.T2S_KEY_ALIAS }}
+          T2S_KEY_PASSWORD: ${{ secrets.T2S_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$T2S_SIGNING_KEY_BASE64" || { echo "Missing GitHub Actions secret: T2S_SIGNING_KEY_BASE64"; exit 1; }
+          test -n "$T2S_KEYSTORE_PASSWORD" || { echo "Missing GitHub Actions secret: T2S_KEYSTORE_PASSWORD"; exit 1; }
+          test -n "$T2S_KEY_ALIAS" || { echo "Missing GitHub Actions secret: T2S_KEY_ALIAS"; exit 1; }
+          test -n "$T2S_KEY_PASSWORD" || { echo "Missing GitHub Actions secret: T2S_KEY_PASSWORD"; exit 1; }
+          echo "$T2S_SIGNING_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/t2s-shared-signing.p12"
+          echo "T2S_KEYSTORE_FILE=$RUNNER_TEMP/t2s-shared-signing.p12" >> "$GITHUB_ENV"
+          echo "T2S_KEYSTORE_PASSWORD=$T2S_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "T2S_KEY_ALIAS=$T2S_KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "T2S_KEY_PASSWORD=$T2S_KEY_PASSWORD" >> "$GITHUB_ENV"
+
       - name: Set up Gradle
         uses: gradle/gradle-build-action@v3
         with:
           gradle-version: "8.9"
 
-      - name: Build debug APK
-        run: gradle --no-daemon --stacktrace :app:assembleDebug
+      - name: Build Debug and Release APKs
+        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease
