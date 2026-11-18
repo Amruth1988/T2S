@@ -55,6 +55,7 @@ fun SpeechStudioScreen() {
     var inputText by remember { mutableStateOf("") }
     var selectedLanguage by remember { mutableStateOf("English") }
     var speechRate by remember { mutableFloatStateOf(1f) }
+    var speechPitch by remember { mutableFloatStateOf(1f) }
     var engineReady by remember { mutableStateOf(false) }
     var isGenerating by remember { mutableStateOf(false) }
     var generatedFile by remember { mutableStateOf<File?>(null) }
@@ -139,6 +140,19 @@ fun SpeechStudioScreen() {
             }
         }
 
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row {
+                Text("Voice pitch", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+                Spacer(Modifier.weight(1f))
+                Text("${"%.1f".format(speechPitch)}x", color = T2SOrange, fontWeight = FontWeight.Bold)
+            }
+            Slider(value = speechPitch, onValueChange = { speechPitch = it }, valueRange = 0.5f..2f)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Low", color = T2SSecondaryText, fontSize = 11.sp)
+                Text("High", color = T2SSecondaryText, fontSize = 11.sp)
+            }
+        }
+
         Button(
             onClick = {
                 val engine = ttsEngine
@@ -155,6 +169,7 @@ fun SpeechStudioScreen() {
                         statusMessage = "${language.label} voice data is not installed or supported on this device."
                     } else {
                         engine.setSpeechRate(speechRate)
+                        engine.setPitch(speechPitch)
                         val output = File(context.cacheDir, "t2s_${System.currentTimeMillis()}.wav")
                         isGenerating = true
                         generatedFile = null
