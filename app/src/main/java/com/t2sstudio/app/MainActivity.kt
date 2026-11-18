@@ -81,7 +81,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private data class Destination(val label: String, val icon: ImageVector)
-private data class StudioProject(val name: String)
+private data class StudioProject(val id: String, val name: String)
 
 private val destinations = listOf(
     Destination("Home", Icons.Filled.Home),
@@ -97,7 +97,7 @@ private fun T2SApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
     var selectedDestination by remember { mutableIntStateOf(0) }
     var showCreateDialog by remember { mutableStateOf(false) }
-    var projectName by remember { mutableStateOf("") }
+    var projectName by remember { mutableStateOf("") }\n    var selectedProjectId by remember { mutableStateOf<String?>(null) }
     val audioRecords = remember {
         mutableStateListOf<AudioRecord>().apply { addAll(AudioHistoryStore.load(context)) }
     }
@@ -191,8 +191,17 @@ private fun T2SApp() {
                     onProjects = { selectedDestination = 1 },
                     onRecent = { selectedDestination = 3 }
                 )
-                1 -> ProjectsContent(projects = projects, onCreate = { projectName = ""; showCreateDialog = true })
-                2 -> SpeechStudioScreen(onAudioGenerated = { record ->
+                1 -> ProjectsContent(
+                    projects = projects,
+                    audioRecords = audioRecords,
+                    selectedProjectId = selectedProjectId,
+                    onCreate = { projectName = ""; showCreateDialog = true },
+                    onOpenProject = { project -> selectedProjectId = project.id; selectedDestination = 2 }
+                )
+                2 -> SpeechStudioScreen(
+                    selectedProjectId = selectedProjectId,
+                    selectedProjectName = projects.firstOrNull { it.id == selectedProjectId }?.name,
+                    onAudioGenerated = { record ->
                     audioRecords.add(0, record)
                     AudioHistoryStore.save(context, audioRecords)
                 })
@@ -283,7 +292,13 @@ private fun HomeContent(
 }
 
 @Composable
-private fun ProjectsContent(projects: List<StudioProject>, onCreate: () -> Unit) {
+private fun ProjectsContent(
+    projects: List<StudioProject>,
+    audioRecords: List<AudioRecord>,
+    selectedProjectId: String?,
+    onCreate: () -> Unit,
+    onOpenProject: (StudioProject) -> Unit
+) {
     Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("My Projects", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = T2SText)
         Text("Your projects are stored locally in this app for now.", fontSize = 13.sp, color = T2SSecondaryText)
