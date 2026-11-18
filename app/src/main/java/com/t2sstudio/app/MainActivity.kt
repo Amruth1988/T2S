@@ -146,10 +146,7 @@ private fun T2SApp() {
                     NavigationBarItem(
                         selected = selectedDestination == index,
                         onClick = {
-                            if (index == 2) {
-                                projectName = ""
-                                showCreateDialog = true
-                            } else selectedDestination = index
+                            selectedDestination = index
                         },
                         icon = { Icon(destination.icon, contentDescription = destination.label) },
                         label = { Text(destination.label, fontSize = 10.sp, maxLines = 1) },
@@ -174,6 +171,7 @@ private fun T2SApp() {
                     onRecent = { selectedDestination = 3 }
                 )
                 1 -> ProjectsContent(projects = projects, onCreate = { projectName = ""; showCreateDialog = true })
+                2 -> SpeechStudioScreen()
                 3 -> RecentContent(projects = projects)
                 4 -> SimplePage("Profile", "Your account and personal preferences will appear here.")
                 else -> HomeContent(
