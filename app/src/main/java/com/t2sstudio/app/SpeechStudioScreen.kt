@@ -63,6 +63,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     val context = LocalContext.current
     var inputText by remember { mutableStateOf("") }
     var selectedLanguage by remember { mutableStateOf("English") }
+    var selectedGender by remember { mutableStateOf("Female") }
     var speechRate by remember { mutableFloatStateOf(1f) }
     var speechPitch by remember { mutableFloatStateOf(1f) }
     var engineReady by remember { mutableStateOf(false) }
@@ -187,30 +188,56 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Text("Choose language", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                languages.forEach { language ->
-                    FilterChip(
-                        selected = selectedLanguage == language.label,
-                        onClick = {
-                            selectedLanguage = language.label
-                            generatedFile = null
-                            ttsEngine?.let { refreshVoices(it, language.locale) }
-                        },
-                        label = { Text(language.label) }
-                    )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(modifier = Modifier.weight(1.25f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("Language", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    languages.forEach { language ->
+                        FilterChip(
+                            selected = selectedLanguage == language.label,
+                            onClick = {
+                                selectedLanguage = language.label
+                                generatedFile = null
+                                ttsEngine?.let { refreshVoices(it, language.locale) }
+                            },
+                            label = { Text(language.label, fontSize = 10.sp, maxLines = 1) }
+                        )
+                    }
+                }
+            }
+            Column(modifier = Modifier.weight(0.9f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("Gender", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf("Male", "Female").forEach { gender ->
+                        FilterChip(
+                            selected = selectedGender == gender,
+                            onClick = { selectedGender = gender; selectedVoice = null },
+                            label = { Text(gender, fontSize = 10.sp, maxLines = 1) }
+                        )
+                    }
                 }
             }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text("Voice", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-            TextButton(onClick = { voiceMenuExpanded = true }, enabled = availableVoices.isNotEmpty()) {
-                Text(selectedVoice?.name ?: if (engineReady) "No installed voice found" else "Loading voices…", color = T2SOrange)
+            val genderVoices = availableVoices.filter { voice ->
+                val voiceName = voice.name.lowercase(Locale.ROOT)
+                if (selectedGender == "Female") voiceName.contains("female") || voiceName.contains("woman")
+                else voiceName.contains("male") && !voiceName.contains("female") || voiceName.contains("man") && !voiceName.contains("woman")
+            }
+            TextButton(onClick = { voiceMenuExpanded = true }, enabled = genderVoices.isNotEmpty()) {
+                Text(
+                    selectedVoice?.takeIf { it in genderVoices }?.name
+                        ?: if (engineReady) "No ${selectedGender.lowercase()} voice installed" else "Loading voices…",
+                    color = T2SOrange
+                )
             }
             DropdownMenu(expanded = voiceMenuExpanded, onDismissRequest = { voiceMenuExpanded = false }) {
-                availableVoices.forEach { voice ->
+                genderVoices.forEach { voice ->
                     DropdownMenuItem(
                         text = { Text(voice.name) },
                         onClick = { selectedVoice = voice; voiceMenuExpanded = false }
