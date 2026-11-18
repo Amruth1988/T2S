@@ -13,12 +13,14 @@ import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
 import androidx.core.content.FileProvider
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -98,6 +100,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     var isPlaying by remember { mutableStateOf(false) }
     var isPreviewing by remember { mutableStateOf(false) }
     var voiceSearch by remember { mutableStateOf("") }
+    var voiceSearchExpanded by remember { mutableStateOf(false) }
     var selectedVoice by remember { mutableStateOf<Voice?>(null) }
     val availableVoices = remember { mutableStateListOf<Voice>() }
     val onlineVoices = remember { mutableStateListOf<OnlineTtsVoice>() }
@@ -335,125 +338,164 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Choose a voice", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-            OutlinedTextField(
-                value = voiceSearch,
-                onValueChange = { voiceSearch = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = { Text("Search voices by name or language…") },
-                label = { Text("Search voice") }
-            )
-            val genderMatches = availableVoices.filter { voice ->
-                voiceGender(voice.name) == selectedGender
+            val genderMatches = availableVoices.filter { voice -> voiceGender(voice.name) == selectedGender }
+            val searchTerm = voiceSearch.trim().lowercase(Locale.ROOT)
+            val filteredInstalled = genderMatches.filter { voice ->
+                "${voice.name} ${voice.locale.displayName} ${voice.locale.toLanguageTag()}".lowercase(Locale.ROOT).contains(searchTerm)
             }
-            val filteredVoices = genderMatches.filter { voice ->
-                val searchable = "${voice.name} ${voice.locale.displayName} ${voice.locale.toLanguageTag()}".lowercase(Locale.ROOT)
-                searchable.contains(voiceSearch.trim().lowercase(Locale.ROOT))
+            val filteredOnline = onlineVoices.filter { voice ->
+                voice.gender.equals(selectedGender, true) &&
+                    "${voice.name} ${voice.language}".lowercase(Locale.ROOT).contains(searchTerm)
+            }
+            val filteredPersonal = myVoices.filter { voice ->
+                voice.name.lowercase(Locale.ROOT).contains(searchTerm)
+            }
+
+            Box(Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = voiceSearch,
+                    onValueChange = {
+                        voiceSearch = it
+                        voiceSearchExpanded = it.isNotBlank()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("Search voices by name…") },
+                    label = { Text("Search voice") },
+                    trailingIcon = {
+                        if (voiceSearch.isNotBlank()) {
+                            TextButton(onClick = { voiceSearch = ""; voiceSearchExpanded = false }) { Text("Clear") }
+                        }
+                    }
+                )
+                DropdownMenu(
+                    expanded = voiceSearchExpanded && voiceSearch.isNotBlank(),
+                    onDismissRequest = { voiceSearchExpanded = false },
+                    modifier = Modifier.fillMaxWidth(0.92f).heightIn(max = 340.dp)
+                ) {
+                    if (filteredInstalled.isNotEmpty()) {
+                        DropdownMenuItem(
+                            text = { Text("INSTALLED VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                            onClick = {},
+                            enabled = false
+                        )
+                        filteredInstalled.forEach { voice ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
+                                        Text("${voice.locale.displayName} • On-device", color = T2SSecondaryText, fontSize = 11.sp)
+                                    }
+                                },
+                                onClick = {
+                                    selectedVoice = voice
+                                    selectedOnlineVoice = null
+                                    selectedMyVoice = null
+                                    voiceSearch = voice.name
+                                    voiceSearchExpanded = false
+                                    ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
+                                    statusMessage = "${voice.name} selected."
+                                },
+                                trailingIcon = {
+                                    TextButton(onClick = {
+                                        val engine = ttsEngine
+                                        if (engine != null && engineReady) {
+                                            engine.stop()
+                                            engine.setLanguage(voice.locale)
+                                            engine.voice = voice
+                                            val sample = when (voice.locale.language) {
+                                                "te" -> "నమస్కారం. ఇది నా స్వర నమూనా."
+                                                "hi" -> "नमस्ते। यह मेरी आवाज़ का नमूना है।"
+                                                else -> "Hello. This is a sample of my voice."
+                                            }
+                                            engine.speak(sample, TextToSpeech.QUEUE_FLUSH, Bundle(), "t2s-preview-${voice.name}")
+                                            statusMessage = "Previewing ${voice.name}."
+                                        }
+                                    }, enabled = engineReady) { Text("▶", color = T2SOrange) }
+                                }
+                            )
+                        }
+                    }
+                    if (filteredOnline.isNotEmpty()) {
+                        DropdownMenuItem(
+                            text = { Text("ONLINE VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                            onClick = {},
+                            enabled = false
+                        )
+                        filteredOnline.forEach { voice ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
+                                        Text("Online • ${voice.gender}", color = T2SSecondaryText, fontSize = 11.sp)
+                                    }
+                                },
+                                onClick = {
+                                    selectedOnlineVoice = voice
+                                    selectedVoice = null
+                                    selectedMyVoice = null
+                                    voiceSearch = voice.name
+                                    voiceSearchExpanded = false
+                                    statusMessage = "${voice.name} selected for online speech."
+                                },
+                                trailingIcon = {
+                                    TextButton(enabled = !isPreviewing, onClick = { previewOnlineVoice(voice.id) }) {
+                                        Text(if (isPreviewing) "…" else "▶", color = T2SOrange)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    if (filteredPersonal.isNotEmpty()) {
+                        DropdownMenuItem(
+                            text = { Text("MY CLONED VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                            onClick = {},
+                            enabled = false
+                        )
+                        filteredPersonal.forEach { voice ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
+                                        Text("Personal voice", color = T2SSecondaryText, fontSize = 11.sp)
+                                    }
+                                },
+                                onClick = {
+                                    selectedMyVoice = voice
+                                    selectedVoice = null
+                                    selectedOnlineVoice = null
+                                    voiceSearch = voice.name
+                                    voiceSearchExpanded = false
+                                    statusMessage = "${voice.name} selected."
+                                },
+                                trailingIcon = {
+                                    TextButton(enabled = !isPreviewing, onClick = {
+                                        previewOnlineVoice(voice.id, voice.model, personal = true)
+                                    }) { Text(if (isPreviewing) "…" else "▶", color = T2SOrange) }
+                                }
+                            )
+                        }
+                    }
+                    if (filteredInstalled.isEmpty() && filteredOnline.isEmpty() && filteredPersonal.isEmpty()) {
+                        DropdownMenuItem(
+                            text = { Text("No matching voices found", color = T2SSecondaryText) },
+                            onClick = {},
+                            enabled = false
+                        )
+                    }
+                }
             }
             Text(
-                if (availableVoices.isEmpty() && engineReady) {
-                    "No ${selectedLanguage.lowercase()} voices found. Install voice data in Android Settings."
-                } else if (genderMatches.isEmpty() && availableVoices.isNotEmpty()) {
-                    "No installed ${selectedGender.lowercase()} voices could be identified. Other genders are hidden."
-                } else {
-                    "${filteredVoices.size} installed ${selectedLanguage.lowercase()} voices"
-                },
+                "${filteredInstalled.size + filteredOnline.size + filteredPersonal.size} matching voices • ${selectedGender} • ${selectedLanguage}",
                 fontSize = 11.sp,
                 color = T2SSecondaryText
             )
-            filteredVoices.forEach { voice ->
-                val isSelected = selectedVoice?.name == voice.name
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = if (isSelected) T2SCream else T2SBackground)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(voice.name, fontWeight = FontWeight.SemiBold, color = T2SText, fontSize = 13.sp)
-                            Text(
-                                "${voice.locale.displayName} • ${if (voice.isNetworkConnectionRequired) "Network required" else "On-device"}",
-                                color = T2SSecondaryText,
-                                fontSize = 10.sp
-                            )
-                            if (isSelected) Text("Selected", color = T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                        TextButton(onClick = {
-                            val engine = ttsEngine
-                            if (engine != null && engineReady) {
-                                engine.stop()
-                                engine.setLanguage(voice.locale)
-                                engine.voice = voice
-                                val sample = when (voice.locale.language) {
-                                    "te" -> "నమస్కారం. ఇది నా స్వర నమూనా."
-                                    "hi" -> "नमस्ते। यह मेरी आवाज़ का नमूना है।"
-                                    else -> "Hello. This is a sample of my voice."
-                                }
-                                engine.speak(sample, TextToSpeech.QUEUE_FLUSH, Bundle(), "t2s-preview-${voice.name}")
-                                statusMessage = "Previewing ${voice.name}."
-                            }
-                        }, enabled = engineReady) { Text("▶ Preview", color = T2SOrange, fontSize = 11.sp) }
-                        TextButton(onClick = {
-                            selectedVoice = voice
-                            ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
-                            statusMessage = "${voice.name} selected."
-                        }) { Text(if (isSelected) "✓" else "Select", color = T2SOrange, fontSize = 11.sp) }
-                    }
-                }
-            }
-            if (filteredVoices.isEmpty()) {
-                Text("No matching installed voices. Check the online voice results below or install voice data in Android Settings.", color = T2SSecondaryText, fontSize = 12.sp)
-            }
-            Text("Installed voices are provided by your Android speech engine.", fontSize = 11.sp, color = T2SSecondaryText)
-            Text("My cloned voices", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-            if (myVoices.isEmpty()) {
-                Text("No saved personal voices found. Add one from the My Voices tab.", fontSize = 11.sp, color = T2SSecondaryText)
-            } else {
-                myVoices.forEach { voice ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            modifier = Modifier.weight(1f),
-                            selected = selectedMyVoice?.id == voice.id,
-                            onClick = {
-                                selectedMyVoice = if (selectedMyVoice?.id == voice.id) null else voice
-                                selectedOnlineVoice = null
-                                statusMessage = if (selectedMyVoice?.id == voice.id) "${voice.name} selected." else "Standard online voice selected."
-                            },
-                            label = { Text("⭐ ${voice.name}", fontSize = 11.sp) }
-                        )
-                        TextButton(enabled = !isPreviewing, onClick = {
-                            previewOnlineVoice(voice.id, voice.model, personal = true)
-                        }) { Text(if (isPreviewing) "…" else "▶ Preview", color = T2SOrange, fontSize = 11.sp) }
-                    }
-                }
-            }
-            Text("Online voices (TTS.ai)", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-            Text(onlineCatalogueStatus, fontSize = 11.sp, color = T2SSecondaryText)
-            val searchTerm = voiceSearch.trim().lowercase(Locale.ROOT)
-            val matchingOnlineVoices = onlineVoices.filter { voice ->
-                voice.gender.equals(selectedGender, true) &&
-                    ("${voice.name} ${voice.language}".lowercase(Locale.ROOT).contains(searchTerm))
-            }
-            Text("${matchingOnlineVoices.size} matching online ${selectedGender.lowercase()} voices", fontSize = 11.sp, color = T2SSecondaryText)
-            matchingOnlineVoices.take(30).forEach { voice ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        modifier = Modifier.weight(1f),
-                        selected = selectedOnlineVoice?.id == voice.id,
-                        onClick = { selectedOnlineVoice = voice; selectedMyVoice = null; statusMessage = voice.name + " selected for online speech." },
-                        label = { Text(voice.name + " • " + voice.gender, fontSize = 11.sp) }
-                    )
-                    TextButton(enabled = !isPreviewing, onClick = {
-                        previewOnlineVoice(voice.id)
-                    }) { Text(if (isPreviewing) "…" else "▶ Preview", color = T2SOrange, fontSize = 11.sp) }
-                }
-            }
-            if (matchingOnlineVoices.isEmpty() && onlineVoices.isNotEmpty()) {
-                Text("No online voices match this search and gender. Try a shorter name or change gender.", color = T2SSecondaryText, fontSize = 12.sp)
-            }
-            Text("Free anonymous online requests are limited to 500 characters each. Longer text, Telugu, or online errors automatically use Android TTS.", fontSize = 11.sp, color = T2SSecondaryText)
+            Text(
+                if (onlineCatalogueStatus.startsWith("Loading")) onlineCatalogueStatus
+                else "Search results include installed, online and your personal voices. Scroll inside the results list to see more.",
+                fontSize = 11.sp,
+                color = T2SSecondaryText
+            )
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
