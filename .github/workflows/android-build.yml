@@ -63,14 +63,6 @@ jobs:
           test -s app/build/outputs/apk/release/app-release.apk
           cp app/build/outputs/apk/release/app-release.apk T2S.apk
 
-      - name: Upload APK to this build
-        if: always() && github.event_name != 'pull_request' && hashFiles('T2S.apk') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: T2S-APK
-          path: T2S.apk
-          if-no-files-found: error
-          retention-days: 30
       - name: Publish T2S.apk as a direct download
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
@@ -81,3 +73,15 @@ jobs:
           draft: false
           prerelease: false
           make_latest: false
+
+      - name: Add direct APK link to build summary
+        if: success() && github.event_name != 'pull_request'
+        env:
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          echo "## T2S Android APK" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download T2S.apk](https://github.com/$GH_REPOSITORY/releases/download/t2s-build-$GH_RUN_NUMBER/T2S.apk)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "This is a direct APK file, not the ZIP-wrapped Actions artifact." >> "$GITHUB_STEP_SUMMARY"
