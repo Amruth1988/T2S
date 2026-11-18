@@ -1,0 +1,149 @@
+package com.t2sstudio.app
+
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.t2sstudio.app.ui.theme.T2SBackground
+import com.t2sstudio.app.ui.theme.T2SCream
+import com.t2sstudio.app.ui.theme.T2SOrange
+import com.t2sstudio.app.ui.theme.T2SSecondaryText
+import com.t2sstudio.app.ui.theme.T2SText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+@Composable
+fun MyVoicesScreen() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var apiKey by remember { mutableStateOf(storedTtsApiKey(context)) }
+    var voiceName by remember { mutableStateOf("My Voice") }
+    var model by remember { mutableStateOf("chatterbox") }
+    var pickedUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var pickedLabel by remember { mutableStateOf("No audio selected") }
+    var busy by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf("Add a clear recording of your own voice to create a reusable voice profile.") }
+    val voices = remember { mutableStateListOf<SavedUserVoice>() }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        pickedUri = uri
+        pickedLabel = if (uri == null) "No audio selected" else uri.lastPathSegment ?: "Audio sample selected"
+    }
+
+    fun loadVoices() {
+        if (apiKey.isBlank()) { message = "Enter your TTS.ai API key to load your saved voices."; return }
+        busy = true
+        scope.launch {
+            runCatching { withContext(Dispatchers.IO) { MyVoicesClient.list(apiKey.trim()) } }
+                .onSuccess { voices.clear(); voices.addAll(it); message = "Loaded ${it.size} saved voice profiles." }
+                .onFailure { message = it.message ?: "Could not load saved voices." }
+            busy = false
+        }
+    }
+
+    LaunchedEffect(Unit) { if (apiKey.isNotBlank()) loadVoices() }
+
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
+        Text("Create and manage reusable AI voice profiles from your own recordings.", color = T2SSecondaryText, fontSize = 14.sp)
+        Card(colors = CardDefaults.cardColors(containerColor = T2SCream), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("TTS.ai account connection", fontWeight = FontWeight.SemiBold, color = T2SText)
+                OutlinedTextField(
+                    value = apiKey, onValueChange = { apiKey = it },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    label = { Text("TTS.ai API key") }, placeholder = { Text("Paste your API key") }
+                )
+                Text("The key is stored only in this app's private preferences. Never share it or add it to source code.", fontSize = 11.sp, color = T2SSecondaryText)
+                Button(onClick = {
+                    context.getSharedPreferences("t2s_private_settings", android.content.Context.MODE_PRIVATE)
+                        .edit().putString("tts_api_key", apiKey.trim()).apply()
+                    loadVoices()
+                }, enabled = apiKey.isNotBlank() && !busy) { Text("Save key and load my voices") }
+            }
+        }
+        Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("Add a voice", fontWeight = FontWeight.SemiBold, color = T2SText)
+                OutlinedTextField(value = voiceName, onValueChange = { voiceName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Voice name") }, singleLine = true)
+                Text("Cloning model", color = T2SText, fontSize = 13.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("chatterbox", "cosyvoice2").forEach { option ->
+                        androidx.compose.material3.FilterChip(
+                            selected = model == option, onClick = { model = option },
+                            label = { Text(option) }
+                        )
+                    }
+                }
+                Text("Choose a 10–30 second clear sample. WAV, MP3 or FLAC; maximum 20 MB.", fontSize = 12.sp, color = T2SSecondaryText)
+                OutlinedTextField(value = pickedLabel, onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth(), label = { Text("Reference recording") })
+                TextButton(onClick = { picker.launch("audio/*") }) { Text("Choose audio recording") }
+                Button(
+                    onClick = {
+                        val uri = pickedUri
+                        if (apiKey.isBlank()) message = "Enter and save your TTS.ai API key first."
+                        else if (voiceName.isBlank()) message = "Enter a name for this voice."
+                        else if (uri == null) message = "Choose a voice recording first."
+                        else {
+                            busy = true
+                            message = "Uploading sample and creating your saved voice…"
+                            scope.launch {
+                                runCatching { withContext(Dispatchers.IO) { MyVoicesClient.create(context, apiKey.trim(), voiceName.trim(), uri, model) } }
+                                    .onSuccess { created -> voices.add(0, created); pickedUri = null; pickedLabel = "No audio selected"; message = "${created.name} was saved to your voice library." }
+                                    .onFailure { message = it.message ?: "Could not create voice profile." }
+                                busy = false
+                            }
+                        }
+                    }, enabled = !busy
+                ) { Text("Create and save voice") }
+            }
+        }
+        if (busy) CircularProgressIndicator()
+        Text(message, color = T2SSecondaryText, fontSize = 12.sp)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Saved voice profiles", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+            TextButton(onClick = { loadVoices() }, enabled = !busy) { Text("Refresh") }
+        }
+        voices.forEach { voice ->
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = T2SCream)) {
+                Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
+                    Text("Model: ${voice.model} • ID: ${voice.id}", color = T2SSecondaryText, fontSize = 11.sp)
+                    Text("Saved to your TTS.ai account. Available for supported voice-cloning/TTS endpoints.", color = T2SSecondaryText, fontSize = 11.sp)
+                }
+            }
+        }
+        Text("Language note: English and Hindi are documented for multilingual voice workflows. Telugu availability depends on the selected model and is not guaranteed by the provider.", color = T2SSecondaryText, fontSize = 11.sp)
+        Text("Voice cloning consumes account credits. Check the provider's current usage before creating profiles.", color = T2SSecondaryText, fontSize = 11.sp)
+    }
+}
