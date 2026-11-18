@@ -4,6 +4,26 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val signingStoreFile = providers.gradleProperty("T2S_KEYSTORE_FILE")
+    .orElse(providers.environmentVariable("T2S_KEYSTORE_FILE"))
+    .orNull
+val signingStorePassword = providers.gradleProperty("T2S_KEYSTORE_PASSWORD")
+    .orElse(providers.environmentVariable("T2S_KEYSTORE_PASSWORD"))
+    .orNull
+val signingKeyAlias = providers.gradleProperty("T2S_KEY_ALIAS")
+    .orElse(providers.environmentVariable("T2S_KEY_ALIAS"))
+    .orNull
+val signingKeyPassword = providers.gradleProperty("T2S_KEY_PASSWORD")
+    .orElse(providers.environmentVariable("T2S_KEY_PASSWORD"))
+    .orNull
+
+if (listOf(signingStoreFile, signingStorePassword, signingKeyAlias, signingKeyPassword).any { it.isNullOrBlank() }) {
+    throw GradleException(
+        "Shared T2S signing credentials are required. Set T2S_KEYSTORE_FILE, " +
+            "T2S_KEYSTORE_PASSWORD, T2S_KEY_ALIAS and T2S_KEY_PASSWORD."
+    )
+}
+
 android {
     namespace = "com.t2sstudio.app"
     compileSdk = 35
@@ -14,6 +34,24 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+    }
+
+    signingConfigs {
+        create("shared") {
+            storeFile = file(signingStoreFile!!)
+            storePassword = signingStorePassword
+            keyAlias = signingKeyAlias
+            keyPassword = signingKeyPassword
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("shared")
+        }
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("shared")
+        }
     }
 
     buildFeatures {
