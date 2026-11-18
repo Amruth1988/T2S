@@ -189,6 +189,10 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             return
         }
         isPreviewing = true
+        mediaPlayer?.let { runCatching { it.stop() }; it.release() }
+        mediaPlayer = null
+        isPlaying = false
+        ttsEngine?.stop()
         statusMessage = "Generating voice preview…"
         coroutineScope.launch {
             val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.wav")
@@ -210,6 +214,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     it.release()
                     mediaPlayer = null
                     isPlaying = false
+                    isPreviewing = false
                     previewFile.delete()
                     statusMessage = "Voice preview finished."
                 }
@@ -220,7 +225,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 previewFile.delete()
                 statusMessage = "Voice preview failed: ${it.message ?: "online service unavailable"}"
             }
-            isPreviewing = false
+            if (result.isFailure) isPreviewing = false
         }
     }
 
