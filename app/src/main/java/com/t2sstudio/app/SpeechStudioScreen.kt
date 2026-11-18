@@ -59,7 +59,7 @@ import java.util.Locale
 private data class SpeechLanguage(val label: String, val locale: Locale)
 
 @Composable
-fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
+fun SpeechStudioScreen(\n    selectedProjectId: String?,\n    selectedProjectName: String?,\n    onAudioGenerated: (AudioRecord) -> Unit\n) {
     val context = LocalContext.current
     var inputText by remember { mutableStateOf("") }
     var selectedLanguage by remember { mutableStateOf("English") }
