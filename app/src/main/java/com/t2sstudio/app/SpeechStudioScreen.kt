@@ -96,6 +96,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
+    var isPreviewing by remember { mutableStateOf(false) }
     var voiceSearch by remember { mutableStateOf("") }
     var selectedVoice by remember { mutableStateOf<Voice?>(null) }
     val availableVoices = remember { mutableStateListOf<Voice>() }
@@ -174,6 +175,49 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             engine.stop()
             engine.shutdown()
             ttsEngine = null
+        }
+    }
+
+    fun previewOnlineVoice(voiceId: String, model: String? = null, personal: Boolean = false) {
+        if (isPreviewing) return
+        val languageCode = when (selectedLanguage) { "English" -> "en"; "Hindi" -> "hi"; else -> null }
+        if (languageCode == null) {
+            statusMessage = "Online preview is not available for Telugu yet."
+            return
+        }
+        isPreviewing = true
+        statusMessage = "Generating voice preview…"
+        coroutineScope.launch {
+            val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.wav")
+            val sample = when (selectedLanguage) {
+                "Hindi" -> "नमस्ते। यह आवाज़ का नमूना है।"
+                else -> "Hello. This is a sample of this voice."
+            }
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    TtsAiClient.generate(sample, languageCode, voiceId, 1f, previewFile,
+                        apiKey = if (personal) ttsApiKey else "", model = model)
+                    MediaPlayer().apply { setDataSource(previewFile.absolutePath); prepare() }
+                }
+            }
+            result.onSuccess { player ->
+                mediaPlayer?.release()
+                mediaPlayer = player
+                player.setOnCompletionListener {
+                    it.release()
+                    mediaPlayer = null
+                    isPlaying = false
+                    previewFile.delete()
+                    statusMessage = "Voice preview finished."
+                }
+                player.start()
+                isPlaying = true
+                statusMessage = "Previewing voice."
+            }.onFailure {
+                previewFile.delete()
+                statusMessage = "Voice preview failed: ${it.message ?: "online service unavailable"}"
+            }
+            isPreviewing = false
         }
     }
 
@@ -368,15 +412,21 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 Text("No saved personal voices found. Add one from the My Voices tab.", fontSize = 11.sp, color = T2SSecondaryText)
             } else {
                 myVoices.forEach { voice ->
-                    FilterChip(
-                        selected = selectedMyVoice?.id == voice.id,
-                        onClick = {
-                            selectedMyVoice = if (selectedMyVoice?.id == voice.id) null else voice
-                            selectedOnlineVoice = null
-                            statusMessage = if (selectedMyVoice?.id == voice.id) "${voice.name} selected." else "Standard online voice selected."
-                        },
-                        label = { Text("⭐ ${voice.name}", fontSize = 11.sp) }
-                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            modifier = Modifier.weight(1f),
+                            selected = selectedMyVoice?.id == voice.id,
+                            onClick = {
+                                selectedMyVoice = if (selectedMyVoice?.id == voice.id) null else voice
+                                selectedOnlineVoice = null
+                                statusMessage = if (selectedMyVoice?.id == voice.id) "${voice.name} selected." else "Standard online voice selected."
+                            },
+                            label = { Text("⭐ ${voice.name}", fontSize = 11.sp) }
+                        )
+                        TextButton(enabled = !isPreviewing, onClick = {
+                            previewOnlineVoice(voice.id, voice.model, personal = true)
+                        }) { Text(if (isPreviewing) "…" else "▶ Preview", color = T2SOrange, fontSize = 11.sp) }
+                    }
                 }
             }
             Text("Online voices (TTS.ai)", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
@@ -388,11 +438,17 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             }
             Text("${matchingOnlineVoices.size} matching online ${selectedGender.lowercase()} voices", fontSize = 11.sp, color = T2SSecondaryText)
             matchingOnlineVoices.take(30).forEach { voice ->
-                FilterChip(
-                    selected = selectedOnlineVoice?.id == voice.id,
-                    onClick = { selectedOnlineVoice = voice; statusMessage = voice.name + " selected for online speech." },
-                    label = { Text(voice.name + " • " + voice.gender, fontSize = 11.sp) }
-                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        modifier = Modifier.weight(1f),
+                        selected = selectedOnlineVoice?.id == voice.id,
+                        onClick = { selectedOnlineVoice = voice; selectedMyVoice = null; statusMessage = voice.name + " selected for online speech." },
+                        label = { Text(voice.name + " • " + voice.gender, fontSize = 11.sp) }
+                    )
+                    TextButton(enabled = !isPreviewing, onClick = {
+                        previewOnlineVoice(voice.id)
+                    }) { Text(if (isPreviewing) "…" else "▶ Preview", color = T2SOrange, fontSize = 11.sp) }
+                }
             }
             if (matchingOnlineVoices.isEmpty() && onlineVoices.isNotEmpty()) {
                 Text("No online voices match this search and gender. Try a shorter name or change gender.", color = T2SSecondaryText, fontSize = 12.sp)
