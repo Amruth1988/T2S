@@ -63,6 +63,23 @@ import kotlinx.coroutines.withContext
 
 private data class SpeechLanguage(val label: String, val locale: Locale)
 
+private fun voiceGender(name: String): String? {
+    val normalized = name.lowercase(Locale.ROOT)
+        .replace(Regex("[^a-z0-9]+"), " ")
+        .trim()
+    val tokens = normalized.split(Regex("\\s+")).toSet()
+    val female = "female" in tokens || "woman" in tokens || "women" in tokens ||
+        "feminine" in tokens || "fem" in tokens
+    val male = "male" in tokens || "man" in tokens || "men" in tokens ||
+        "masculine" in tokens
+    return when {
+        female && !male -> "Female"
+        male && !female -> "Male"
+        else -> null
+    }
+}
+
+
 @Composable
 fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     val context = LocalContext.current
@@ -100,7 +117,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 .sortedBy { it.name.lowercase(Locale.ROOT) }
             availableVoices.clear()
             availableVoices.addAll(matching)
-            selectedVoice = matching.firstOrNull()
+            selectedVoice = matching.firstOrNull { voiceGender(it.name) == selectedGender }
         }.onFailure {
             availableVoices.clear()
             selectedVoice = null
@@ -249,11 +266,11 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             onClick = {
                                 selectedGender = gender
                                 selectedVoice = availableVoices.firstOrNull { voice ->
-                                    val name = voice.name.lowercase(Locale.ROOT)
-                                    if (gender == "Female") name.contains("female") || name.contains("woman") || name.contains("fem")
-                                    else (name.contains("male") && !name.contains("female")) ||
-                                        (name.contains("man") && !name.contains("woman"))
-                                } ?: availableVoices.firstOrNull()
+                                    voiceGender(voice.name) == gender
+                                }
+                                selectedOnlineVoice = onlineVoices.firstOrNull { voice ->
+                                    voice.gender.equals(gender, ignoreCase = true)
+                                }
                             },
                             label = { Text(gender, fontSize = 10.sp, maxLines = 1) }
                         )
@@ -273,16 +290,9 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 label = { Text("Search voice") }
             )
             val genderMatches = availableVoices.filter { voice ->
-                val name = voice.name.lowercase(Locale.ROOT)
-                if (selectedGender == "Female") {
-                    name.contains("female") || name.contains("woman") || name.contains("fem")
-                } else {
-                    (name.contains("male") && !name.contains("female")) ||
-                        (name.contains("man") && !name.contains("woman"))
-                }
+                voiceGender(voice.name) == selectedGender
             }
-            val voicePool = genderMatches.ifEmpty { availableVoices }
-            val filteredVoices = voicePool.filter { voice ->
+            val filteredVoices = genderMatches.filter { voice ->
                 val searchable = "${voice.name} ${voice.locale.displayName} ${voice.locale.toLanguageTag()}".lowercase(Locale.ROOT)
                 searchable.contains(voiceSearch.trim().lowercase(Locale.ROOT))
             }
@@ -290,7 +300,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 if (availableVoices.isEmpty() && engineReady) {
                     "No ${selectedLanguage.lowercase()} voices found. Install voice data in Android Settings."
                 } else if (genderMatches.isEmpty() && availableVoices.isNotEmpty()) {
-                    "Your Android engine does not label voice gender. Showing all installed ${selectedLanguage.lowercase()} voices."
+                    "No installed ${selectedGender.lowercase()} voices could be identified. Other genders are hidden."
                 } else {
                     "${filteredVoices.size} installed ${selectedLanguage.lowercase()} voices"
                 },
@@ -345,9 +355,11 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             Text("Voice search and previews use speech voices installed on this device. Availability depends on your Android TTS engine.", fontSize = 11.sp, color = T2SSecondaryText)
             Text("Online voices (TTS.ai)", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
             Text(onlineCatalogueStatus, fontSize = 11.sp, color = T2SSecondaryText)
-            onlineVoices.filter { voice ->
-                voice.gender.equals("unknown", true) || voice.gender.equals(selectedGender, true)
-            }.take(12).forEach { voice ->
+            val matchingOnlineVoices = onlineVoices.filter { voice ->
+                voice.gender.equals(selectedGender, true)
+            }
+            Text("${matchingOnlineVoices.size} online ${selectedGender.lowercase()} voices", fontSize = 11.sp, color = T2SSecondaryText)
+            matchingOnlineVoices.take(12).forEach { voice ->
                 FilterChip(
                     selected = selectedOnlineVoice?.id == voice.id,
                     onClick = { selectedOnlineVoice = voice; statusMessage = voice.name + " selected for online speech." },
