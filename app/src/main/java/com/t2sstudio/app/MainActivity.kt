@@ -93,15 +93,32 @@ private val destinations = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun T2SApp() {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var selectedDestination by remember { mutableIntStateOf(0) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var projectName by remember { mutableStateOf("") }
-    val projects = remember { mutableStateListOf<StudioProject>() }
+    val projects = remember {
+        mutableStateListOf<StudioProject>().apply {
+            val saved = context.getSharedPreferences("t2s_projects", android.content.Context.MODE_PRIVATE)
+                .getString("items", "[]") ?: "[]"
+            runCatching {
+                val array = org.json.JSONArray(saved)
+                for (index in 0 until array.length()) {
+                    val name = array.optString(index).trim()
+                    if (name.isNotEmpty()) add(StudioProject(name))
+                }
+            }
+        }
+    }
 
     fun createProject() {
         val name = projectName.trim()
         if (name.isNotEmpty()) {
             projects.add(0, StudioProject(name))
+            val array = org.json.JSONArray()
+            projects.forEach { array.put(it.name) }
+            context.getSharedPreferences("t2s_projects", android.content.Context.MODE_PRIVATE)
+                .edit().putString("items", array.toString()).apply()
             projectName = ""
             showCreateDialog = false
             selectedDestination = 1
