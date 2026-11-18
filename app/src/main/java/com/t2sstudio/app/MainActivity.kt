@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -64,6 +65,7 @@ private data class Destination(val label: String, val icon: ImageVector)
 private val destinations = listOf(
     Destination("Create", Icons.Filled.Add),
     Destination("Recent", Icons.Filled.AccessTime),
+    Destination("My Voices", Icons.Filled.RecordVoiceOver),
     Destination("Profile", Icons.Filled.Person)
 )
 
@@ -143,7 +145,8 @@ private fun T2SApp() {
                         AudioHistoryStore.save(context, audioRecords)
                     }
                 )
-                2 -> Column(
+                2 -> MyVoicesScreen()
+                3 -> Column(
                     modifier = Modifier.fillMaxSize().padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
