@@ -31,7 +31,7 @@ object TtsAiClient {
         }
     }
 
-    fun generate(text: String, language: String, voice: String, speed: Float, output: File) {
+    fun generate(text: String, language: String, voice: String, speed: Float, output: File, apiKey: String = "") {
         require(text.length <= 500) { "Online free requests are limited to 500 characters." }
         val payload = JSONObject().apply {
             put("text", text)
@@ -48,6 +48,7 @@ object TtsAiClient {
             submit.readTimeout = 30_000
             submit.doOutput = true
             submit.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            if (apiKey.isNotBlank()) submit.setRequestProperty("Authorization", "Bearer $apiKey")
             submit.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
             if (submit.responseCode !in 200..299) {
                 val message = submit.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
