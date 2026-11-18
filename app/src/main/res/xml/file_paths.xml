@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="voice_samples" path="voice_samples/" />
     <external-files-path name="t2s_audio" path="Music/T2SStudio/" />
     <files-path name="internal_t2s_audio" path="T2SStudio/" />
 </paths>
