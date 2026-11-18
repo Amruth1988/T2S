@@ -6,6 +6,8 @@ Native Android Text-to-Speech application built with Kotlin and Jetpack Compose.
 - Orange & White Material 3 design
 - Home, Projects, Create, Recent and Profile navigation
 - Create and locally persist project names between app launches
+- Online speech generation through TTS.ai anonymous free access for supported English and Hindi voices
+- Automatic fallback to Android TextToSpeech when offline, online service fails, text exceeds the free request limit, or online voices are unavailable
 - On-device speech generation using Android TextToSpeech
 - English (US), Telugu (India) and Hindi (India) language options
 - Select from matching voices installed on the device
@@ -26,7 +28,7 @@ Native Android Text-to-Speech application built with Kotlin and Jetpack Compose.
 - Jetpack Compose with Material 3
 
 ## Speech engine notes
-Speech generation is performed locally by the Android device's configured text-to-speech engine. Available languages and voices depend on the device and installed voice data. No paid API or cloud service is required for the current implementation.
+For English and Hindi, the app first attempts TTS.ai's anonymous free API and falls back automatically to Android TextToSpeech if the online service is unavailable. The documented anonymous limit is 500 characters per request and 5,000 characters per day per IP. Telugu remains on-device until compatible online voices are verified. Online output depends on TTS.ai availability and its free-tier terms. No API key is embedded in the APK; no paid API, subscription, billing, or cloud resource is configured.
 
 ## Open
 Open this repository in Android Studio and allow Gradle sync to complete. The GitHub Actions workflow builds the debug APK with `gradle :app:assembleDebug`.
