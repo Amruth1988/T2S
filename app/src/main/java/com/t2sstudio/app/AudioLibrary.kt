@@ -60,7 +60,9 @@ data class AudioRecord(
     val filePath: String,
     val textPreview: String,
     val language: String,
-    val createdAt: Long
+    val createdAt: Long,
+    val projectId: String = "",
+    val projectName: String = "Unassigned"
 )
 
 object AudioHistoryStore {
@@ -79,7 +81,9 @@ object AudioHistoryStore {
                     filePath = item.optString("filePath"),
                     textPreview = item.optString("textPreview"),
                     language = item.optString("language"),
-                    createdAt = item.optLong("createdAt")
+                    createdAt = item.optLong("createdAt"),
+                    projectId = item.optString("projectId", ""),
+                    projectName = item.optString("projectName", "Unassigned")
                 )
             }.filter { it.id.isNotBlank() && it.filePath.isNotBlank() }
                 .filter { File(it.filePath).exists() }
@@ -96,6 +100,8 @@ object AudioHistoryStore {
                 put("textPreview", record.textPreview)
                 put("language", record.language)
                 put("createdAt", record.createdAt)
+                put("projectId", record.projectId)
+                put("projectName", record.projectName)
             })
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -180,7 +186,7 @@ fun SavedAudioScreen(
                         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(record.textPreview, color = T2SText, fontWeight = FontWeight.SemiBold, maxLines = 2)
                             Text(
-                                "${record.language} • " + SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(record.createdAt)),
+                                "${record.language} • ${record.projectName} • " + SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(record.createdAt)),
                                 color = T2SSecondaryText, fontSize = 11.sp
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
