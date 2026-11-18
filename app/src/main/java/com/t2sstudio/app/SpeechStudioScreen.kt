@@ -102,6 +102,9 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     val onlineVoices = remember { mutableStateListOf<OnlineTtsVoice>() }
     var selectedOnlineVoice by remember { mutableStateOf<OnlineTtsVoice?>(null) }
     var onlineCatalogueStatus by remember { mutableStateOf("Checking online voices…") }
+    val myVoices = remember { mutableStateListOf<SavedUserVoice>() }
+    var selectedMyVoice by remember { mutableStateOf<SavedUserVoice?>(null) }
+    val ttsApiKey = remember { storedTtsApiKey(context) }
 
     val languages = listOf(
         SpeechLanguage("English", Locale.US),
@@ -121,6 +124,13 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         }.onFailure {
             availableVoices.clear()
             selectedVoice = null
+        }
+    }
+
+    LaunchedEffect(ttsApiKey) {
+        if (ttsApiKey.isNotBlank()) {
+            runCatching { withContext(Dispatchers.IO) { MyVoicesClient.list(ttsApiKey) } }
+                .onSuccess { saved -> myVoices.clear(); myVoices.addAll(saved) }
         }
     }
 
@@ -353,6 +363,22 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 Text("No matching installed voices. Check the online voice results below or install voice data in Android Settings.", color = T2SSecondaryText, fontSize = 12.sp)
             }
             Text("Installed voices are provided by your Android speech engine.", fontSize = 11.sp, color = T2SSecondaryText)
+            Text("My cloned voices", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+            if (myVoices.isEmpty()) {
+                Text("No saved personal voices found. Add one from the My Voices tab.", fontSize = 11.sp, color = T2SSecondaryText)
+            } else {
+                myVoices.forEach { voice ->
+                    FilterChip(
+                        selected = selectedMyVoice?.id == voice.id,
+                        onClick = {
+                            selectedMyVoice = if (selectedMyVoice?.id == voice.id) null else voice
+                            selectedOnlineVoice = null
+                            statusMessage = if (selectedMyVoice?.id == voice.id) "${voice.name} selected." else "Standard online voice selected."
+                        },
+                        label = { Text("⭐ ${voice.name}", fontSize = 11.sp) }
+                    )
+                }
+            }
             Text("Online voices (TTS.ai)", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
             Text(onlineCatalogueStatus, fontSize = 11.sp, color = T2SSecondaryText)
             val searchTerm = voiceSearch.trim().lowercase(Locale.ROOT)
@@ -425,10 +451,16 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         }
                         var onlineSuccess = false
                         val chosenOnlineVoice = selectedOnlineVoice
-                        if (onlineLanguage != null && chosenOnlineVoice != null && textToSpeak.length <= 500) {
+                        val chosenMyVoice = selectedMyVoice
+                        val voiceId = chosenMyVoice?.id ?: chosenOnlineVoice?.id
+                        if (onlineLanguage != null && voiceId != null && textToSpeak.length <= 500) {
                             val onlineResult = runCatching {
                                 withContext(Dispatchers.IO) {
-                                    TtsAiClient.generate(textToSpeak, onlineLanguage, chosenOnlineVoice.id, speechRate, output)
+                                    TtsAiClient.generate(
+                                        textToSpeak, onlineLanguage, voiceId, speechRate, output,
+                                        apiKey = if (chosenMyVoice != null) ttsApiKey else "",
+                                        model = chosenMyVoice?.model
+                                    )
                                 }
                             }
                             onlineSuccess = onlineResult.isSuccess
