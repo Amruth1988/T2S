@@ -37,11 +37,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -55,12 +57,16 @@ import com.t2sstudio.app.ui.theme.T2SSecondaryText
 import com.t2sstudio.app.ui.theme.T2SText
 import java.io.File
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private data class SpeechLanguage(val label: String, val locale: Locale)
 
 @Composable
 fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
     var selectedLanguage by remember { mutableStateOf("English") }
     var selectedGender by remember { mutableStateOf("Female") }
@@ -76,6 +82,9 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     var voiceSearch by remember { mutableStateOf("") }
     var selectedVoice by remember { mutableStateOf<Voice?>(null) }
     val availableVoices = remember { mutableStateListOf<Voice>() }
+    val onlineVoices = remember { mutableStateListOf<OnlineTtsVoice>() }
+    var selectedOnlineVoice by remember { mutableStateOf<OnlineTtsVoice?>(null) }
+    var onlineCatalogueStatus by remember { mutableStateOf("Checking online voices…") }
 
     val languages = listOf(
         SpeechLanguage("English", Locale.US),
@@ -95,6 +104,29 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         }.onFailure {
             availableVoices.clear()
             selectedVoice = null
+        }
+    }
+
+    LaunchedEffect(selectedLanguage) {
+        onlineVoices.clear()
+        selectedOnlineVoice = null
+        val languageCode = when (selectedLanguage) {
+            "English" -> "en"
+            "Hindi" -> "hi"
+            else -> null
+        }
+        if (languageCode == null) {
+            onlineCatalogueStatus = "Online Telugu voices are not verified yet. On-device Telugu remains available."
+        } else {
+            onlineCatalogueStatus = "Loading online " + selectedLanguage + " voices…"
+            runCatching { withContext(Dispatchers.IO) { TtsAiClient.listVoices(languageCode) } }
+                .onSuccess { voices ->
+                    onlineVoices.addAll(voices)
+                    selectedOnlineVoice = voices.firstOrNull()
+                    onlineCatalogueStatus = if (voices.isEmpty()) "No online voices returned. On-device speech is available."
+                        else voices.size.toString() + " online " + selectedLanguage + " voices available."
+                }
+                .onFailure { onlineCatalogueStatus = "Online voice catalogue unavailable. On-device speech is available." }
         }
     }
 
@@ -311,6 +343,18 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 Text("No matching voices. Try another search or install additional voice data in Android Settings.", color = T2SSecondaryText, fontSize = 12.sp)
             }
             Text("Voice search and previews use speech voices installed on this device. Availability depends on your Android TTS engine.", fontSize = 11.sp, color = T2SSecondaryText)
+            Text("Online voices (TTS.ai)", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+            Text(onlineCatalogueStatus, fontSize = 11.sp, color = T2SSecondaryText)
+            onlineVoices.filter { voice ->
+                voice.gender.equals("unknown", true) || voice.gender.equals(selectedGender, true)
+            }.take(12).forEach { voice ->
+                FilterChip(
+                    selected = selectedOnlineVoice?.id == voice.id,
+                    onClick = { selectedOnlineVoice = voice; statusMessage = voice.name + " selected for online speech." },
+                    label = { Text(voice.name + " • " + voice.gender, fontSize = 11.sp) }
+                )
+            }
+            Text("Free anonymous online requests are limited to 500 characters each. Longer text, Telugu, or online errors automatically use Android TTS.", fontSize = 11.sp, color = T2SSecondaryText)
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -341,60 +385,109 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
 
         Button(
             onClick = {
-                val engine = ttsEngine
+                val textToSpeak = inputText.trim()
                 val language = languages.first { it.label == selectedLanguage }
-                if (inputText.isBlank()) {
+                if (textToSpeak.isBlank()) {
                     statusMessage = "Please enter some text first."
-                } else if (!engineReady || engine == null) {
+                } else if (!engineReady || ttsEngine == null) {
                     statusMessage = "Speech engine is still starting. Please try again."
                 } else {
-                    val languageResult = engine.setLanguage(language.locale)
-                    if (languageResult == TextToSpeech.LANG_MISSING_DATA ||
-                        languageResult == TextToSpeech.LANG_NOT_SUPPORTED
-                    ) {
-                        statusMessage = "${language.label} voice data is not installed or supported on this device."
-                    } else {
-                        selectedVoice?.let { engine.voice = it }
-                        engine.setSpeechRate(speechRate)
-                        engine.setPitch(speechPitch)
-                        val audioDirectory = File(
-                            context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
-                            "T2SStudio"
-                        ).apply { mkdirs() }
-                        val output = File(audioDirectory, "speech_${System.currentTimeMillis()}.wav")
-                        isGenerating = true
-                        generatedFile = null
-                        statusMessage = "Generating audio…"
-                        engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                            override fun onStart(utteranceId: String?) { }
-                            override fun onDone(utteranceId: String?) {
-                                isGenerating = false
-                                generatedFile = output
-                                onAudioGenerated(
-                                    AudioRecord(
-                                        id = java.util.UUID.randomUUID().toString(),
-                                        filePath = output.absolutePath,
-                                        textPreview = inputText.trim().take(180),
-                                        language = selectedLanguage,
-                                        createdAt = System.currentTimeMillis()
-                                    )
-                                )
-                                statusMessage = "Speech audio is ready and saved in T2S Studio."
+                    val audioDirectory = File(
+                        context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
+                        "T2SStudio"
+                    ).apply { mkdirs() }
+                    val output = File(audioDirectory, "speech_" + System.currentTimeMillis() + ".wav")
+                    isGenerating = true
+                    generatedFile = null
+                    statusMessage = "Trying online speech…"
+                    coroutineScope.launch {
+                        val onlineLanguage = when (selectedLanguage) {
+                            "English" -> "en"
+                            "Hindi" -> "hi"
+                            else -> null
+                        }
+                        var onlineSuccess = false
+                        val chosenOnlineVoice = selectedOnlineVoice
+                        if (onlineLanguage != null && chosenOnlineVoice != null && textToSpeak.length <= 500) {
+                            val onlineResult = runCatching {
+                                withContext(Dispatchers.IO) {
+                                    TtsAiClient.generate(textToSpeak, onlineLanguage, chosenOnlineVoice.id, speechRate, output)
+                                }
                             }
-                            @Deprecated("Deprecated in Java")
-                            override fun onError(utteranceId: String?) {
-                                isGenerating = false
-                                statusMessage = "Could not generate audio. Please try again."
+                            onlineSuccess = onlineResult.isSuccess
+                            if (!onlineSuccess) {
+                                statusMessage = "Online unavailable (" +
+                                    (onlineResult.exceptionOrNull()?.message ?: "service error") +
+                                    "). Switching to Android voice…"
                             }
-                            override fun onError(utteranceId: String?, errorCode: Int) {
-                                isGenerating = false
-                                statusMessage = "Audio generation failed (code $errorCode)."
-                            }
-                        })
-                        val result = engine.synthesizeToFile(inputText, Bundle(), output, "t2s-${output.name}")
-                        if (result != TextToSpeech.SUCCESS) {
+                        } else if (onlineLanguage != null && textToSpeak.length > 500) {
+                            statusMessage = "Text exceeds the free online 500-character limit. Switching to Android voice…"
+                        } else {
+                            statusMessage = "Using Android voice for Telugu…"
+                        }
+
+                        if (onlineSuccess) {
                             isGenerating = false
-                            statusMessage = "The selected speech engine could not generate this audio."
+                            generatedFile = output
+                            onAudioGenerated(
+                                AudioRecord(
+                                    id = java.util.UUID.randomUUID().toString(),
+                                    filePath = output.absolutePath,
+                                    textPreview = textToSpeak.take(180),
+                                    language = selectedLanguage,
+                                    createdAt = System.currentTimeMillis()
+                                )
+                            )
+                            statusMessage = "Online speech audio is ready and saved in T2S Studio."
+                        } else {
+                            val engine = ttsEngine
+                            if (engine == null || !engineReady) {
+                                isGenerating = false
+                                statusMessage = "Online speech failed and Android speech engine is unavailable."
+                            } else {
+                                val languageResult = engine.setLanguage(language.locale)
+                                if (languageResult == TextToSpeech.LANG_MISSING_DATA ||
+                                    languageResult == TextToSpeech.LANG_NOT_SUPPORTED
+                                ) {
+                                    isGenerating = false
+                                    statusMessage = language.label + " voice data is not installed or supported on this device."
+                                } else {
+                                    selectedVoice?.let { engine.voice = it }
+                                    engine.setSpeechRate(speechRate)
+                                    engine.setPitch(speechPitch)
+                                    engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                                        override fun onStart(utteranceId: String?) { }
+                                        override fun onDone(utteranceId: String?) {
+                                            isGenerating = false
+                                            generatedFile = output
+                                            onAudioGenerated(
+                                                AudioRecord(
+                                                    id = java.util.UUID.randomUUID().toString(),
+                                                    filePath = output.absolutePath,
+                                                    textPreview = textToSpeak.take(180),
+                                                    language = selectedLanguage,
+                                                    createdAt = System.currentTimeMillis()
+                                                )
+                                            )
+                                            statusMessage = "Android speech audio is ready and saved in T2S Studio."
+                                        }
+                                        @Deprecated("Deprecated in Java")
+                                        override fun onError(utteranceId: String?) {
+                                            isGenerating = false
+                                            statusMessage = "Could not generate audio with either speech provider."
+                                        }
+                                        override fun onError(utteranceId: String?, errorCode: Int) {
+                                            isGenerating = false
+                                            statusMessage = "Android speech generation failed (code " + errorCode + ")."
+                                        }
+                                    })
+                                    val result = engine.synthesizeToFile(textToSpeak, Bundle(), output, "t2s-" + output.name)
+                                    if (result != TextToSpeech.SUCCESS) {
+                                        isGenerating = false
+                                        statusMessage = "Android speech engine could not generate this audio."
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -478,7 +571,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
 
         Text(statusMessage, fontSize = 13.sp, color = T2SSecondaryText)
         Text(
-            "Speech is generated on your Android device. Audio is kept in app storage; download or share it when ready. Voice availability depends on your installed speech engine.",
+            "Online speech is attempted first for supported languages. If unavailable, T2S Studio automatically uses your installed Android speech engine. Audio stays in app storage.",
             fontSize = 11.sp,
             color = T2SSecondaryText
         )
