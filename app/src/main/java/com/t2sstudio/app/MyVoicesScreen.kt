@@ -1,5 +1,10 @@
 package com.t2sstudio.app
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.media.MediaRecorder
+import androidx.core.content.ContextCompat
+import java.io.File
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,6 +23,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,6 +55,11 @@ fun MyVoicesScreen() {
     var model by remember { mutableStateOf("chatterbox") }
     var pickedUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var pickedLabel by remember { mutableStateOf("No audio selected") }
+    var recording by remember { mutableStateOf(false) }
+    var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
+    var recordingFile by remember { mutableStateOf<File?>(null) }
+    var hasMicPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> hasMicPermission = granted; message = if (granted) "Microphone ready. Tap Start recording." else "Microphone permission is required." }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("Add a clear recording of your own voice to create a reusable voice profile.") }
     val voices = remember { mutableStateListOf<SavedUserVoice>() }
@@ -69,6 +80,7 @@ fun MyVoicesScreen() {
     }
 
     LaunchedEffect(Unit) { if (apiKey.isNotBlank()) loadVoices() }
+    DisposableEffect(Unit) { onDispose { runCatching { recorder?.stop() }; runCatching { recorder?.release() }; recorder = null } }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -105,9 +117,38 @@ fun MyVoicesScreen() {
                         )
                     }
                 }
-                Text("Choose a 10–30 second clear sample. WAV, MP3 or FLAC; maximum 20 MB.", fontSize = 12.sp, color = T2SSecondaryText)
+                Text("Record your voice directly here, or select an existing file. Speak naturally in a quiet room for 10–30 seconds.", fontSize = 12.sp, color = T2SSecondaryText)
+                Card(colors = CardDefaults.cardColors(containerColor = T2SCream), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Record with your phone microphone", fontWeight = FontWeight.SemiBold, color = T2SText)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = {
+                                if (!hasMicPermission) micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                                else runCatching {
+                                    val file = File(context.cacheDir, "my_voice_sample.m4a")
+                                    val mr = if (android.os.Build.VERSION.SDK_INT >= 31) MediaRecorder(context) else MediaRecorder()
+                                    mr.setAudioSource(MediaRecorder.AudioSource.MIC); mr.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                                    mr.setAudioEncoder(MediaRecorder.AudioEncoder.AAC); mr.setAudioSamplingRate(44100); mr.setAudioEncodingBitRate(128000)
+                                    mr.setOutputFile(file.absolutePath); mr.prepare(); mr.start()
+                                    recorder = mr; recordingFile = file; recording = true; message = "Recording started. Speak clearly for 10–30 seconds."
+                                }.onFailure { message = "Could not start recording: " + it.message }
+                            }, enabled = !recording && !busy) { Text("Start recording") }
+                            Button(onClick = {
+                                runCatching {
+                                    recorder?.stop(); recorder?.release(); recorder = null; recording = false
+                                    val file = recordingFile
+                                    if (file != null && file.exists() && file.length() > 1024) {
+                                        pickedUri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+                                        pickedLabel = "Recorded voice sample (" + file.length() / 1024 + " KB)"; message = "Recording ready. Create your voice profile when ready."
+                                    } else message = "Recording was empty. Please record again."
+                                }.onFailure { runCatching { recorder?.release() }; recorder = null; recording = false; message = "Recording was too short. Please try again." }
+                            }, enabled = recording) { Text("Stop recording") }
+                        }
+                        if (recording) Text("Recording… tap Stop when finished.", color = T2SSecondaryText, fontSize = 12.sp)
+                    }
+                }
                 OutlinedTextField(value = pickedLabel, onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth(), label = { Text("Reference recording") })
-                TextButton(onClick = { picker.launch("audio/*") }) { Text("Choose audio recording") }
+                TextButton(onClick = { picker.launch("audio/*") }, enabled = !recording) { Text("Or upload an audio file") }
                 Button(
                     onClick = {
                         val uri = pickedUri
