@@ -50,7 +50,7 @@ import kotlinx.coroutines.withContext
 fun MyVoicesScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var apiKey by remember { mutableStateOf(storedTtsApiKey(context)) }
+    val apiKey = BuildConfig.TTS_API_KEY
     var voiceName by remember { mutableStateOf("My Voice") }
     var model by remember { mutableStateOf("chatterbox") }
     var pickedUri by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -69,7 +69,7 @@ fun MyVoicesScreen() {
     }
 
     fun loadVoices() {
-        if (apiKey.isBlank()) { message = "Enter your TTS.ai API key to load your saved voices."; return }
+        if (apiKey.isBlank()) { message = "Personal voices are not configured in this build. Add the TTS_API_KEY GitHub Actions secret and rebuild."; return }
         busy = true
         scope.launch {
             runCatching { withContext(Dispatchers.IO) { MyVoicesClient.list(apiKey.trim()) } }
@@ -88,22 +88,6 @@ fun MyVoicesScreen() {
     ) {
         Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
         Text("Create and manage reusable AI voice profiles from your own recordings.", color = T2SSecondaryText, fontSize = 14.sp)
-        Card(colors = CardDefaults.cardColors(containerColor = T2SCream), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("TTS.ai account connection", fontWeight = FontWeight.SemiBold, color = T2SText)
-                OutlinedTextField(
-                    value = apiKey, onValueChange = { apiKey = it },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    label = { Text("TTS.ai API key") }, placeholder = { Text("Paste your API key") }
-                )
-                Text("The key is stored only in this app's private preferences. Never share it or add it to source code.", fontSize = 11.sp, color = T2SSecondaryText)
-                Button(onClick = {
-                    context.getSharedPreferences("t2s_private_settings", android.content.Context.MODE_PRIVATE)
-                        .edit().putString("tts_api_key", apiKey.trim()).apply()
-                    loadVoices()
-                }, enabled = apiKey.isNotBlank() && !busy) { Text("Save key and load my voices") }
-            }
-        }
         Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("Add a voice", fontWeight = FontWeight.SemiBold, color = T2SText)
@@ -152,7 +136,7 @@ fun MyVoicesScreen() {
                 Button(
                     onClick = {
                         val uri = pickedUri
-                        if (apiKey.isBlank()) message = "Enter and save your TTS.ai API key first."
+                        if (apiKey.isBlank()) message = "Personal voices are not configured in this build. Add the TTS_API_KEY GitHub Actions secret and rebuild."
                         else if (voiceName.isBlank()) message = "Enter a name for this voice."
                         else if (uri == null) message = "Choose a voice recording first."
                         else {
