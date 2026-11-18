@@ -143,7 +143,17 @@ private fun T2SApp() {
                         AudioHistoryStore.save(context, audioRecords)
                     }
                 )
-                2 -> SimplePage("Profile", "T2S Studio uses your Android device's built-in speech engine. No paid API or billing is required.")
+                2 -> Column(
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("Profile", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                    Text(
+                        "T2S Studio uses your Android device's built-in speech engine. No paid API or billing is required.",
+                        fontSize = 14.sp,
+                        color = T2SSecondaryText
+                    )
+                }
             }
         }
     }
