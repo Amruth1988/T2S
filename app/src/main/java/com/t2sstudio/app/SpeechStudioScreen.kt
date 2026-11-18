@@ -149,7 +149,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             runCatching { withContext(Dispatchers.IO) { TtsAiClient.listVoices(languageCode) } }
                 .onSuccess { voices ->
                     onlineVoices.addAll(voices)
-                    selectedOnlineVoice = voices.firstOrNull()
+                    selectedOnlineVoice = voices.firstOrNull { it.gender.equals(selectedGender, ignoreCase = true) }
                     onlineCatalogueStatus = if (voices.isEmpty()) "No online voices returned. On-device speech is available."
                         else voices.size.toString() + " online " + selectedLanguage + " voices available."
                 }
@@ -384,7 +384,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             val searchTerm = voiceSearch.trim().lowercase(Locale.ROOT)
             val matchingOnlineVoices = onlineVoices.filter { voice ->
                 voice.gender.equals(selectedGender, true) &&
-                    ("${voice.name} ${voice.language} ${voice.gender}".lowercase(Locale.ROOT).contains(searchTerm))
+                    ("${voice.name} ${voice.language}".lowercase(Locale.ROOT).contains(searchTerm))
             }
             Text("${matchingOnlineVoices.size} matching online ${selectedGender.lowercase()} voices", fontSize = 11.sp, color = T2SSecondaryText)
             matchingOnlineVoices.take(30).forEach { voice ->
