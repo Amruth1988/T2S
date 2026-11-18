@@ -58,6 +58,7 @@ fun MyVoicesScreen() {
     var recording by remember { mutableStateOf(false) }
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordingFile by remember { mutableStateOf<File?>(null) }
+    var recordingStartedAt by remember { mutableStateOf(0L) }
     var hasMicPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
     var message by remember { mutableStateOf("Add a clear recording of your own voice to create a reusable voice profile.") }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> hasMicPermission = granted; message = if (granted) "Microphone ready. Tap Start recording." else "Microphone permission is required." }
@@ -109,23 +110,44 @@ fun MyVoicesScreen() {
                             Button(onClick = {
                                 if (!hasMicPermission) micPermission.launch(Manifest.permission.RECORD_AUDIO)
                                 else runCatching {
-                                    val file = File(context.cacheDir, "my_voice_sample.m4a")
+                                    val sampleDir = File(context.cacheDir, "voice_samples").apply { mkdirs() }
+                                    val file = File(sampleDir, "my_voice_sample.m4a")
+                                    if (file.exists()) file.delete()
                                     val mr = if (android.os.Build.VERSION.SDK_INT >= 31) MediaRecorder(context) else MediaRecorder()
                                     mr.setAudioSource(MediaRecorder.AudioSource.MIC); mr.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                                     mr.setAudioEncoder(MediaRecorder.AudioEncoder.AAC); mr.setAudioSamplingRate(44100); mr.setAudioEncodingBitRate(128000)
                                     mr.setOutputFile(file.absolutePath); mr.prepare(); mr.start()
-                                    recorder = mr; recordingFile = file; recording = true; message = "Recording started. Speak clearly for 10–30 seconds."
+                                    recorder = mr; recordingFile = file; recordingStartedAt = android.os.SystemClock.elapsedRealtime(); recording = true; message = "Recording started. Speak clearly for at least 3 seconds; 10–30 seconds is recommended."
                                 }.onFailure { message = "Could not start recording: " + it.message }
                             }, enabled = !recording && !busy) { Text("Start recording") }
                             Button(onClick = {
-                                runCatching {
-                                    recorder?.stop(); recorder?.release(); recorder = null; recording = false
+                                val activeRecorder = recorder
+                                val elapsedMs = android.os.SystemClock.elapsedRealtime() - recordingStartedAt
+                                try {
+                                    if (elapsedMs < 2500L) {
+                                        message = "Please record for at least 3 seconds before stopping."
+                                        return@Button
+                                    }
+                                    activeRecorder?.stop()
                                     val file = recordingFile
-                                    if (file != null && file.exists() && file.length() > 1024) {
-                                        pickedUri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
-                                        pickedLabel = "Recorded voice sample (" + file.length() / 1024 + " KB)"; message = "Recording ready. Create your voice profile when ready."
-                                    } else message = "Recording was empty. Please record again."
-                                }.onFailure { runCatching { recorder?.release() }; recorder = null; recording = false; message = "Recording was too short. Please try again." }
+                                    if (file != null && file.exists() && file.length() > 1024L) {
+                                        val uri = androidx.core.content.FileProvider.getUriForFile(
+                                            context, context.packageName + ".fileprovider", file
+                                        )
+                                        pickedUri = uri
+                                        pickedLabel = "Recorded voice sample (" + file.length() / 1024 + " KB)"
+                                        message = "Recording ready. You can now create your voice profile."
+                                    } else {
+                                        message = "No usable audio was saved. Please record again in a quiet place."
+                                    }
+                                } catch (error: Exception) {
+                                    message = "Could not finish recording: " + (error.localizedMessage ?: error.javaClass.simpleName) + ". Please record again for at least 3 seconds."
+                                } finally {
+                                    runCatching { activeRecorder?.reset() }
+                                    runCatching { activeRecorder?.release() }
+                                    recorder = null
+                                    recording = false
+                                }
                             }, enabled = recording) { Text("Stop recording") }
                         }
                         if (recording) Text("Recording… tap Stop when finished.", color = T2SSecondaryText, fontSize = 12.sp)
