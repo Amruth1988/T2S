@@ -50,3 +50,11 @@ jobs:
 
       - name: Build Debug and Release APKs
         run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease
+
+      - name: Upload APKs for mobile testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: T2S-Studio-APKs
+          path: app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
