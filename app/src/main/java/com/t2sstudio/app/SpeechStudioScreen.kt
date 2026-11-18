@@ -214,7 +214,15 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     listOf("Male", "Female").forEach { gender ->
                         FilterChip(
                             selected = selectedGender == gender,
-                            onClick = { selectedGender = gender; selectedVoice = null },
+                            onClick = {
+                                selectedGender = gender
+                                selectedVoice = availableVoices.firstOrNull { voice ->
+                                    val name = voice.name.lowercase(Locale.ROOT)
+                                    if (gender == "Female") name.contains("female") || name.contains("woman") || name.contains("fem")
+                                    else (name.contains("male") && !name.contains("female")) ||
+                                        (name.contains("man") && !name.contains("woman"))
+                                } ?: availableVoices.firstOrNull()
+                            },
                             label = { Text(gender, fontSize = 10.sp, maxLines = 1) }
                         )
                     }
