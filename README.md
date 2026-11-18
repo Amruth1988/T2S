@@ -32,3 +32,6 @@ For English and Hindi, the app first attempts TTS.ai's anonymous free API and fa
 
 ## Open
 Open this repository in Android Studio and allow Gradle sync to complete. The GitHub Actions workflow builds the debug APK with `gradle :app:assembleDebug`.
+
+
+Build note: Personal voice features use the `TTS_API_KEY` GitHub Actions secret at build time. Never commit API keys to source control.
