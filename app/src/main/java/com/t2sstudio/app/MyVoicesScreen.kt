@@ -59,9 +59,9 @@ fun MyVoicesScreen() {
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordingFile by remember { mutableStateOf<File?>(null) }
     var hasMicPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
+    var message by remember { mutableStateOf("Add a clear recording of your own voice to create a reusable voice profile.") }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> hasMicPermission = granted; message = if (granted) "Microphone ready. Tap Start recording." else "Microphone permission is required." }
     var busy by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf("Add a clear recording of your own voice to create a reusable voice profile.") }
     val voices = remember { mutableStateListOf<SavedUserVoice>() }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         pickedUri = uri
