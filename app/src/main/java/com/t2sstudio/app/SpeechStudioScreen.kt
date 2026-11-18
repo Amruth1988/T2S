@@ -1,10 +1,17 @@
 package com.t2sstudio.app
 
+import android.content.ContentValues
+import android.content.Intent
 import android.media.MediaPlayer
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
-import android.os.Bundle
-import androidx.compose.foundation.background
+import android.speech.tts.Voice
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,7 +21,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -22,15 +28,18 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -62,6 +71,10 @@ fun SpeechStudioScreen() {
     var statusMessage by remember { mutableStateOf("Enter text to create your first voice recording.") }
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var isPlaying by remember { mutableStateOf(false) }
+    var voiceMenuExpanded by remember { mutableStateOf(false) }
+    var selectedVoice by remember { mutableStateOf<Voice?>(null) }
+    val availableVoices = remember { mutableStateListOf<Voice>() }
 
     val languages = listOf(
         SpeechLanguage("English", Locale.US),
@@ -69,12 +82,29 @@ fun SpeechStudioScreen() {
         SpeechLanguage("Hindi", Locale("hi", "IN"))
     )
 
+    fun refreshVoices(engine: TextToSpeech, locale: Locale) {
+        runCatching {
+            engine.setLanguage(locale)
+            val matching = engine.voices.orEmpty()
+                .filter { it.locale.language == locale.language && !it.isNetworkConnectionRequired }
+                .sortedBy { it.name.lowercase(Locale.ROOT) }
+            availableVoices.clear()
+            availableVoices.addAll(matching)
+            selectedVoice = matching.firstOrNull()
+        }.onFailure {
+            availableVoices.clear()
+            selectedVoice = null
+        }
+    }
+
     DisposableEffect(context) {
         lateinit var engine: TextToSpeech
-        engine = TextToSpeech(context) { status ->
-            engineReady = status == TextToSpeech.SUCCESS
-            if (status != TextToSpeech.SUCCESS) {
-                statusMessage = "Text-to-speech engine could not start. Check your Android speech settings."
+        engine = TextToSpeech(context) { result ->
+            engineReady = result == TextToSpeech.SUCCESS
+            if (result == TextToSpeech.SUCCESS) {
+                refreshVoices(engine, languages.first { it.label == selectedLanguage }.locale)
+            } else {
+                statusMessage = "Text-to-speech engine could not start. Check Android speech settings."
             }
         }
         ttsEngine = engine
@@ -84,6 +114,49 @@ fun SpeechStudioScreen() {
             engine.stop()
             engine.shutdown()
             ttsEngine = null
+        }
+    }
+
+    fun shareAudio(file: File) {
+        runCatching {
+            val uri: Uri = FileProvider.getUriForFile(
+                context, "${context.packageName}.fileprovider", file
+            )
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "audio/wav"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(shareIntent, "Share speech audio"))
+        }.onFailure {
+            statusMessage = "Could not open the share menu. Please try again."
+        }
+    }
+
+    fun saveToDownloads(file: File) {
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, file.name)
+                    put(MediaStore.Downloads.MIME_TYPE, "audio/wav")
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/T2S Studio")
+                    put(MediaStore.Downloads.IS_PENDING, 1)
+                }
+                val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    ?: error("Could not create download entry")
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    file.inputStream().use { input -> input.copyTo(output) }
+                } ?: error("Could not open download output")
+                val complete = ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }
+                context.contentResolver.update(uri, complete, null, null)
+                statusMessage = "Saved to Downloads/T2S Studio."
+            } else {
+                val target = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), file.name)
+                file.copyTo(target, overwrite = true)
+                statusMessage = "Saved in T2S Studio app storage: Music/${file.name}"
+            }
+        }.onFailure {
+            statusMessage = "Unable to save audio: ${it.localizedMessage ?: "storage error"}"
         }
     }
 
@@ -99,7 +172,7 @@ fun SpeechStudioScreen() {
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = T2SBackground)
         ) {
             Column(Modifier.padding(2.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -120,11 +193,31 @@ fun SpeechStudioScreen() {
                 languages.forEach { language ->
                     FilterChip(
                         selected = selectedLanguage == language.label,
-                        onClick = { selectedLanguage = language.label; generatedFile = null },
+                        onClick = {
+                            selectedLanguage = language.label
+                            generatedFile = null
+                            ttsEngine?.let { refreshVoices(it, language.locale) }
+                        },
                         label = { Text(language.label) }
                     )
                 }
             }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("Voice", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+            TextButton(onClick = { voiceMenuExpanded = true }, enabled = availableVoices.isNotEmpty()) {
+                Text(selectedVoice?.name ?: if (engineReady) "No installed voice found" else "Loading voices…", color = T2SOrange)
+            }
+            DropdownMenu(expanded = voiceMenuExpanded, onDismissRequest = { voiceMenuExpanded = false }) {
+                availableVoices.forEach { voice ->
+                    DropdownMenuItem(
+                        text = { Text(voice.name) },
+                        onClick = { selectedVoice = voice; voiceMenuExpanded = false }
+                    )
+                }
+            }
+            Text("Only voices installed on this device are listed.", fontSize = 11.sp, color = T2SSecondaryText)
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -168,9 +261,14 @@ fun SpeechStudioScreen() {
                     ) {
                         statusMessage = "${language.label} voice data is not installed or supported on this device."
                     } else {
+                        selectedVoice?.let { engine.voice = it }
                         engine.setSpeechRate(speechRate)
                         engine.setPitch(speechPitch)
-                        val output = File(context.cacheDir, "t2s_${System.currentTimeMillis()}.wav")
+                        val audioDirectory = File(
+                            context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
+                            "T2SStudio"
+                        ).apply { mkdirs() }
+                        val output = File(audioDirectory, "speech_${System.currentTimeMillis()}.wav")
                         isGenerating = true
                         generatedFile = null
                         statusMessage = "Generating audio…"
@@ -179,7 +277,7 @@ fun SpeechStudioScreen() {
                             override fun onDone(utteranceId: String?) {
                                 isGenerating = false
                                 generatedFile = output
-                                statusMessage = "Your speech audio is ready."
+                                statusMessage = "Speech audio is ready and saved in T2S Studio."
                             }
                             @Deprecated("Deprecated in Java")
                             override fun onError(utteranceId: String?) {
@@ -191,8 +289,7 @@ fun SpeechStudioScreen() {
                                 statusMessage = "Audio generation failed (code $errorCode)."
                             }
                         })
-                        val params = Bundle()
-                        val result = engine.synthesizeToFile(inputText, params, output, "t2s-${output.name}")
+                        val result = engine.synthesizeToFile(inputText, Bundle(), output, "t2s-${output.name}")
                         if (result != TextToSpeech.SUCCESS) {
                             isGenerating = false
                             statusMessage = "The selected speech engine could not generate this audio."
@@ -202,7 +299,7 @@ fun SpeechStudioScreen() {
             },
             enabled = !isGenerating && inputText.isNotBlank(),
             modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(15.dp),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(15.dp),
             colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground)
         ) {
             if (isGenerating) {
@@ -212,33 +309,74 @@ fun SpeechStudioScreen() {
             Text(if (isGenerating) "Generating…" else "Generate Speech", fontWeight = FontWeight.Bold)
         }
 
-        if (generatedFile != null) {
-            Button(
-                onClick = {
-                    try {
-                        mediaPlayer?.release()
-                        mediaPlayer = MediaPlayer().apply {
-                            setDataSource(generatedFile!!.absolutePath)
-                            setOnCompletionListener { it.release(); mediaPlayer = null }
-                            prepare()
-                            start()
+        generatedFile?.let { file ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        try {
+                            val player = mediaPlayer
+                            if (player?.isPlaying == true) {
+                                player.pause()
+                                isPlaying = false
+                                statusMessage = "Playback paused."
+                            } else if (player != null) {
+                                player.start()
+                                isPlaying = true
+                                statusMessage = "Playing audio."
+                            } else {
+                                mediaPlayer = MediaPlayer().apply {
+                                    setDataSource(file.absolutePath)
+                                    setOnCompletionListener {
+                                        it.release()
+                                        mediaPlayer = null
+                                        isPlaying = false
+                                        statusMessage = "Playback finished."
+                                    }
+                                    prepare()
+                                    start()
+                                }
+                                isPlaying = true
+                                statusMessage = "Playing audio."
+                            }
+                        } catch (error: Exception) {
+                            statusMessage = "Unable to play audio on this device."
                         }
-                        statusMessage = "Playing your generated speech."
-                    } catch (error: Exception) {
-                        statusMessage = "Unable to play the generated audio on this device."
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(15.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = T2SCream, contentColor = T2SText)
-            ) {
-                Text("▶  Play generated audio", fontWeight = FontWeight.SemiBold)
+                    },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = T2SCream, contentColor = T2SText)
+                ) {
+                    Text(if (isPlaying) "Ⅱ  Pause" else "▶  Play", fontWeight = FontWeight.SemiBold)
+                }
+                Button(
+                    onClick = {
+                        mediaPlayer?.release()
+                        mediaPlayer = null
+                        isPlaying = false
+                        statusMessage = "Playback stopped."
+                    },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = T2SCream, contentColor = T2SText)
+                ) { Text("■  Stop", fontWeight = FontWeight.SemiBold) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { saveToDownloads(file) },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = T2SOrange)
+                ) { Text("↓  Download") }
+                Button(
+                    onClick = { shareAudio(file) },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = T2SOrange)
+                ) { Text("↗  Share") }
             }
         }
 
         Text(statusMessage, fontSize = 13.sp, color = T2SSecondaryText)
         Text(
-            "Speech is generated on your Android device using its installed text-to-speech engine. Voice availability depends on your device.",
+            "Speech is generated on your Android device. Audio is kept in app storage; download or share it when ready. Voice availability depends on your installed speech engine.",
             fontSize = 11.sp,
             color = T2SSecondaryText
         )
