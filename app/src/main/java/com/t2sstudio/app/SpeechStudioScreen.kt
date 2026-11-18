@@ -454,27 +454,22 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             enabled = false
                         )
                         filteredPersonal.forEach { voice ->
-                            DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
-                                        Text("Personal voice", color = T2SSecondaryText, fontSize = 11.sp)
-                                    }
-                                },
-                                onClick = {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Column(Modifier.weight(1f).clickable {
                                     selectedMyVoice = voice
                                     selectedVoice = null
                                     selectedOnlineVoice = null
                                     voiceSearch = voice.name
                                     voiceSearchExpanded = false
-                                    statusMessage = "${voice.name} selected."
-                                },
-                                trailingIcon = {
-                                    TextButton(enabled = !isPreviewing, onClick = {
-                                        previewOnlineVoice(voice.id, voice.model, personal = true)
-                                    }) { Text(if (isPreviewing) "…" else "▶", color = T2SOrange) }
+                                    statusMessage = voice.name + " selected."
+                                }) {
+                                    Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
+                                    Text("Personal voice", color = T2SSecondaryText, fontSize = 11.sp)
                                 }
-                            )
+                                TextButton(enabled = !isPreviewing, onClick = { previewOnlineVoice(voice.id, voice.model, personal = true) }) {
+                                    Text(if (isPreviewing) "…" else "▶ Preview", color = T2SOrange)
+                                }
+                            }
                         }
                     }
                     if (filteredInstalled.isEmpty() && filteredOnline.isEmpty() && filteredPersonal.isEmpty()) {
