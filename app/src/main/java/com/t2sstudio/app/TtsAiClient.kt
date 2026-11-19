@@ -85,6 +85,7 @@ object TtsAiClient {
         speed: Float,
         output: File,
         format: String = "mp3",
+        apiKey: String? = null,
     ) {
         require(text.isNotBlank()) { "Enter text to generate speech." }
         require(text.length <= 3000) { "Free online TTS supports up to 3,000 characters per request." }
@@ -108,13 +109,16 @@ object TtsAiClient {
             connection.readTimeout = 90_000
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            apiKey?.trim()?.takeIf { it.startsWith("india_live_") }?.let {
+                connection.setRequestProperty("Authorization", "Bearer $it")
+            }
             connection.setRequestProperty("Accept", when (safeFormat) {
                 "mp3" -> "audio/mpeg"
                 "wav" -> "audio/wav"
                 else -> "audio/ogg"
             })
-            // This provider's documented no-key allowance is active until 15 Dec 2026.
-            // Do not send the unrelated legacy TTS.ai key or any billing credentials.
+            // Optional free India API key is sent only in the Authorization header.
+            // No paid billing credentials are used or stored in source code.
             connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
             val code = connection.responseCode
             if (code !in 200..299) {
