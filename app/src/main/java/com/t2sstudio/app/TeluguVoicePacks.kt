@@ -78,7 +78,8 @@ object TeluguVoicePacks {
     fun importConvertedArchive(context: Context, uri: Uri): List<InstalledConvertedVoice> {
         val root = File(context.filesDir, "voice_models/telugu_converted")
         check(root.exists() || root.mkdirs()) { "Could not create converted voice storage." }
-        val extracted = mutableSetOf<String>()
+        val extractedModels = mutableSetOf<String>()
+        val extractedTokens = mutableSetOf<String>()
         var totalExpandedBytes = 0L
         context.contentResolver.openInputStream(uri)?.use { raw ->
             ZipInputStream(raw.buffered()).use { zip ->
@@ -99,7 +100,8 @@ object TeluguVoicePacks {
                                 totalExpandedBytes += written
                                 check(totalExpandedBytes <= 500L * 1024 * 1024) { "Voice archive expands beyond the 500 MB safety limit." }
                                 check(partial.renameTo(File(destinationDir, name))) { "Could not finalize imported voice file." }
-                                extracted.add(pack.id)
+                                if (name == pack.modelFile) extractedModels.add(pack.id)
+                                if (name == "tokens.txt") extractedTokens.add(pack.id)
                             } catch (error: Exception) {
                                 partial.delete()
                                 throw error
@@ -111,7 +113,7 @@ object TeluguVoicePacks {
                 }
             }
         } ?: error("Could not open the selected ZIP file.")
-        val installed = all.mapNotNull { pack ->
+        val installed = all.filter { it.id in extractedModels && it.id in extractedTokens }.mapNotNull { pack ->
             val dir = File(root, pack.id)
             val model = File(dir, pack.modelFile)
             val tokens = File(dir, "tokens.txt")
