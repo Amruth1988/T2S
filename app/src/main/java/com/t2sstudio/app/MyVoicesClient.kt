@@ -14,6 +14,7 @@ object MyVoicesClient {
     private const val VOICES_URL = "https://tts.ai/api/v1/user-voices/"
 
     fun list(context: Context, apiKey: String): List<SavedUserVoice> {
+        error("Cloud voice profiles are disabled in T2S free-only mode.")
         val connection = URL(VOICES_URL).openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "GET"
@@ -35,6 +36,7 @@ object MyVoicesClient {
     }
 
     fun create(context: Context, apiKey: String, name: String, audioUri: Uri, model: String, language: String): SavedUserVoice {
+        error("Cloud voice cloning is disabled in T2S free-only mode.")
         val mime = context.contentResolver.getType(audioUri) ?: "audio/wav"
         val extension = when {
             mime.contains("mpeg") || mime.contains("mp3") -> "mp3"
