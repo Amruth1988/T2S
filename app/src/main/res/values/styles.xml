@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="T2SAppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#101B35</item>
+        <item name="android:navigationBarColor">#101B35</item>
+        <item name="android:windowBackground">#101B35</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowSplashScreenBackground">#101B35</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_t2s_mark</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#101B35</item>
+    </style>
+</resources>
