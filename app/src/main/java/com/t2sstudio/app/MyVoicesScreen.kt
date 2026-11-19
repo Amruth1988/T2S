@@ -271,7 +271,7 @@ fun MyVoicesScreen() {
                                     withContext(Dispatchers.IO) {
                                         TtsAiClient.generate(
                                             text = "Hello. This is a preview of my saved voice.",
-                                            language = "en",
+                                            language = voice.language,
                                             voice = "",
                                             speed = 1f,
                                             output = audioFile,
