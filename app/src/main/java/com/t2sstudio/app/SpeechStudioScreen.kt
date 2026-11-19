@@ -329,9 +329,47 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             .padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text("Text to Speech", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = T2SText)
-            Text("Turn your words into spoken audio.", fontSize = 14.sp, color = T2SSecondaryText)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF47721)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        androidx.compose.ui.graphics.Brush.linearGradient(
+                            colors = listOf(Color(0xFFFF9A45), Color(0xFFF47721), Color(0xFFD95712))
+                        )
+                    )
+                    .padding(horizontal = 18.dp, vertical = 20.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .background(Color.White.copy(alpha = 0.20f), androidx.compose.foundation.shape.RoundedCornerShape(17.dp))
+                        .padding(13.dp),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
+                    Text("♫", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text("Text to Speech", fontSize = 23.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                    Text("Turn your words into natural spoken audio.", fontSize = 13.sp, color = Color.White.copy(alpha = 0.92f))
+                    Row(
+                        modifier = Modifier
+                            .background(Color.White.copy(alpha = 0.18f), androidx.compose.foundation.shape.RoundedCornerShape(50))
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(Modifier.size(7.dp).background(Color(0xFFB9F6CA), androidx.compose.foundation.shape.CircleShape))
+                        Text(if (engineReady) "VOICE ENGINE READY" else "VOICE STUDIO", fontSize = 9.sp, color = Color.White, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                    }
+                }
+            }
         }
 
         Card(
