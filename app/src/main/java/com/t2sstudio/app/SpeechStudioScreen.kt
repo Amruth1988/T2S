@@ -205,7 +205,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             return
         }
         stopVoicePreview()
-        val languageCode = when (selectedLanguage) { "English" -> "en"; "Hindi" -> "hi"; else -> null }
+        val languageCode = when (selectedLanguage) { "English" -> "en"; "Hindi" -> "hi"; "Telugu" -> "te"; else -> "en" }
         if (languageCode == null) {
             statusMessage = "Online preview is not available for Telugu yet. Use an installed Telugu voice."
             return
@@ -214,75 +214,6 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         activePreviewKey = previewKey
         statusMessage = "Generating preview for $previewKey…"
         coroutineScope.launch {
-            if (!previewUrl.isNullOrBlank()) {
-                val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.audio")
-                val downloadResult = runCatching {
-                    withContext(Dispatchers.IO) {
-                        TtsAiClient.downloadPreview(previewUrl, previewFile)
-                    }
-                }
-                if (downloadResult.isFailure) {
-                    previewFile.delete()
-                    isPreviewing = false
-                    activePreviewKey = null
-                    statusMessage = "Voice preview download failed: " + (downloadResult.exceptionOrNull()?.message ?: "audio unavailable")
-                    return@launch
-                }
-                if (activePreviewKey != previewKey) {
-                    previewFile.delete()
-                    return@launch
-                }
-                runCatching {
-                    val player = MediaPlayer()
-                    mediaPlayer = player
-                    player.setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                            .build()
-                    )
-                    player.setDataSource(previewFile.absolutePath)
-                    player.setOnPreparedListener {
-                        if (activePreviewKey == previewKey) {
-                            it.start()
-                            isPlaying = true
-                            statusMessage = "Playing only: $previewKey"
-                        } else {
-                            it.release()
-                            previewFile.delete()
-                        }
-                    }
-                    player.setOnCompletionListener {
-                        it.release()
-                        if (mediaPlayer === it) mediaPlayer = null
-                        previewFile.delete()
-                        isPlaying = false
-                        isPreviewing = false
-                        activePreviewKey = null
-                        statusMessage = "Preview finished: $previewKey"
-                    }
-                    player.setOnErrorListener { mp, what, extra ->
-                        mp.release()
-                        if (mediaPlayer === mp) mediaPlayer = null
-                        previewFile.delete()
-                        isPlaying = false
-                        isPreviewing = false
-                        activePreviewKey = null
-                        statusMessage = "Voice preview playback failed ($what/$extra)."
-                        true
-                    }
-                    player.prepareAsync()
-                }.onFailure {
-                    previewFile.delete()
-                    mediaPlayer?.release()
-                    mediaPlayer = null
-                    isPlaying = false
-                    isPreviewing = false
-                    activePreviewKey = null
-                    statusMessage = "Voice preview playback failed: " + (it.localizedMessage ?: "unknown audio error")
-                }
-                return@launch
-            }
             val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.wav")
             val sample = if (selectedLanguage == "Hindi") "नमस्ते। यह आवाज़ का नमूना है।"
                 else "Hello. This is a sample of the selected voice."
@@ -290,7 +221,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 withContext(Dispatchers.IO) {
                     TtsAiClient.generate(
                         sample, languageCode, voiceId, 1f, previewFile,
-                        apiKey = if (personal) ttsApiKey else "",
+                        apiKey = ttsApiKey,
                         model = model,
                         format = "wav"
                     )
