@@ -3,7 +3,11 @@ package com.t2sstudio.app
 import android.Manifest
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
-import android.media.MediaPlayer
+import androidx.media3.common.AudioAttributes as Media3AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.core.content.ContextCompat
 import java.io.File
 import android.content.Intent
@@ -50,6 +54,7 @@ import com.t2sstudio.app.ui.theme.T2SText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 @Composable
 fun MyVoicesScreen() {
@@ -64,7 +69,7 @@ fun MyVoicesScreen() {
     var recording by remember { mutableStateOf(false) }
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordingFile by remember { mutableStateOf<File?>(null) }
-    var previewPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var previewPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
     var recordingStartedAt by remember { mutableStateOf(0L) }
     var hasMicPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
     var message by remember { mutableStateOf("Add a clear recording of your own voice to create a reusable voice profile.") }
@@ -193,10 +198,33 @@ fun MyVoicesScreen() {
                         if (uri == null) message = "Record or select an audio file first."
                         else runCatching {
                             previewPlayer?.release()
-                            val player = MediaPlayer.create(context, uri) ?: error("Could not open this audio sample.")
+                            val player = ExoPlayer.Builder(context).build()
                             previewPlayer = player
-                            player.setOnCompletionListener { it.release(); if (previewPlayer === it) previewPlayer = null; message = "Recording preview finished." }
-                            player.start()
+                            player.setAudioAttributes(
+                                Media3AudioAttributes.Builder()
+                                    .setUsage(C.USAGE_MEDIA)
+                                    .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                                    .build(),
+                                true
+                            )
+                            player.volume = 1f
+                            player.addListener(object : Player.Listener {
+                                override fun onPlaybackStateChanged(playbackState: Int) {
+                                    if (playbackState == Player.STATE_ENDED) {
+                                        player.release()
+                                        if (previewPlayer === player) previewPlayer = null
+                                        message = "Recording preview finished."
+                                    }
+                                }
+                                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                                    player.release()
+                                    if (previewPlayer === player) previewPlayer = null
+                                    message = "Recording preview failed: ${error.message ?: "audio playback error"}"
+                                }
+                            })
+                            player.setMediaItem(MediaItem.fromUri(uri))
+                            player.prepare()
+                            player.play()
                             message = "Playing your recording…"
                         }.onFailure { message = "Preview failed: " + (it.localizedMessage ?: "audio could not be played") }
                     }, enabled = pickedUri != null && !recording) { Text("▶ Preview recording") }
@@ -268,44 +296,69 @@ fun MyVoicesScreen() {
                             scope.launch {
                                 val audioFile = File(context.cacheDir, "saved_voice_preview_${voice.id.hashCode()}.mp3")
                                 val result = runCatching {
-                                    withContext(Dispatchers.IO) {
-                                        TtsAiClient.generate(
-                                            text = "Hello. This is a preview of my saved voice.",
-                                            language = voice.language,
-                                            voice = "",
-                                            speed = 1f,
-                                            output = audioFile,
-                                            apiKey = apiKey.trim(),
-                                            model = voice.model,
-                                            format = "mp3",
-                                            userVoiceId = voice.id
-                                        )
+                                    withTimeout(45_000L) {
+                                        withContext(Dispatchers.IO) {
+                                            TtsAiClient.generate(
+                                                text = "Hello. This is a preview of my saved voice.",
+                                                language = voice.language,
+                                                voice = "",
+                                                speed = 1f,
+                                                output = audioFile,
+                                                apiKey = apiKey.trim(),
+                                                model = voice.model,
+                                                format = "mp3",
+                                                userVoiceId = voice.id
+                                            )
+                                        }
                                     }
                                 }
                                 if (result.isSuccess) {
                                     runCatching {
                                         previewPlayer?.release()
-                                        val player = MediaPlayer()
+                                        val player = ExoPlayer.Builder(context).build()
                                         previewPlayer = player
                                         player.setAudioAttributes(
-                                            android.media.AudioAttributes.Builder()
-                                                .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                                                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
-                                                .build()
+                                            Media3AudioAttributes.Builder()
+                                                .setUsage(C.USAGE_MEDIA)
+                                                .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                                                .build(),
+                                            true
                                         )
-                                        player.setVolume(1f, 1f)
-                                        player.setDataSource(audioFile.absolutePath)
-                                        player.setOnPreparedListener { it.start(); message = "Playing AI preview: ${voice.name}…" }
-                                        player.setOnCompletionListener { it.release(); if (previewPlayer === it) previewPlayer = null; audioFile.delete(); message = "AI voice preview finished." }
-                                        player.setOnErrorListener { mp, _, _ -> mp.release(); if (previewPlayer === mp) previewPlayer = null; audioFile.delete(); message = "Could not play the generated voice preview."; true }
-                                        player.prepareAsync()
+                                        player.volume = 1f
+                                        player.addListener(object : Player.Listener {
+                                            override fun onPlaybackStateChanged(playbackState: Int) {
+                                                when (playbackState) {
+                                                    Player.STATE_READY -> message = "Playing AI preview: ${voice.name}…"
+                                                    Player.STATE_ENDED -> {
+                                                        player.release()
+                                                        if (previewPlayer === player) previewPlayer = null
+                                                        audioFile.delete()
+                                                        message = "AI voice preview finished."
+                                                    }
+                                                }
+                                            }
+                                            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                                                player.release()
+                                                if (previewPlayer === player) previewPlayer = null
+                                                audioFile.delete()
+                                                message = "Preview playback failed: ${error.errorCodeName}"
+                                            }
+                                        })
+                                        player.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(audioFile)))
+                                        player.prepare()
+                                        player.play()
                                     }.onFailure {
                                         audioFile.delete()
                                         message = "Preview playback failed: ${it.localizedMessage ?: "audio player error"}"
                                     }
                                 } else {
                                     audioFile.delete()
-                                    message = "AI preview failed: ${result.exceptionOrNull()?.message ?: "voice service unavailable"}"
+                                    val error = result.exceptionOrNull()
+                                    message = if (error is kotlinx.coroutines.TimeoutCancellationException) {
+                                        "Voice preview timed out after 45 seconds. Please try again."
+                                    } else {
+                                        "AI preview failed: ${error?.message ?: "voice service unavailable"}"
+                                    }
                                 }
                                 busy = false
                             }
