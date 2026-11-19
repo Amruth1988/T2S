@@ -3,6 +3,7 @@ package com.t2sstudio.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +39,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -93,7 +95,14 @@ private fun T2SApp() {
                         }
                         Spacer(Modifier.width(11.dp))
                         Column(verticalArrangement = Arrangement.Center) {
-                            Text("T2S Studio", fontWeight = FontWeight.Bold, fontSize = 19.sp, color = T2SText)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("T2S Studi", fontWeight = FontWeight.Bold, fontSize = 19.sp, color = T2SText)
+                                Image(
+                                    painter = painterResource(R.drawable.ic_t2s_mark),
+                                    contentDescription = "T2S Studio microphone logo",
+                                    modifier = Modifier.size(21.dp)
+                                )
+                            }
                             Text("Text to Speech", fontSize = 10.sp, color = T2SSecondaryText)
                         }
                     }
