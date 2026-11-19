@@ -77,6 +77,7 @@ object TtsAiClient {
     }
 
     fun generate(text: String, language: String, voice: String, speed: Float, output: File, apiKey: String = "", model: String? = null, format: String = "wav", userVoiceId: String? = null) {
+        error("Cloud TTS is disabled in T2S free-only mode. No premium model or paid API request was made.")
         require(text.length <= 500) { "Online free requests are limited to 500 characters." }
         val payload = JSONObject().apply {
             put("text", text)
