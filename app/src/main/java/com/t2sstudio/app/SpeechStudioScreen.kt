@@ -746,11 +746,19 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Output format", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("MP3", "WAV").forEach { format ->
-                    FilterChip(selected = outputFormat == format, onClick = { outputFormat = format }, label = { Text(format) })
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("Output format:", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+                listOf("WAV", "MP3").forEach { format ->
+                    FilterChip(
+                        selected = outputFormat == format,
+                        onClick = { outputFormat = format },
+                        label = { Text(format, fontSize = 12.sp) }
+                    )
                 }
             }
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
