@@ -55,7 +55,7 @@ object MyVoicesClient {
             sample.delete()
             error("Voice recording must be 20 MB or smaller.")
         }
-        val voice = SavedUserVoice(id, cleanName, "Local recording", null, sample.absolutePath, language)
+        val voice = SavedUserVoice(id, cleanName, sample.absolutePath, language)
         try {
             val profiles = JSONArray()
             list(context).filterNot { it.id == id }.forEach { existing ->
