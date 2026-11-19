@@ -405,15 +405,13 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         lineHeight = 23.sp,
                         color = Color(0xFF101B35)
                     ),
-                    supportingText = {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            Text("${inputText.length} characters", fontSize = 11.sp, color = T2SSecondaryText)
-                        }
-                    }
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Text("${inputText.length} characters", fontSize = 11.sp, color = T2SSecondaryText)
+                }
             }
         }
 
