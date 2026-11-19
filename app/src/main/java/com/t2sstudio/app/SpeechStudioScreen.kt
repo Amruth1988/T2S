@@ -17,6 +17,7 @@ import android.speech.tts.Voice
 import androidx.core.content.FileProvider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -375,19 +376,57 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             Column(modifier = Modifier.weight(1.25f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Language", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 var languageMenuExpanded by remember { mutableStateOf(false) }
-                Box {
-                    OutlinedButton(onClick = { languageMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                        Text(selectedLanguage, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Start)
-                        Text("⌄")
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val languageDropdownWidth = maxWidth
+                    OutlinedButton(
+                        onClick = { languageMenuExpanded = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (languageMenuExpanded) Color(0xFFF47721) else Color(0xFFD5DCE8)),
+                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color(0xFFF5F7FB),
+                            contentColor = Color(0xFF101B35)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            selectedLanguage,
+                            modifier = Modifier.weight(1f),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text("⌄", color = Color(0xFFF47721), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     }
-                    DropdownMenu(expanded = languageMenuExpanded, onDismissRequest = { languageMenuExpanded = false }) {
+                    DropdownMenu(
+                        expanded = languageMenuExpanded,
+                        onDismissRequest = { languageMenuExpanded = false },
+                        modifier = Modifier
+                            .width(languageDropdownWidth)
+                            .background(Color.White)
+                            .border(1.dp, Color(0xFFDCE3EF), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                    ) {
                         languages.forEach { language ->
-                            DropdownMenuItem(text = { Text(language.label) }, onClick = {
-                                selectedLanguage = language.label
-                                generatedFile = null
-                                languageMenuExpanded = false
-                                ttsEngine?.let { refreshVoices(it, language.locale) }
-                            })
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        language.label,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        color = if (selectedLanguage == language.label) Color(0xFFF47721) else Color(0xFF101B35),
+                                        fontSize = 14.sp,
+                                        fontWeight = if (selectedLanguage == language.label) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                },
+                                onClick = {
+                                    selectedLanguage = language.label
+                                    generatedFile = null
+                                    languageMenuExpanded = false
+                                    ttsEngine?.let { refreshVoices(it, language.locale) }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
