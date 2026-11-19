@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.rememberScrollState
@@ -355,16 +356,63 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = T2SBackground)
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFE)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            Column(Modifier.padding(2.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Your text", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("Your text", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                        Text("Write or paste your script below", fontSize = 12.sp, color = T2SSecondaryText)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFFFFF0E5), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text("SCRIPT", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF47721), letterSpacing = 1.sp)
+                    }
+                }
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it; generatedFile = null },
                     modifier = Modifier.fillMaxWidth().height(190.dp),
-                    placeholder = { Text("Type or paste your text here…") },
-                    supportingText = { Text("${inputText.length} characters") }
+                    placeholder = {
+                        Text(
+                            "Start typing your text here…\n\nYou can also paste your script.",
+                            color = Color(0xFF929DB0),
+                            lineHeight = 22.sp
+                        )
+                    },
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                    colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFFF47721),
+                        unfocusedBorderColor = Color(0xFFD7DFEC),
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        cursorColor = Color(0xFFF47721),
+                        focusedTextColor = Color(0xFF101B35),
+                        unfocusedTextColor = Color(0xFF101B35)
+                    ),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontSize = 15.sp,
+                        lineHeight = 23.sp,
+                        color = Color(0xFF101B35)
+                    ),
+                    supportingText = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Text("${inputText.length} characters", fontSize = 11.sp, color = T2SSecondaryText)
+                        }
+                    }
                 )
             }
         }
