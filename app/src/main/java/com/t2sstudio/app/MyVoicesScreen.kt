@@ -224,25 +224,7 @@ fun MyVoicesScreen() {
                     androidx.compose.material3.Checkbox(checked = consentConfirmed, onCheckedChange = { consentConfirmed = it }, enabled = !busy)
                     Text("I confirm this is my voice, or I have permission to clone it.", color = T2SSecondaryText, fontSize = 12.sp)
                 }
-                Button(
-                    onClick = {
-                        val uri = pickedUri
-                        if (apiKey.isBlank()) message = "Personal voices are not configured in this build. Add the TTS_API_KEY GitHub Actions secret and rebuild."
-                        else if (!consentConfirmed) message = "Please confirm you have the right to clone this voice."
-                        else if (voiceName.isBlank()) message = "Enter a name for this voice."
-                        else if (uri == null) message = "Choose a voice recording first."
-                        else {
-                            busy = true
-                            message = "Uploading sample and creating your saved voice…"
-                            scope.launch {
-                                runCatching { withContext(Dispatchers.IO) { MyVoicesClient.create(context, apiKey.trim(), voiceName.trim(), uri, model, cloneLanguage) } }
-                                    .onSuccess { created -> voices.add(0, created); pickedUri = null; pickedLabel = "No audio selected"; message = "${created.name} was saved to your voice library." }
-                                    .onFailure { message = it.message ?: "Could not create voice profile." }
-                                busy = false
-                            }
-                        }
-                    }, enabled = !busy && consentConfirmed
-                ) { Text("Create and save voice") }
+                Button(onClick = { message = "Free offline voice cloning is not ready yet. No premium service will be called." }, enabled = false) { Text("Offline voice cloning — coming soon") }
             }
         }
         if (busy) CircularProgressIndicator()
