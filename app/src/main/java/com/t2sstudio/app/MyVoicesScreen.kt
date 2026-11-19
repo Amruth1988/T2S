@@ -253,7 +253,26 @@ fun MyVoicesScreen() {
                         Text(voice.model, color = T2SText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Text("Voice ID  •  ${voice.id}", color = T2SSecondaryText, fontSize = 10.sp, maxLines = 1)
-                    Text("Ready for supported voice generation", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text("Ready for supported voice generation", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp, modifier = Modifier.weight(1f))
+                        TextButton(onClick = {
+                            val url = voice.previewUrl
+                            if (url.isNullOrBlank()) {
+                                message = "No preview sample was supplied for ${voice.name} by the voice provider."
+                            } else {
+                                runCatching {
+                                    previewPlayer?.release()
+                                    val player = MediaPlayer()
+                                    previewPlayer = player
+                                    player.setDataSource(url)
+                                    player.setOnPreparedListener { it.start(); message = "Playing ${voice.name} preview…" }
+                                    player.setOnCompletionListener { it.release(); if (previewPlayer === it) previewPlayer = null; message = "Voice preview finished." }
+                                    player.setOnErrorListener { mp, _, _ -> mp.release(); if (previewPlayer === mp) previewPlayer = null; message = "Could not play this voice preview."; true }
+                                    player.prepareAsync()
+                                }.onFailure { message = "Preview failed: ${it.localizedMessage ?: "audio unavailable"}"; previewPlayer?.release(); previewPlayer = null }
+                            }
+                        }, enabled = !busy && !recording) { Text("▶ Preview") }
+                    }
                 }
             }
         }
