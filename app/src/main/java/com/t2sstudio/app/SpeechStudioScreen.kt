@@ -3,6 +3,7 @@ package com.t2sstudio.app
 import android.content.ContentValues
 import android.content.Intent
 import android.media.MediaPlayer
+import android.media.AudioAttributes
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -197,7 +198,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         activePreviewKey = null
     }
 
-    fun previewOnlineVoice(voiceId: String, model: String? = null, personal: Boolean = false, previewKey: String = voiceId) {
+    fun previewOnlineVoice(voiceId: String, model: String? = null, personal: Boolean = false, previewKey: String = voiceId, previewUrl: String? = null) {
         if (isPreviewing && activePreviewKey == previewKey) {
             stopVoicePreview()
             statusMessage = "Preview stopped."
@@ -213,6 +214,51 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         activePreviewKey = previewKey
         statusMessage = "Generating preview for $previewKey…"
         coroutineScope.launch {
+            if (!previewUrl.isNullOrBlank()) {
+                runCatching {
+                    val parsed = Uri.parse(previewUrl)
+                    require(parsed.scheme == "https" && (parsed.host == "api.tts.ai" || parsed.host == "tts.ai")) {
+                        "Preview URL is not a trusted TTS.ai audio URL."
+                    }
+                    val player = MediaPlayer()
+                    mediaPlayer = player
+                    player.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                    player.setDataSource(previewUrl)
+                    player.setOnPreparedListener {
+                        if (activePreviewKey == previewKey) {
+                            it.start()
+                            isPlaying = true
+                            statusMessage = "Playing only: $previewKey"
+                        } else it.release()
+                    }
+                    player.setOnCompletionListener {
+                        it.release()
+                        if (mediaPlayer === it) mediaPlayer = null
+                        isPlaying = false
+                        isPreviewing = false
+                        activePreviewKey = null
+                        statusMessage = "Preview finished: $previewKey"
+                    }
+                    player.setOnErrorListener { mp, what, extra ->
+                        mp.release()
+                        if (mediaPlayer === mp) mediaPlayer = null
+                        isPlaying = false
+                        isPreviewing = false
+                        activePreviewKey = null
+                        statusMessage = "Preview audio error ($what/$extra) for $previewKey."
+                        true
+                    }
+                    player.prepareAsync()
+                }.onFailure {
+                    mediaPlayer?.release()
+                    mediaPlayer = null
+                    isPlaying = false
+                    isPreviewing = false
+                    activePreviewKey = null
+                    statusMessage = "Could not play voice preview: " + (it.localizedMessage ?: "audio unavailable")
+                }
+                return@launch
+            }
             val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.wav")
             val sample = if (selectedLanguage == "Hindi") "नमस्ते। यह आवाज़ का नमूना है।"
                 else "Hello. This is a sample of the selected voice."
@@ -551,7 +597,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
                                     Text("Online • " + voice.gender, color = T2SSecondaryText, fontSize = 11.sp)
                                 }
-                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.id}") }) {
+                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.id}", previewUrl = voice.previewUrl) }) {
                                     Text(if (activePreviewKey == "online:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = T2SOrange)
                                 }
                               }
@@ -577,7 +623,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
                                     Text("Personal voice", color = T2SSecondaryText, fontSize = 11.sp)
                                 }
-                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, voice.model, personal = true, previewKey = "personal:${voice.id}") }) {
+                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, voice.model, personal = true, previewKey = "personal:${voice.id}", previewUrl = voice.previewUrl) }) {
                                     Text(if (activePreviewKey == "personal:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = T2SOrange)
                                 }
                             }
