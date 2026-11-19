@@ -31,6 +31,43 @@ object TtsAiClient {
         }
     }
 
+    fun downloadPreview(previewUrl: String, output: File) {
+        val initial = URL(previewUrl)
+        require(initial.protocol == "https" && (initial.host == "api.tts.ai" || initial.host == "tts.ai")) {
+            "Untrusted voice preview URL"
+        }
+        val connection = initial.openConnection() as HttpURLConnection
+        try {
+            connection.instanceFollowRedirects = true
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 15000
+            connection.readTimeout = 30000
+            connection.setRequestProperty("Accept", "audio/mpeg,audio/wav,audio/*;q=0.9,*/*;q=0.1")
+            connection.setRequestProperty("User-Agent", "T2S-Studio-Android")
+            val code = connection.responseCode
+            if (code !in 200..299) error("Voice preview download failed (HTTP $code)")
+            val finalUrl = URL(connection.url.toString())
+            require(finalUrl.protocol == "https" && (finalUrl.host == "api.tts.ai" || finalUrl.host == "tts.ai")) {
+                "Voice preview redirected to an untrusted host"
+            }
+            output.parentFile?.mkdirs()
+            connection.inputStream.use { input -> output.outputStream().use { out -> input.copyTo(out) } }
+            if (!output.exists() || output.length() < 1024) error("Voice preview audio is empty or incomplete")
+            val header = output.inputStream().use { input -> ByteArray(12).also { input.read(it) } }
+            val isWav = header.size >= 12 && String(header, 0, 4, Charsets.US_ASCII) == "RIFF" && String(header, 8, 4, Charsets.US_ASCII) == "WAVE"
+            val isMp3 = header.size >= 3 && (String(header, 0, 3, Charsets.US_ASCII) == "ID3" ||
+                ((header[0].toInt() and 0xFF) == 0xFF && (header[1].toInt() and 0xE0) == 0xE0))
+            val isOgg = header.size >= 4 && String(header, 0, 4, Charsets.US_ASCII) == "OggS"
+            val isFlac = header.size >= 4 && String(header, 0, 4, Charsets.US_ASCII) == "fLaC"
+            if (!isWav && !isMp3 && !isOgg && !isFlac) error("Voice preview URL did not return a supported audio file")
+        } catch (error: Exception) {
+            output.delete()
+            throw error
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     fun generate(text: String, language: String, voice: String, speed: Float, output: File, apiKey: String = "", model: String? = null, format: String = "wav") {
         require(text.length <= 500) { "Online free requests are limited to 500 characters." }
         val payload = JSONObject().apply {
