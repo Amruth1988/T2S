@@ -133,7 +133,7 @@ object TtsAiClient {
             connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
             val code = connection.responseCode
             if (code !in 200..299) {
-                val detail = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                val detail = responseError(connection)
                 error(when (code) {
                     401 -> detail.ifBlank { "Online TTS needs a valid free India API key. Check Profile → Online TTS access." }
                     429 -> detail.ifBlank { "Free online TTS daily quota or rate limit reached. Please try again later." }
