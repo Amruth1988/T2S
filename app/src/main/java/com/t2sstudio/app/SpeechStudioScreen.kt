@@ -6,6 +6,8 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.Environment
 import android.provider.MediaStore
 import android.speech.tts.TextToSpeech
@@ -406,16 +408,41 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     TextButton(onClick = {
                                         val engine = ttsEngine
                                         if (engine != null && engineReady) {
-                                            engine.stop()
+                                            stopVoicePreview()
+                                            isPreviewing = true
+                                            val mainHandler = Handler(Looper.getMainLooper())
                                             engine.setLanguage(voice.locale)
                                             engine.voice = voice
+                                            engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                                                override fun onStart(utteranceId: String?) {
+                                                    mainHandler.post { isPlaying = true; statusMessage = "Playing ${voice.name} preview." }
+                                                }
+                                                override fun onDone(utteranceId: String?) {
+                                                    mainHandler.post { isPlaying = false; isPreviewing = false; statusMessage = "${voice.name} preview finished." }
+                                                }
+                                                @Deprecated("Deprecated in Java")
+                                                override fun onError(utteranceId: String?) {
+                                                    mainHandler.post { isPlaying = false; isPreviewing = false; statusMessage = "Could not play ${voice.name}. Check installed voice data." }
+                                                }
+                                                override fun onError(utteranceId: String?, errorCode: Int) {
+                                                    mainHandler.post { isPlaying = false; isPreviewing = false; statusMessage = "Voice preview failed (code $errorCode)." }
+                                                }
+                                            })
                                             val sample = when (voice.locale.language) {
-                                                "te" -> "నమస్కారం. ఇది నా స్వర నమూనా."
-                                                "hi" -> "नमस्ते। यह मेरी आवाज़ का नमूना है।"
-                                                else -> "Hello. This is a sample of my voice."
+                                                "te" -> "నమస్కారం. ఇది స్వర నమూనా."
+                                                "hi" -> "नमस्ते। यह आवाज़ का नमूना है।"
+                                                else -> "Hello. This is a sample voice preview."
                                             }
-                                            engine.speak(sample, TextToSpeech.QUEUE_FLUSH, Bundle(), "t2s-preview-${voice.name}")
-                                            statusMessage = "Previewing ${voice.name}."
+                                            val speakResult = engine.speak(sample, TextToSpeech.QUEUE_FLUSH, Bundle(), "t2s-preview-${voice.name}")
+                                            if (speakResult == TextToSpeech.ERROR) {
+                                                isPreviewing = false
+                                                isPlaying = false
+                                                statusMessage = "Android could not start this voice preview."
+                                            } else {
+                                                statusMessage = "Preparing ${voice.name} preview…"
+                                            }
+                                        } else {
+                                            statusMessage = "Android speech engine is not ready yet."
                                         }
                                     }, enabled = engineReady) { Text("▶", color = T2SOrange) }
                                 }
@@ -466,7 +493,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
                                     Text("Personal voice", color = T2SSecondaryText, fontSize = 11.sp)
                                 }
-                                TextButton(enabled = !isPreviewing, onClick = { previewOnlineVoice(voice.id, voice.model, personal = true) }) {
+                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, voice.model, personal = true) }) {
                                     Text(if (isPreviewing) "…" else "▶ Preview", color = T2SOrange)
                                 }
                             }
