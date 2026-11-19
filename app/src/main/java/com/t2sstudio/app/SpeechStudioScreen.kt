@@ -632,10 +632,10 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             onClick = {
                                 selectedGender = gender
                                 selectedVoice = availableVoices.firstOrNull { voice ->
-                                    voiceGender(voice.name) == gender
+                                    gender == "All" || voiceGender(voice.name) == gender
                                 }
                                 selectedOnlineVoice = onlineVoices.firstOrNull { voice ->
-                                    voice.gender.equals(gender, ignoreCase = true)
+                                    gender == "All" || voice.gender.equals(gender, ignoreCase = true)
                                 }
                             },
                             label = { Text(gender, fontSize = 10.sp, maxLines = 1) }
