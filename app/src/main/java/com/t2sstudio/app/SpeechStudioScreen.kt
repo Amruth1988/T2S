@@ -222,8 +222,8 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         if (isPreviewing && activePreviewKey == previewKey) { stopVoicePreview(); statusMessage = "Preview stopped."; return }
         stopVoicePreview()
         val localSample = localSamplePath?.let { File(it) }?.takeIf { it.exists() && it.length() > 1024L }
-        if (personal && previewUrl.isNullOrBlank() && localSample == null) {
-            statusMessage = "No preview audio is available for this saved voice. Re-record and save it in My Voices to keep a local sample preview."
+        if (personal && voiceId.isBlank()) {
+            statusMessage = "This saved voice is missing its provider voice ID."
             return
         }
         val languageCode = languageOverride ?: when (selectedLanguage) { "English" -> "en"; "Hindi" -> "hi"; "Telugu" -> "te"; else -> "en" }
