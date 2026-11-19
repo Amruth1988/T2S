@@ -1,0 +1,55 @@
+name: Validate SYSPIN Telugu male voice
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "tools/validate_syspin_synthesis.py"
+      - ".github/workflows/validate-syspin-voice.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  syspin-character-input:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out T2S
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Sherpa-ONNX
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install sherpa-onnx
+
+      - name: Download pinned SYSPIN converted voice
+        run: |
+          set -euo pipefail
+          mkdir -p build/syspin-telugu-male
+          base="https://huggingface.co/codebucketsolutions/bolo-syspin-telugu-male/resolve/6650e4cb5e553e80af13e5b079ffaf86c30ac19b"
+          curl -fL --retry 3 "$base/model.onnx" -o build/syspin-telugu-male/model.onnx
+          curl -fL --retry 3 "$base/tokens.txt" -o build/syspin-telugu-male/tokens.txt
+          curl -fL --retry 3 "$base/voice.json" -o build/syspin-telugu-male/voice.json
+          curl -fL --retry 3 "$base/LICENSE" -o build/syspin-telugu-male/LICENSE
+          curl -fL --retry 3 "$base/ATTRIBUTION" -o build/syspin-telugu-male/ATTRIBUTION
+
+      - name: Validate character inventory and synthesize Telugu sample
+        run: |
+          python tools/validate_syspin_synthesis.py \
+            --model build/syspin-telugu-male/model.onnx \
+            --tokens build/syspin-telugu-male/tokens.txt \
+            --output build/syspin-telugu-male/smoke-test.wav
+
+      - name: Upload SYSPIN validation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: t2s-syspin-telugu-male-validation
+          path: build/syspin-telugu-male/
+          if-no-files-found: error
+          retention-days: 7
