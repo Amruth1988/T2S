@@ -98,6 +98,7 @@ object TeluguVoicePacks {
                                 archivePath.contains("/${it.id}/") ||
                                 archivePath.startsWith("build/telugu-voices/${it.id}/")
                         }
+                        var extractedExpectedFile = false
                         if (pack != null && !entry.isDirectory) {
                             val name = normalized.substringAfterLast('/')
                             if (name == pack.modelFile || name == "tokens.txt") {
@@ -123,12 +124,14 @@ object TeluguVoicePacks {
                                     }
                                     if (name == pack.modelFile) extractedModels.add(pack.id)
                                     if (name == "tokens.txt") extractedTokens.add(pack.id)
+                                    extractedExpectedFile = true
                                 } catch (error: Exception) {
                                     partial.delete()
                                     throw error
                                 }
                             }
-                        } else if (!entry.isDirectory) {
+                        }
+                        if (!entry.isDirectory && !extractedExpectedFile) {
                             // Drain unselected entries through a bound too: closeEntry() alone can
                             // inflate an arbitrarily large ZIP bomb even when nothing is extracted.
                             val skippedBytes = zip.drainEntryBounded(180L * 1024 * 1024)
