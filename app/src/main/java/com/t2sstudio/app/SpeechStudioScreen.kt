@@ -596,7 +596,6 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     FilterChip(selected = outputFormat == format, onClick = { outputFormat = format }, label = { Text(format) })
                 }
             }
-            androidx.compose.material3.Checkbox(checked = autoPlayAfterGeneration, onCheckedChange = { autoPlayAfterGeneration = it })
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 androidx.compose.material3.Checkbox(checked = autoPlayAfterGeneration, onCheckedChange = { autoPlayAfterGeneration = it })
                 Text("Auto-play after generation", color = T2SText, fontSize = 13.sp)
