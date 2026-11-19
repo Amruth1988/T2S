@@ -440,6 +440,15 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             .padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Text(
+            "Text to Speech",
+            modifier = Modifier.fillMaxWidth(),
+            fontSize = 25.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 0.35.sp,
+            color = T2SText
+        )
+
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
