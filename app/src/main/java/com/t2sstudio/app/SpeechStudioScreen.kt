@@ -78,6 +78,19 @@ import kotlinx.coroutines.withContext
 
 private data class SpeechLanguage(val label: String, val locale: Locale)
 
+private data class PurohitPreset(
+    val name: String,
+    val description: String,
+    val speedMultiplier: Float,
+    val pitchMultiplier: Float
+)
+
+private val purohitPresets = listOf(
+    PurohitPreset("Purohit 1", "Deep, steady traditional recitation", 0.84f, 0.86f),
+    PurohitPreset("Purohit 2", "Slow, devotional verse delivery", 0.72f, 1.08f),
+    PurohitPreset("Purohit 3", "Clear, formal temple-style delivery", 0.96f, 0.98f)
+)
+
 private fun voiceGender(name: String): String? {
     val normalized = name.lowercase(Locale.ROOT)
         .replace(Regex("[^a-z0-9]+"), " ")
@@ -118,6 +131,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     var voiceSearch by remember { mutableStateOf("") }
     var voiceSearchExpanded by remember { mutableStateOf(false) }
     var selectedVoice by remember { mutableStateOf<Voice?>(null) }
+    var selectedPurohitPreset by remember { mutableStateOf<PurohitPreset?>(null) }
     val availableVoices = remember { mutableStateListOf<Voice>() }
     val onlineVoices = remember { mutableStateListOf<OnlineTtsVoice>() }
     var selectedOnlineVoice by remember { mutableStateOf<OnlineTtsVoice?>(null) }
@@ -265,6 +279,76 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 isPlaying = false; isPreviewing = false; activePreviewKey = null
                 statusMessage = "Preview playback error: ${it.message ?: "unknown error"}"
             }
+        }
+    }
+
+    fun previewPurohitPreset(preset: PurohitPreset) {
+        val engine = ttsEngine
+        if (engine == null || !engineReady) {
+            statusMessage = "Android speech engine is still starting."
+            return
+        }
+        stopVoicePreview()
+        val teluguLocale = Locale("te", "IN")
+        val languageResult = engine.setLanguage(teluguLocale)
+        if (languageResult == TextToSpeech.LANG_MISSING_DATA ||
+            languageResult == TextToSpeech.LANG_NOT_SUPPORTED
+        ) {
+            statusMessage = "Telugu voice data is not installed on this device. Install a Telugu voice in Android Text-to-Speech settings."
+            return
+        }
+        val teluguVoice = selectedVoice?.takeIf { it.locale.language == "te" }
+            ?: engine.voices.orEmpty().firstOrNull { it.locale.language == "te" }
+        if (teluguVoice != null) engine.voice = teluguVoice
+        engine.setSpeechRate((speechRate * preset.speedMultiplier).coerceIn(0.5f, 2f))
+        engine.setPitch((speechPitch * preset.pitchMultiplier).coerceIn(0.5f, 2f))
+        val previewKey = "purohit:${preset.name}"
+        activePreviewKey = previewKey
+        isPreviewing = true
+        isPlaying = false
+        val mainHandler = Handler(Looper.getMainLooper())
+        engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) {
+                mainHandler.post { isPlaying = true; statusMessage = "Playing ${preset.name} Telugu preview." }
+            }
+            override fun onDone(utteranceId: String?) {
+                mainHandler.post {
+                    isPlaying = false
+                    isPreviewing = false
+                    activePreviewKey = null
+                    statusMessage = "${preset.name} preview finished."
+                }
+            }
+            @Deprecated("Deprecated in Java")
+            override fun onError(utteranceId: String?) {
+                mainHandler.post {
+                    isPlaying = false
+                    isPreviewing = false
+                    activePreviewKey = null
+                    statusMessage = "${preset.name} preview failed. Check installed Telugu voice data."
+                }
+            }
+            override fun onError(utteranceId: String?, errorCode: Int) {
+                mainHandler.post {
+                    isPlaying = false
+                    isPreviewing = false
+                    activePreviewKey = null
+                    statusMessage = "Telugu preview failed (code $errorCode)."
+                }
+            }
+        })
+        val result = engine.speak(
+            "ఓం నమః శివాయ। శాంతిః శాంతిః శాంతిః॥",
+            TextToSpeech.QUEUE_FLUSH,
+            Bundle(),
+            "t2s-${previewKey}"
+        )
+        if (result == TextToSpeech.ERROR) {
+            isPreviewing = false
+            activePreviewKey = null
+            statusMessage = "Could not start the Telugu preview."
+        } else {
+            statusMessage = "Preparing ${preset.name} preview…"
         }
     }
 
@@ -504,6 +588,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 },
                                 onClick = {
                                     selectedLanguage = language.label
+                                    if (language.label != "Telugu") selectedPurohitPreset = null
                                     generatedFile = null
                                     languageMenuExpanded = false
                                     ttsEngine?.let { refreshVoices(it, language.locale) }
@@ -550,6 +635,82 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 }
             }
           }
+        }
+
+        if (selectedLanguage == "Telugu") {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = T2SCream),
+                border = androidx.compose.foundation.BorderStroke(1.dp, T2SOrange.copy(alpha = 0.35f))
+            ) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Telugu Purohit Chanting", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                    Text(
+                        "Original delivery presets for devotional Telugu recitation. These use your installed Android Telugu voice; they do not clone a priest or singer.",
+                        fontSize = 11.sp,
+                        color = T2SSecondaryText
+                    )
+                    purohitPresets.forEach { preset ->
+                        val selected = selectedPurohitPreset?.name == preset.name
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                selectedPurohitPreset = preset
+                                selectedOnlineVoice = null
+                                selectedMyVoice = null
+                                selectedVoice = availableVoices.firstOrNull { it.locale.language == "te" }
+                                ttsEngine?.let { engine ->
+                                    engine.setLanguage(Locale("te", "IN"))
+                                    selectedVoice?.let { engine.voice = it }
+                                }
+                                statusMessage = "${preset.name} selected. Preview it before generating audio."
+                            },
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(13.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (selected) Color(0xFFFFE3CC) else Color.White
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (selected) T2SOrange else Color(0xFFE5D6C8)
+                            )
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(preset.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text(preset.description, color = T2SSecondaryText, fontSize = 11.sp)
+                                }
+                                if (selected) Text("SELECTED", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                            }
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                val preset = selectedPurohitPreset
+                                if (preset == null) statusMessage = "Select Purohit 1, 2 or 3 first."
+                                else previewPurohitPreset(preset)
+                            },
+                            enabled = selectedPurohitPreset != null && engineReady,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
+                        ) {
+                            Text(if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) "Preview playing…" else "▶ Preview preset")
+                        }
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = {
+                                stopVoicePreview()
+                                selectedPurohitPreset = null
+                                statusMessage = "Purohit preset cleared. Choose a voice from the voice library."
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Clear preset") }
+                    }
+                }
+            }
         }
 
         Card(modifier = Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = T2SBackground)) {
@@ -860,7 +1021,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     generatedFile = null
                     statusMessage = "Trying online speech…"
                     coroutineScope.launch {
-                        val onlineLanguage = when (selectedLanguage) {
+                        val onlineLanguage = if (selectedPurohitPreset != null) null else when (selectedLanguage) {
                             "English" -> "en"
                             "Hindi" -> "hi"
                             else -> null
@@ -922,8 +1083,9 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     statusMessage = language.label + " voice data is not installed or supported on this device."
                                 } else {
                                     selectedVoice?.let { engine.voice = it }
-                                    engine.setSpeechRate(speechRate)
-                                    engine.setPitch(speechPitch)
+                                    val preset = selectedPurohitPreset
+                                    engine.setSpeechRate((speechRate * (preset?.speedMultiplier ?: 1f)).coerceIn(0.5f, 2f))
+                                    engine.setPitch((speechPitch * (preset?.pitchMultiplier ?: 1f)).coerceIn(0.5f, 2f))
                                     engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                                         override fun onStart(utteranceId: String?) { }
                                         override fun onDone(utteranceId: String?) {
