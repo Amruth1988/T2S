@@ -259,7 +259,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 withContext(Dispatchers.IO) {
                     when {
                         localSample != null -> localSample.copyTo(previewFile, overwrite = true)
-                        else -> TtsAiClient.generate(sample, languageCode, voiceId, 1f, previewFile, format = "mp3")
+                        else -> TtsAiClient.generate(sample, voiceId, 1f, previewFile, format = "mp3")
                     }
                 }
             }
@@ -1115,13 +1115,13 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         var onlineSuccess = false
                         val chosenOnlineVoice = selectedOnlineVoice
                         val chosenMyVoice = selectedMyVoice
-                        val voiceId = chosenMyVoice?.id ?: chosenOnlineVoice?.id
-                        if (onlineLanguage != null && voiceId != null && chosenMyVoice?.id?.startsWith("local-") != true && textToSpeak.length <= 3000) {
+                        val voiceId = chosenOnlineVoice?.id
+                        if (onlineLanguage != null && voiceId != null && chosenMyVoice == null && textToSpeak.length <= 3000) {
                             val onlineResult = runCatching {
                                 withContext(Dispatchers.IO) {
                                     TtsAiClient.generate(
-                                        textToSpeak, if (chosenMyVoice != null) chosenMyVoice.language else onlineLanguage, if (chosenMyVoice != null) "" else voiceId, speechRate, output,
-                                        format = outputFormat.lowercase(),
+                                        textToSpeak, voiceId, speechRate, output,
+                                        format = outputFormat.lowercase()
                                     )
                                 }
                             }
