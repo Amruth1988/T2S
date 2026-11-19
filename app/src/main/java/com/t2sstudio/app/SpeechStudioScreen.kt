@@ -94,7 +94,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     val coroutineScope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
     var selectedLanguage by remember { mutableStateOf("English") }
-    var selectedGender by remember { mutableStateOf("Female") }
+    var selectedGender by remember { mutableStateOf("All") }
     var speechRate by remember { mutableFloatStateOf(1f) }
     var speechPitch by remember { mutableFloatStateOf(1f) }
     var engineReady by remember { mutableStateOf(false) }
@@ -133,7 +133,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 .sortedBy { it.name.lowercase(Locale.ROOT) }
             availableVoices.clear()
             availableVoices.addAll(matching)
-            selectedVoice = matching.firstOrNull { voiceGender(it.name) == selectedGender }
+            selectedVoice = matching.firstOrNull { selectedGender == "All" || voiceGender(it.name) == selectedGender }
         }.onFailure {
             availableVoices.clear()
             selectedVoice = null
