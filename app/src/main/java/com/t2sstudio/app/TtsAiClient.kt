@@ -20,6 +20,7 @@ object TtsAiClient {
     private const val BASE = "https://api.tts.ai/v1"
 
     fun listVoices(language: String): List<OnlineTtsVoice> {
+        error("Online voice catalogues are disabled in T2S free-only mode.")
         val encoded = URLEncoder.encode(language, "UTF-8")
         val connection = URL(BASE + "/voices/?language=" + encoded).openConnection() as HttpURLConnection
         try {
@@ -40,6 +41,7 @@ object TtsAiClient {
     }
 
     fun downloadPreview(previewUrl: String, output: File) {
+        error("Online voice previews are disabled in T2S free-only mode.")
         val initial = URL(previewUrl)
         require(initial.protocol == "https") {
             "Voice preview URL must use secure HTTPS"
