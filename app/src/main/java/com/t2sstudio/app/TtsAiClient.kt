@@ -87,7 +87,7 @@ object TtsAiClient {
             if (!model.isNullOrBlank()) put("model", model)
         }.toString()
         val submit = URL(BASE + "/tts/").openConnection() as HttpURLConnection
-        val uuid: String?
+        val uuid: String
         try {
             submit.requestMethod = "POST"
             submit.connectTimeout = 15_000
