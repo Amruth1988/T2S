@@ -81,8 +81,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private const val OFFLINE_TTS_ENGINE_READY = false // Enable only after offline inference is implemented and validated.
-
 private data class SpeechLanguage(val label: String, val locale: Locale)
 
 private data class PurohitPreset(
@@ -1051,8 +1049,6 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     }
                 } else if (!engineReady || ttsEngine == null) {
                     statusMessage = "Speech engine is still starting. Please try again."
-                } else if (!OFFLINE_TTS_ENGINE_READY) {
-                    statusMessage = "The app-managed offline voice engine is not ready yet. No premium API or Android system voice will be used."
                 } else {
                     val audioDirectory = File(
                         context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
