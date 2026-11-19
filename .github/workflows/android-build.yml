@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: t2s-android-${{ github.ref }}
+  group: t2s-android-latest-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
