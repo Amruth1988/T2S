@@ -83,11 +83,14 @@ object TeluguVoicePacks {
         val extractedModels = mutableSetOf<String>()
         val extractedTokens = mutableSetOf<String>()
         var totalExpandedBytes = 0L
+        var entryCount = 0
         try {
             context.contentResolver.openInputStream(uri)?.use { raw ->
                 ZipInputStream(raw.buffered()).use { zip ->
                     var entry = zip.nextEntry
                     while (entry != null) {
+                        entryCount += 1
+                        check(entryCount <= 10_000) { "Voice archive contains too many entries." }
                         val normalized = entry.name
                         val archivePath = normalized.trimStart('/')
                         val pack = all.firstOrNull {
@@ -125,6 +128,14 @@ object TeluguVoicePacks {
                                     throw error
                                 }
                             }
+                        } else if (!entry.isDirectory) {
+                            // Drain unselected entries through a bound too: closeEntry() alone can
+                            // inflate an arbitrarily large ZIP bomb even when nothing is extracted.
+                            val skippedBytes = zip.drainEntryBounded(180L * 1024 * 1024)
+                            totalExpandedBytes += skippedBytes
+                            check(totalExpandedBytes <= 500L * 1024 * 1024) {
+                                "Voice archive expands beyond the 500 MB safety limit."
+                            }
                         }
                         zip.closeEntry()
                         entry = zip.nextEntry
@@ -161,6 +172,18 @@ object TeluguVoicePacks {
         } finally {
             stagingRoot.deleteRecursively()
         }
+    }
+
+    private fun ZipInputStream.drainEntryBounded(maxBytes: Long): Long {
+        var readBytes = 0L
+        val buffer = ByteArray(64 * 1024)
+        while (true) {
+            val count = read(buffer)
+            if (count < 0) break
+            readBytes += count
+            check(readBytes <= maxBytes) { "Voice archive entry exceeds its safety limit." }
+        }
+        return readBytes
     }
 
     private fun ZipInputStream.copyEntryBounded(destination: File, maxBytes: Long): Long {
