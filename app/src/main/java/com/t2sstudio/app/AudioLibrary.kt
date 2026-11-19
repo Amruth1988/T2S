@@ -55,6 +55,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private fun audioMimeType(file: File): String = when (file.extension.lowercase(Locale.ROOT)) {
+    "mp3" -> "audio/mpeg"
+    "ogg" -> "audio/ogg"
+    else -> "audio/wav"
+}
+
 data class AudioRecord(
     val id: String,
     val filePath: String,
@@ -131,7 +137,7 @@ fun SavedAudioScreen(
             val file = File(record.filePath)
             val uri: Uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
             val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "audio/wav"
+                type = audioMimeType(file)
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
@@ -145,7 +151,7 @@ fun SavedAudioScreen(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val values = ContentValues().apply {
                     put(MediaStore.Downloads.DISPLAY_NAME, file.name)
-                    put(MediaStore.Downloads.MIME_TYPE, "audio/wav")
+                    put(MediaStore.Downloads.MIME_TYPE, audioMimeType(file))
                     put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/T2S Studio")
                     put(MediaStore.Downloads.IS_PENDING, 1)
                 }
