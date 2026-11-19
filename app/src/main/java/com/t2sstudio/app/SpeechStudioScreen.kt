@@ -137,6 +137,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     var voiceSearchExpanded by remember { mutableStateOf(false) }
     var selectedVoice by remember { mutableStateOf<Voice?>(null) }
     var selectedPurohitPreset by remember { mutableStateOf<PurohitPreset?>(null) }
+    var isPurohitMode by remember { mutableStateOf(false) }
     val availableVoices = remember { mutableStateListOf<Voice>() }
     val onlineVoices = remember { mutableStateListOf<OnlineTtsVoice>() }
     var selectedOnlineVoice by remember { mutableStateOf<OnlineTtsVoice?>(null) }
@@ -654,7 +655,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 onClick = {
                                     selectedLanguage = language.label
                                     if (language.label == "Telugu") outputFormat = "WAV"
-                                    if (language.label != "Telugu") selectedPurohitPreset = null
+                                    if (language.label != "Telugu") { selectedPurohitPreset = null; isPurohitMode = false }
                                     generatedFile = null
                                     languageMenuExpanded = false
                                     ttsEngine?.let { refreshVoices(it, language.locale) }
@@ -718,12 +719,11 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         color = T2SSecondaryText
                     )
                     purohitPresets.forEach { preset ->
-                        val selected = selectedPurohitPreset?.name == preset.name
+                        val selected = isPurohitMode && selectedPurohitPreset?.name == preset.name
                         Card(
                             modifier = Modifier.fillMaxWidth().clickable {
                                 selectedPurohitPreset = preset
-                                selectedOnlineVoice = null
-                                selectedMyVoice = null
+                                isPurohitMode = true
                                 val engine = ttsEngine
                                 selectedVoice = availableVoices.firstOrNull {
                                     it.locale.language == "te" && voiceGender(it.name) == "Male"
@@ -765,11 +765,11 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = {
-                                val preset = selectedPurohitPreset
+                                val preset = selectedPurohitPreset.takeIf { isPurohitMode }
                                 if (preset == null) statusMessage = "Select Purohit 1, 2 or 3 first."
                                 else previewPurohitPreset(preset)
                             },
-                            enabled = selectedPurohitPreset != null && selectedVoice?.let { it.locale.language == "te" && voiceGender(it.name) == "Male" } == true && engineReady,
+                            enabled = isPurohitMode && selectedPurohitPreset != null && selectedVoice?.let { it.locale.language == "te" && voiceGender(it.name) == "Male" } == true && engineReady,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
                         ) {
@@ -778,11 +778,11 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         androidx.compose.material3.OutlinedButton(
                             onClick = {
                                 stopVoicePreview()
-                                selectedPurohitPreset = null
-                                statusMessage = "Purohit preset cleared. Choose a voice from the voice library."
+                                isPurohitMode = false
+                                statusMessage = "Purohit mode cleared. Your selected preset and voice-library choice are kept."
                             },
                             modifier = Modifier.weight(1f)
-                        ) { Text("Clear preset") }
+                        ) { Text("Clear") }
                     }
                 }
             }
@@ -880,6 +880,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     }
                                 },
                                 onClick = {
+                                    isPurohitMode = false
                                     selectedVoice = voice
                                     selectedOnlineVoice = null
                                     selectedMyVoice = null
@@ -969,6 +970,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             ) {
                               Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Column(Modifier.weight(1f).clickable {
+                                    isPurohitMode = false
                                     selectedOnlineVoice = voice
                                     selectedVoice = null
                                     selectedMyVoice = null
@@ -995,6 +997,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         filteredPersonal.forEach { voice ->
                             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Column(Modifier.weight(1f).clickable {
+                                    isPurohitMode = false
                                     selectedMyVoice = voice
                                     selectedVoice = null
                                     selectedOnlineVoice = null
@@ -1085,7 +1088,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 val language = languages.first { it.label == selectedLanguage }
                 if (textToSpeak.isBlank()) {
                     statusMessage = "Please enter some text first."
-                } else if (selectedLanguage == "Telugu" && selectedPurohitPreset == null && convertedTeluguPacks.any { it.id == selectedTeluguPackId }) {
+                } else if (selectedLanguage == "Telugu" && !isPurohitMode && convertedTeluguPacks.any { it.id == selectedTeluguPackId }) {
                     val pack = convertedTeluguPacks.firstOrNull { it.id == selectedTeluguPackId }
                     if (pack == null) {
                         statusMessage = "Import and select a converted Telugu voice pack first."
@@ -1119,7 +1122,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     generatedFile = null
                     statusMessage = "Trying online speech…"
                     coroutineScope.launch {
-                        val onlineLanguage = if (selectedPurohitPreset != null) null else when (selectedLanguage) {
+                        val onlineLanguage = if (isPurohitMode) null else when (selectedLanguage) {
                             "English" -> "en"
                             "Hindi" -> "hi"
                             "Telugu" -> "te"
@@ -1175,7 +1178,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 isGenerating = false
                                 statusMessage = "Online speech failed and Android speech engine is unavailable."
                             } else {
-                                val preset = selectedPurohitPreset
+                                val preset = selectedPurohitPreset.takeIf { isPurohitMode }
                                 val presetVoice = if (preset != null) {
                                     selectedVoice?.takeIf {
                                         it.locale.language == "te" && voiceGender(it.name) == "Male"
