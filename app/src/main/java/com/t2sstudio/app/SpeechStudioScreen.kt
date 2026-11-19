@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -38,6 +39,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -502,8 +504,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     "${voice.name} ${voice.language}".lowercase(Locale.ROOT).contains(searchTerm)
             }
             val filteredPersonal = myVoices.filter { voice ->
-                (selectedGender == "All" || voice.gender.equals(selectedGender, true)) &&
-                    "${voice.name} ${voice.model}".lowercase(Locale.ROOT).contains(searchTerm)
+                "${voice.name} ${voice.model}".lowercase(Locale.ROOT).contains(searchTerm)
             }
 
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -530,7 +531,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     Modifier.fillMaxWidth()
                         .heightIn(max = 390.dp)
                         .verticalScroll(rememberScrollState())
-                        .border(1.dp, T2SBorder, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                        .border(1.dp, T2SCream, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
                         .padding(6.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
