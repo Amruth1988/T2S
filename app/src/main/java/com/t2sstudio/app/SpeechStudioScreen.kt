@@ -60,6 +60,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -443,6 +444,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .shadow(6.dp)
                 .background(T2SOrange)
                 .padding(horizontal = 18.dp, vertical = 20.dp),
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
