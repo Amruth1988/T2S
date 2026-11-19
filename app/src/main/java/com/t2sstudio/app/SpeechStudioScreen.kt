@@ -245,6 +245,20 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         }
     }
 
+    fun playGeneratedFile(file: File) {
+        stopVoicePreview()
+        runCatching {
+            mediaPlayer?.release()
+            val player = MediaPlayer()
+            mediaPlayer = player
+            player.setDataSource(file.absolutePath)
+            player.setOnPreparedListener { it.start(); isPlaying = true; statusMessage = "Auto-playing generated audio." }
+            player.setOnCompletionListener { it.release(); mediaPlayer = null; isPlaying = false; statusMessage = "Playback finished." }
+            player.setOnErrorListener { mp, _, _ -> mp.release(); mediaPlayer = null; isPlaying = false; statusMessage = "Audio playback failed. Try downloading the file."; true }
+            player.prepareAsync()
+        }.onFailure { statusMessage = "Unable to play generated audio: ${it.message ?: "unknown error"}" }
+    }
+
     fun shareAudio(file: File) {
         runCatching {
             val uri: Uri = FileProvider.getUriForFile(
@@ -534,6 +548,17 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             )
         }
 
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Output format", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("MP3", "WAV").forEach { format ->
+                    FilterChip(selected = outputFormat == format, onClick = { outputFormat = format }, label = { Text(format) })
+                }
+            }
+            androidx.compose.material3.Checkbox(checked = autoPlayAfterGeneration, onCheckedChange = { autoPlayAfterGeneration = it })
+            Text("Auto-play after generation", color = T2SText, fontSize = 13.sp)
+        }
+
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row {
                 Text("Speaking speed", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
@@ -573,7 +598,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
                         "T2SStudio"
                     ).apply { mkdirs() }
-                    val output = File(audioDirectory, "speech_" + System.currentTimeMillis() + ".wav")
+                    val output = File(audioDirectory, "speech_" + System.currentTimeMillis() + "." + outputFormat.lowercase())
                     isGenerating = true
                     generatedFile = null
                     statusMessage = "Trying online speech…"
@@ -623,6 +648,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 )
                             )
                             statusMessage = "Online speech audio is ready and saved in T2S Studio."
+                            if (autoPlayAfterGeneration) playGeneratedFile(output)
                         } else {
                             output.delete()
                             val fallbackOutput = if (outputFormat == "MP3") File(output.parentFile, output.nameWithoutExtension + ".wav") else output
@@ -656,6 +682,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                                 )
                                             )
                                             statusMessage = if (outputFormat == "MP3") "MP3 generation was unavailable; Android fallback saved as WAV." else "Android speech audio is ready and saved in T2S Studio."
+                                            if (autoPlayAfterGeneration) playGeneratedFile(fallbackOutput)
                                         }
                                         @Deprecated("Deprecated in Java")
                                         override fun onError(utteranceId: String?) {
