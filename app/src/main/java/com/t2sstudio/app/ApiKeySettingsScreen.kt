@@ -1,0 +1,111 @@
+package com.t2sstudio.app
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.t2sstudio.app.ui.theme.T2SBackground
+import com.t2sstudio.app.ui.theme.T2SOrange
+import com.t2sstudio.app.ui.theme.T2SSecondaryText
+import com.t2sstudio.app.ui.theme.T2SText
+
+@Composable
+fun ApiKeySettingsScreen() {
+    val context = LocalContext.current
+    var apiKey by remember { mutableStateOf("") }
+    var configured by remember { mutableStateOf(IndiaApiKeyStore.get(context) != null) }
+    var status by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("Online TTS access", color = T2SText, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(
+            "Optional free India API key. Online Piper speech generation will require a key from 15 December 2026. You can continue using Android and imported offline voices without one.",
+            color = T2SSecondaryText,
+            fontSize = 13.sp,
+            lineHeight = 19.sp
+        )
+        Text(
+            if (configured) "A key is saved securely on this device." else "No API key saved. Keyless access may work until 15 December 2026.",
+            color = if (configured) T2SOrange else T2SSecondaryText,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        OutlinedTextField(
+            value = apiKey,
+            onValueChange = { apiKey = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("India API key") },
+            placeholder = { Text("india_live_…") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            shape = RoundedCornerShape(12.dp)
+        )
+        Text(
+            "The key is encrypted with Android Keystore on this device. It is not included in the APK, source code, or app logs. Never share your key.",
+            color = T2SSecondaryText,
+            fontSize = 11.sp,
+            lineHeight = 16.sp
+        )
+        Button(
+            onClick = {
+                runCatching { IndiaApiKeyStore.save(context, apiKey) }
+                    .onSuccess {
+                        configured = true
+                        apiKey = ""
+                        status = "Free API key saved securely."
+                    }
+                    .onFailure { status = it.message ?: "Could not save the API key." }
+            },
+            enabled = apiKey.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground)
+        ) { Text("Save key", fontWeight = FontWeight.Bold) }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(
+                onClick = {
+                    IndiaApiKeyStore.clear(context)
+                    configured = false
+                    apiKey = ""
+                    status = "Saved API key removed from this device."
+                },
+                enabled = configured,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = T2SBackground, contentColor = T2SText)
+            ) { Text("Remove key") }
+            Button(
+                onClick = { status = "Get a free key at api.dharun.dev/keys. No paid billing is required." },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground)
+            ) { Text("How to get a key") }
+        }
+        if (status.isNotBlank()) {
+            Spacer(Modifier.height(2.dp))
+            Text(status, color = T2SSecondaryText, fontSize = 12.sp)
+        }
+    }
+}
