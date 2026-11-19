@@ -154,23 +154,45 @@ object TeluguVoicePacks {
             }
             check(ready.isNotEmpty()) { "No complete converted Telugu voice packs were found in this ZIP." }
 
+            // Treat a multi-voice archive as one installation transaction. If any
+            // rename fails, remove newly installed folders and restore every prior pack.
             val installed = mutableListOf<InstalledConvertedVoice>()
-            for (pack in ready) {
-                val staged = File(stagingRoot, pack.id)
-                val destination = File(root, pack.id)
-                val backup = File(stagingRoot, "${pack.id}.previous")
-                if (destination.exists()) {
-                    check(destination.renameTo(backup)) { "Could not safely replace the existing ${pack.displayName} voice." }
+            val backups = linkedMapOf<File, File>()
+            val installedDirectories = mutableListOf<File>()
+            try {
+                for (pack in ready) {
+                    val staged = File(stagingRoot, pack.id)
+                    val destination = File(root, pack.id)
+                    val backup = File(root, ".${pack.id}.backup-${System.nanoTime()}")
+                    if (destination.exists()) {
+                        check(destination.renameTo(backup)) {
+                            "Could not safely replace the existing ${pack.displayName} voice."
+                        }
+                        backups[destination] = backup
+                    }
+                    check(staged.renameTo(destination)) {
+                        "Could not install the complete ${pack.displayName} voice pack."
+                    }
+                    installedDirectories.add(destination)
+                    val model = File(destination, pack.modelFile)
+                    val tokens = File(destination, "tokens.txt")
+                    installed.add(InstalledConvertedVoice(pack.id, pack.displayName, pack.group, destination, model, tokens))
                 }
-                if (!staged.renameTo(destination)) {
-                    if (backup.exists()) backup.renameTo(destination)
-                    error("Could not install the complete ${pack.displayName} voice pack.")
+            } catch (error: Exception) {
+                installedDirectories.asReversed().forEach { it.deleteRecursively() }
+                var restoreFailed = false
+                backups.entries.toList().asReversed().forEach { (destination, backup) ->
+                    if (backup.exists() && !backup.renameTo(destination)) restoreFailed = true
                 }
-                val model = File(destination, pack.modelFile)
-                val tokens = File(destination, "tokens.txt")
-                installed.add(InstalledConvertedVoice(pack.id, pack.displayName, pack.group, destination, model, tokens))
-                backup.deleteRecursively()
+                if (restoreFailed) {
+                    error.addSuppressed(IllegalStateException(
+                        "A previous voice backup remains in converted voice storage; do not delete hidden .backup folders."
+                    ))
+                }
+                throw error
             }
+            // Backups are deleted only after every selected pack has been installed.
+            backups.values.forEach { it.deleteRecursively() }
             return installed
         } finally {
             stagingRoot.deleteRecursively()
