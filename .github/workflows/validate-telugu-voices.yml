@@ -44,12 +44,12 @@ jobs:
             curl -fL --retry 3 "$base/$voice/medium/$model" -o "$dir/$model"
             curl -fL --retry 3 "$base/$voice/medium/$model.json" -o "$dir/$model.json"
             python tools/convert_piper_model.py "$dir/$model"
-            sherpa-onnx-offline-tts \
-              --vits-model="$dir/$model" \
-              --vits-tokens="$dir/tokens.txt" \
-              --vits-data-dir="build/telugu-voices/shared/espeak-ng-data" \
-              --output-filename="$dir/test.wav" \
-              "నమస్కారం. ఇది తెలుగు స్వర పరీక్ష."
+            python tools/validate_piper_synthesis.py \
+              --model "$dir/$model" \
+              --tokens "$dir/tokens.txt" \
+              --data-dir "build/telugu-voices/shared/espeak-ng-data" \
+              --output "$dir/test.wav" \
+              --text "నమస్కారం. ఇది తెలుగు స్వర పరీక్ష."
             test -s "$dir/test.wav"
           done
 
