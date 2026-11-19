@@ -8,7 +8,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
 
-data class SavedUserVoice(val id: String, val name: String, val model: String, val previewUrl: String?, val localSamplePath: String? = null)
+data class SavedUserVoice(val id: String, val name: String, val model: String, val previewUrl: String?, val localSamplePath: String? = null, val language: String = "en")
 
 object MyVoicesClient {
     private const val VOICES_URL = "https://tts.ai/api/v1/user-voices/"
@@ -28,12 +28,13 @@ object MyVoicesClient {
                 val id = item.optString("public_id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
                 val localSample = File(File(context.filesDir, "voice_samples"), "$id.m4a").takeIf { it.exists() && it.length() > 1024L }
                 SavedUserVoice(id, item.optString("name", "My Voice"), item.optString("model_name", "chatterbox"),
-                    item.optString("preview_url").takeIf { it.startsWith("https://") }, localSample?.absolutePath)
+                    item.optString("preview_url").takeIf { it.startsWith("https://") }, localSample?.absolutePath,
+                    item.optString("language", "en").ifBlank { "en" })
             }
         } finally { connection.disconnect() }
     }
 
-    fun create(context: Context, apiKey: String, name: String, audioUri: Uri, model: String): SavedUserVoice {
+    fun create(context: Context, apiKey: String, name: String, audioUri: Uri, model: String, language: String): SavedUserVoice {
         val mime = context.contentResolver.getType(audioUri) ?: "audio/wav"
         val extension = when {
             mime.contains("mpeg") || mime.contains("mp3") -> "mp3"
@@ -62,7 +63,7 @@ object MyVoicesClient {
                     out.write("Content-Disposition: form-data; name=\"$key\"\r\n\r\n$value\r\n".toByteArray())
                 }
                 field("name", name)
-                field("language", "en")
+                field("language", language)
                 field("model", model)
                 field("consent_confirmed", "true")
                 out.write("--$boundary\r\n".toByteArray())
@@ -83,7 +84,8 @@ object MyVoicesClient {
             val savedSample = File(sampleDir, "$id.m4a")
             temp.copyTo(savedSample, overwrite = true)
             return SavedUserVoice(id, item.optString("name", name), item.optString("model_name", model),
-                item.optString("preview_url").takeIf { it.startsWith("https://") }, savedSample.absolutePath)
+                item.optString("preview_url").takeIf { it.startsWith("https://") }, savedSample.absolutePath,
+                item.optString("language", language).ifBlank { language })
         } finally {
             connection.disconnect()
             temp.delete()
