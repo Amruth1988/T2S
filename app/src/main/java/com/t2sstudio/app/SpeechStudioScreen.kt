@@ -1144,7 +1144,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     "). Switching to Android voice…"
                             }
                         } else if (onlineLanguage != null && textToSpeak.length > 3000) {
-                            statusMessage = "Text exceeds the free online 500-character limit. Switching to Android voice…"
+                            statusMessage = "Text exceeds the free online 3,000-character limit. Switching to Android voice…"
                         } else {
                             statusMessage = "Using Android voice for Telugu…"
                         }
