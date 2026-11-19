@@ -73,8 +73,12 @@ class TeluguOfflineTtsEngine(
             phonemeCodepoints = phonemeCodepoints,
         )
         val audio = tts.generateWithConfig("", generation)
-        require(audio.samples.isNotEmpty()) { "The offline voice returned empty audio." }
-        output.parentFile?.mkdirs()
+        require(audio.samples.size >= tts.sampleRate() / 4) {
+            "The offline voice returned audio that is too short. Try a longer Telugu sentence or reinstall the voice pack."
+        }
+        check(output.parentFile?.exists() == true || output.parentFile?.mkdirs() == true) {
+            "Could not create the audio output folder."
+        }
         audio.save(output.absolutePath)
         require(output.isFile && output.length() > 44L) { "Could not save generated WAV audio." }
     }
