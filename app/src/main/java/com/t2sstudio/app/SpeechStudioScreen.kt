@@ -800,7 +800,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             val filteredInstalled = if (searchedInstalled.isNotEmpty() || searchTerm.isBlank()) searchedInstalled else installedPool.take(5)
             val filteredOnline = if (searchedOnline.isNotEmpty() || searchTerm.isBlank()) searchedOnline else onlinePool.take(5)
             val filteredPersonal = myVoices.filter { voice ->
-                "${voice.name} ${voice.model}".lowercase(Locale.ROOT).contains(searchTerm)
+                voice.name.lowercase(Locale.ROOT).contains(searchTerm)
             }
             val showingSuggestions = searchTerm.isNotBlank() && searchedInstalled.isEmpty() && searchedOnline.isEmpty() && filteredPersonal.isEmpty()
 
