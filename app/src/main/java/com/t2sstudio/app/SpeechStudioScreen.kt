@@ -145,7 +145,6 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     var onlineCatalogueStatus by remember { mutableStateOf("Checking online voices…") }
     val myVoices = remember { mutableStateListOf<SavedUserVoice>() }
     var selectedMyVoice by remember { mutableStateOf<SavedUserVoice?>(null) }
-    val ttsApiKey = remember { storedTtsApiKey(context) }
     val convertedTeluguPacks = remember { mutableStateListOf<TeluguVoicePacks.InstalledConvertedVoice>().apply { addAll(TeluguVoicePacks.installedConverted(context)) } }
     var selectedTeluguPackId by remember { mutableStateOf(convertedTeluguPacks.firstOrNull()?.id) }
     var importingTeluguPacks by remember { mutableStateOf(false) }
@@ -186,11 +185,9 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         }
     }
 
-    LaunchedEffect(ttsApiKey) {
-        if (ttsApiKey.isNotBlank()) {
-            runCatching { withContext(Dispatchers.IO) { MyVoicesClient.list(context, ttsApiKey) } }
-                .onSuccess { saved -> myVoices.clear(); myVoices.addAll(saved) }
-        }
+    LaunchedEffect(Unit) {
+        runCatching { withContext(Dispatchers.IO) { MyVoicesClient.list(context) } }
+            .onSuccess { saved -> myVoices.clear(); myVoices.addAll(saved) }
     }
 
     LaunchedEffect(selectedLanguage) {
@@ -243,20 +240,16 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         activePreviewKey = null
     }
 
-    fun previewOnlineVoice(voiceId: String, model: String? = null, personal: Boolean = false, previewKey: String = voiceId, previewUrl: String? = null, localSamplePath: String? = null, languageOverride: String? = null) {
+    fun previewOnlineVoice(voiceId: String, previewKey: String = voiceId, localSamplePath: String? = null, languageOverride: String? = null) {
         if (isPreviewing && activePreviewKey == previewKey) { stopVoicePreview(); statusMessage = "Preview stopped."; return }
         stopVoicePreview()
         val localSample = localSamplePath?.let { File(it) }?.takeIf { it.exists() && it.length() > 1024L }
-        if (personal && voiceId.isBlank()) {
-            statusMessage = "This saved voice is missing its provider voice ID."
-            return
-        }
         val languageCode = languageOverride ?: when (selectedLanguage) { "English" -> "en"; "Hindi" -> "hi"; "Telugu" -> "te"; else -> "en" }
         isPreviewing = true
         activePreviewKey = previewKey
-        statusMessage = if (localSample != null) "Preparing your saved recording…" else if (!previewUrl.isNullOrBlank()) "Downloading voice sample…" else "Generating preview…"
+        statusMessage = if (localSample != null) "Preparing your saved recording…" else "Generating preview…"
         coroutineScope.launch {
-            val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.mp3")
+            val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.${localSample?.extension ?: "mp3"}")
             val sample = when (languageCode) {
                 "hi" -> "नमस्ते। यह आवाज़ का नमूना है।"
                 "te" -> "నమస్కారం. ఇది మీ వాయిస్ ప్రివ్యూ నమూనా."
@@ -266,8 +259,6 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 withContext(Dispatchers.IO) {
                     when {
                         localSample != null -> localSample.copyTo(previewFile, overwrite = true)
-                        personal -> error("Cloud-cloned voice previews are unavailable in the free-only build.")
-                        !previewUrl.isNullOrBlank() -> TtsAiClient.downloadPreview(previewUrl, previewFile)
                         else -> TtsAiClient.generate(sample, languageCode, voiceId, 1f, previewFile, format = "mp3")
                     }
                 }
@@ -974,7 +965,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
                                     Text("Free online • " + voice.language + " • " + voice.licence, color = Color(0xFF58677F), fontSize = 10.sp, maxLines = 2)
                                 }
-                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, model = voice.model, previewKey = "online:${voice.id}", previewUrl = voice.previewUrl) }) {
+                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.id}") }) {
                                     Text(if (activePreviewKey == "online:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = Color(0xFFF47721), fontWeight = FontWeight.Bold)
                                 }
                               }
@@ -1001,7 +992,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
                                     Text("Saved sample • " + voice.language.uppercase(), color = T2SSecondaryText, fontSize = 11.sp)
                                 }
-                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, voice.model, personal = true, previewKey = "personal:${voice.id}", previewUrl = voice.previewUrl, localSamplePath = voice.localSamplePath, languageOverride = voice.language) }) {
+                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "personal:${voice.id}", localSamplePath = voice.localSamplePath, languageOverride = voice.language) }) {
                                     Text(if (activePreviewKey == "personal:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = T2SOrange)
                                 }
                             }
@@ -1130,10 +1121,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 withContext(Dispatchers.IO) {
                                     TtsAiClient.generate(
                                         textToSpeak, if (chosenMyVoice != null) chosenMyVoice.language else onlineLanguage, if (chosenMyVoice != null) "" else voiceId, speechRate, output,
-                                        apiKey = if (chosenMyVoice != null) ttsApiKey else "",
-                                        model = chosenMyVoice?.model ?: chosenOnlineVoice?.model,
                                         format = outputFormat.lowercase(),
-                                        userVoiceId = chosenMyVoice?.id
                                     )
                                 }
                             }
