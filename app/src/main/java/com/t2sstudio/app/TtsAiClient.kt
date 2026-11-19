@@ -23,6 +23,17 @@ data class OnlineTtsVoice(
 object TtsAiClient {
     private const val BASE = "https://api.dharun.dev/v1"
 
+    private fun responseError(connection: HttpURLConnection): String {
+        val body = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+        if (body.isBlank()) return ""
+        return runCatching {
+            val json = JSONObject(body)
+            json.optJSONObject("error")?.optString("message")?.takeIf { it.isNotBlank() }
+                ?: json.optString("message").takeIf { it.isNotBlank() }
+                ?: body
+        }.getOrDefault(body)
+    }
+
     private fun isAudioBytes(bytes: ByteArray): Boolean {
         if (bytes.size < 4) return false
         val head = String(bytes, 0, minOf(bytes.size, 12), Charsets.US_ASCII)
@@ -53,7 +64,7 @@ object TtsAiClient {
             connection.setRequestProperty("Accept", "application/json")
             val code = connection.responseCode
             if (code !in 200..299) {
-                val detail = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                val detail = responseError(connection)
                 error(detail.ifBlank { "Voice catalogue unavailable (HTTP $code)." })
             }
             val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
