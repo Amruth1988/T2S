@@ -450,7 +450,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                     placeholder = { Text("Search by voice name") },
                     label = { Text("Voice Search") },
                     leadingIcon = { Text("⌕", fontSize = 25.sp, color = T2SOrange, fontWeight = FontWeight.Bold) },
@@ -465,7 +465,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     Modifier.fillMaxWidth()
                         .heightIn(max = 390.dp)
                         .verticalScroll(rememberScrollState())
-                        .border(1.dp, T2SCream, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                        .border(1.dp, T2SCream, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
                         .padding(6.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -560,7 +560,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         filteredOnline.forEach { voice ->
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FB)),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDCE3EF))
