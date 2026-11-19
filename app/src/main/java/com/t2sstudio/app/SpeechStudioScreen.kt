@@ -773,7 +773,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
                         ) {
-                            Text(if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) "Preview playing…" else "▶ Preview preset")
+                            Text(if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) "Preview playing…" else "▶ Preview")
                         }
                         androidx.compose.material3.OutlinedButton(
                             onClick = {
