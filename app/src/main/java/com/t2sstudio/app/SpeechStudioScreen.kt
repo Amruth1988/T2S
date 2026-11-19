@@ -265,20 +265,10 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     when {
-                        personal -> TtsAiClient.generate(
-                            text = sample,
-                            language = languageCode,
-                            voice = "",
-                            speed = 1f,
-                            output = previewFile,
-                            apiKey = ttsApiKey,
-                            model = model,
-                            format = "mp3",
-                            userVoiceId = voiceId
-                        )
                         localSample != null -> localSample.copyTo(previewFile, overwrite = true)
+                        personal -> error("Cloud-cloned voice previews are unavailable in the free-only build.")
                         !previewUrl.isNullOrBlank() -> TtsAiClient.downloadPreview(previewUrl, previewFile)
-                        else -> TtsAiClient.generate(sample, languageCode, voiceId, 1f, previewFile, apiKey = ttsApiKey, model = model, format = "mp3")
+                        else -> TtsAiClient.generate(sample, languageCode, voiceId, 1f, previewFile, format = "mp3")
                     }
                 }
             }
@@ -979,10 +969,10 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     selectedMyVoice = null
                                     voiceSearch = voice.name
                                     voiceSearchExpanded = false
-                                    statusMessage = voice.name + " selected for online speech."
+                                    statusMessage = voice.name + " selected. Voice licence: " + voice.licence + ". " + voice.attribution
                                 }) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
-                                    Text("Online • " + voice.gender + " • " + selectedLanguage, color = Color(0xFF58677F), fontSize = 11.sp)
+                                    Text("Free online • " + voice.language + " • " + voice.licence, color = Color(0xFF58677F), fontSize = 10.sp, maxLines = 2)
                                 }
                                 TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, model = voice.model, previewKey = "online:${voice.id}", previewUrl = voice.previewUrl) }) {
                                     Text(if (activePreviewKey == "online:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = Color(0xFFF47721), fontWeight = FontWeight.Bold)
@@ -1040,7 +1030,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 listOf("WAV", "MP3").forEach { format ->
                     FilterChip(
                         selected = outputFormat == format,
-                        enabled = selectedLanguage != "Telugu" || format == "WAV",
+                        enabled = selectedLanguage != "Telugu" || format == "WAV" || (!isPurohitMode && selectedOnlineVoice != null),
                         onClick = { outputFormat = format },
                         label = { Text(format, fontSize = 12.sp) }
                     )
@@ -1091,7 +1081,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 val language = languages.first { it.label == selectedLanguage }
                 if (textToSpeak.isBlank()) {
                     statusMessage = "Please enter some text first."
-                } else if (selectedLanguage == "Telugu" && !isPurohitMode && convertedTeluguPacks.any { it.id == selectedTeluguPackId }) {
+                } else if (selectedLanguage == "Telugu" && !isPurohitMode && outputFormat == "WAV" && convertedTeluguPacks.any { it.id == selectedTeluguPackId }) {
                     val pack = convertedTeluguPacks.firstOrNull { it.id == selectedTeluguPackId }
                     if (pack == null) {
                         statusMessage = "Import and select a converted Telugu voice pack first."
@@ -1135,7 +1125,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         val chosenOnlineVoice = selectedOnlineVoice
                         val chosenMyVoice = selectedMyVoice
                         val voiceId = chosenMyVoice?.id ?: chosenOnlineVoice?.id
-                        if (onlineLanguage != null && voiceId != null && chosenMyVoice?.id?.startsWith("local-") != true && textToSpeak.length <= 500) {
+                        if (onlineLanguage != null && voiceId != null && chosenMyVoice?.id?.startsWith("local-") != true && textToSpeak.length <= 3000) {
                             val onlineResult = runCatching {
                                 withContext(Dispatchers.IO) {
                                     TtsAiClient.generate(
