@@ -366,7 +366,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     modifier = Modifier.fillMaxWidth().height(190.dp),
                     placeholder = {
                         Text(
-                            "Start typing your text here…\n\nYou can also paste your script.",
+                            "Start typing or paste your text",
                             color = Color(0xFF929DB0),
                             lineHeight = 22.sp
                         )
