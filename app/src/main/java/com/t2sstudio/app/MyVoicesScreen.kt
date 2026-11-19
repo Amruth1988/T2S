@@ -85,7 +85,6 @@ fun MyVoicesScreen() {
         message = "Cloud voice profiles are disabled. The free offline voice engine is being integrated."
     }
 
-    LaunchedEffect(Unit) { if (apiKey.isNotBlank()) loadVoices() }
     DisposableEffect(Unit) { onDispose { runCatching { recorder?.stop() }; runCatching { recorder?.release() }; recorder = null; runCatching { previewPlayer?.stop() }; runCatching { previewPlayer?.release() }; previewPlayer = null } }
 
     Column(
@@ -261,7 +260,7 @@ fun MyVoicesScreen() {
                 }
             }
         }
-        Text("Language note: English and Hindi are documented for multilingual voice workflows. Telugu availability depends on the selected model and is not guaranteed by the provider.", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
-        Text("Voice cloning consumes account credits. Check the provider's current usage before creating profiles.", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
+        Text("Free offline voice cloning is not yet available. No cloud credits or premium model are used by this screen.", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
+        
     }
 }
