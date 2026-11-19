@@ -724,12 +724,15 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 selectedPurohitPreset = preset
                                 selectedOnlineVoice = null
                                 selectedMyVoice = null
+                                val engine = ttsEngine
                                 selectedVoice = availableVoices.firstOrNull {
                                     it.locale.language == "te" && voiceGender(it.name) == "Male"
+                                } ?: engine?.voices.orEmpty().firstOrNull {
+                                    it.locale.language == "te" && voiceGender(it.name) == "Male"
                                 }
-                                ttsEngine?.let { engine ->
-                                    engine.setLanguage(Locale("te", "IN"))
-                                    selectedVoice?.let { engine.voice = it }
+                                engine?.let {
+                                    it.setLanguage(Locale("te", "IN"))
+                                    selectedVoice?.let { voice -> it.voice = voice }
                                 }
                                 statusMessage = if (selectedVoice == null) {
                                     "${preset.name} selected, but no explicitly male Telugu voice is installed. Female voices are blocked for this preset."
