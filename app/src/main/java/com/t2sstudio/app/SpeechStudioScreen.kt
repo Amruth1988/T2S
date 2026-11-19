@@ -876,7 +876,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 text = {
                                     Column {
                                         Text(installedVoiceDisplayName(voice), color = Color(0xFF101B35), fontWeight = FontWeight.Bold, maxLines = 1)
-                                        Text("${voice.locale.getDisplayLanguage(Locale.getDefault())} • ${voiceGender(voice.name)} • On device", color = Color(0xFF58677F), fontSize = 11.sp, maxLines = 1)
+                                        Text("${voiceGender(voice.name) ?: "Voice"} • On device", color = Color(0xFF58677F), fontSize = 11.sp, maxLines = 1)
                                         if (isPlaying && activePreviewKey == "installed:${voice.name}") {
                                             VoicePlaybackWaveform()
                                         }
@@ -1387,5 +1387,5 @@ private fun installedVoiceDisplayName(voice: Voice): String {
         else -> listOf("Voice A", "Voice B", "Voice C", "Voice D")
     }
     val index = (voice.name.hashCode() and Int.MAX_VALUE) % names.size
-    return names[index]
+    return "${names[index]} (${voice.locale.toLanguageTag()})"
 }
