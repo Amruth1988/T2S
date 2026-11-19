@@ -215,25 +215,47 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         statusMessage = "Generating preview for $previewKey…"
         coroutineScope.launch {
             if (!previewUrl.isNullOrBlank()) {
-                runCatching {
-                    val parsed = Uri.parse(previewUrl)
-                    require(parsed.scheme == "https" && (parsed.host == "api.tts.ai" || parsed.host == "tts.ai")) {
-                        "Preview URL is not a trusted TTS.ai audio URL."
+                val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.audio")
+                val downloadResult = runCatching {
+                    withContext(Dispatchers.IO) {
+                        TtsAiClient.downloadPreview(previewUrl, previewFile)
                     }
+                }
+                if (downloadResult.isFailure) {
+                    previewFile.delete()
+                    isPreviewing = false
+                    activePreviewKey = null
+                    statusMessage = "Voice preview download failed: " + (downloadResult.exceptionOrNull()?.message ?: "audio unavailable")
+                    return@launch
+                }
+                if (activePreviewKey != previewKey) {
+                    previewFile.delete()
+                    return@launch
+                }
+                runCatching {
                     val player = MediaPlayer()
                     mediaPlayer = player
-                    player.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
-                    player.setDataSource(previewUrl)
+                    player.setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                    )
+                    player.setDataSource(previewFile.absolutePath)
                     player.setOnPreparedListener {
                         if (activePreviewKey == previewKey) {
                             it.start()
                             isPlaying = true
                             statusMessage = "Playing only: $previewKey"
-                        } else it.release()
+                        } else {
+                            it.release()
+                            previewFile.delete()
+                        }
                     }
                     player.setOnCompletionListener {
                         it.release()
                         if (mediaPlayer === it) mediaPlayer = null
+                        previewFile.delete()
                         isPlaying = false
                         isPreviewing = false
                         activePreviewKey = null
@@ -242,20 +264,22 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     player.setOnErrorListener { mp, what, extra ->
                         mp.release()
                         if (mediaPlayer === mp) mediaPlayer = null
+                        previewFile.delete()
                         isPlaying = false
                         isPreviewing = false
                         activePreviewKey = null
-                        statusMessage = "Preview audio error ($what/$extra) for $previewKey."
+                        statusMessage = "Voice preview playback failed ($what/$extra)."
                         true
                     }
                     player.prepareAsync()
                 }.onFailure {
+                    previewFile.delete()
                     mediaPlayer?.release()
                     mediaPlayer = null
                     isPlaying = false
                     isPreviewing = false
                     activePreviewKey = null
-                    statusMessage = "Could not play voice preview: " + (it.localizedMessage ?: "audio unavailable")
+                    statusMessage = "Voice preview playback failed: " + (it.localizedMessage ?: "unknown audio error")
                 }
                 return@launch
             }
