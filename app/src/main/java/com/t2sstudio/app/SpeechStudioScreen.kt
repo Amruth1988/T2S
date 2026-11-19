@@ -448,50 +448,19 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 .fillMaxWidth()
                 .shadow(6.dp)
                 .background(T2SOrange)
-                .padding(horizontal = 18.dp, vertical = 20.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
         ) {
-                Box(
-                    modifier = Modifier
-                        .background(Color.White.copy(alpha = 0.20f), androidx.compose.foundation.shape.RoundedCornerShape(17.dp))
-                        .padding(13.dp),
-                    contentAlignment = androidx.compose.ui.Alignment.Center
-                ) {
-                    Text("♫", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                }
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(
-                        "Text to Speech",
-                        fontSize = 25.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 0.35.sp,
-                        color = Color.White,
-                        style = androidx.compose.ui.text.TextStyle(
-                            shadow = Shadow(color = Color(0x99000000), offset = Offset(0f, 2f), blurRadius = 5f)
-                        )
-                    )
-                    Text(
-                        "Turn your words into natural spoken audio.",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.1.sp,
-                        color = Color.White,
-                        style = androidx.compose.ui.text.TextStyle(
-                            shadow = Shadow(color = Color(0x66000000), offset = Offset(0f, 1f), blurRadius = 3f)
-                        )
-                    )
-                    Row(
-                        modifier = Modifier
-                            .background(Color.White.copy(alpha = 0.18f), androidx.compose.foundation.shape.RoundedCornerShape(50))
-                            .padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Box(Modifier.size(7.dp).background(Color(0xFFB9F6CA), androidx.compose.foundation.shape.CircleShape))
-                        Text(if (engineReady) "VOICE ENGINE READY" else "VOICE STUDIO", fontSize = 9.sp, color = Color.White, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
-                    }
-                }
+            Text(
+                "Text to Speech",
+                fontSize = 25.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 0.35.sp,
+                color = Color.White,
+                style = androidx.compose.ui.text.TextStyle(
+                    shadow = Shadow(color = Color(0x99000000), offset = Offset(0f, 2f), blurRadius = 5f)
+                )
+            )
         }
 
         Card(
