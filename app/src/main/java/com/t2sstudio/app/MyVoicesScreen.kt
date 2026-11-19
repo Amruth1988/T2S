@@ -81,14 +81,8 @@ fun MyVoicesScreen() {
     }
 
     fun loadVoices() {
-        if (apiKey.isBlank()) { message = "Personal voices are not configured in this build. Add the TTS_API_KEY GitHub Actions secret and rebuild."; return }
-        busy = true
-        scope.launch {
-            runCatching { withContext(Dispatchers.IO) { MyVoicesClient.list(context, apiKey.trim()) } }
-                .onSuccess { voices.clear(); voices.addAll(it); message = "Loaded ${it.size} saved voice profiles." }
-                .onFailure { message = it.message ?: "Could not load saved voices." }
-            busy = false
-        }
+        voices.clear()
+        message = "Cloud voice profiles are disabled. The free offline voice engine is being integrated."
     }
 
     LaunchedEffect(Unit) { if (apiKey.isNotBlank()) loadVoices() }
