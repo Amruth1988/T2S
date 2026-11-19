@@ -83,8 +83,9 @@ object MyVoicesClient {
     }
 
     fun deleteLocal(context: Context, id: String) {
-        val remaining = list(context).filterNot { it.id == id }
-        val file = localProfilesFile(context)
+        val current = list(context)
+        val target = current.firstOrNull { it.id == id }
+        val remaining = current.filterNot { it.id == id }
         val array = JSONArray()
         remaining.forEach { voice ->
             array.put(JSONObject().apply {
@@ -92,8 +93,8 @@ object MyVoicesClient {
                 put("localSamplePath", voice.localSamplePath)
             })
         }
-        file.writeText(array.toString())
-        listOfNotNull(remaining.firstOrNull { it.id == id }?.localSamplePath).forEach { File(it).delete() }
+        localProfilesFile(context).writeText(array.toString())
+        target?.localSamplePath?.let { File(it).delete() }
     }
 
     @Suppress("unused")
