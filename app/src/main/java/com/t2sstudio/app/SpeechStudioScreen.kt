@@ -1366,16 +1366,8 @@ private fun VoicePlaybackWaveform() {
 }
 
 private fun installedVoiceDisplayName(voice: Voice): String {
-    val language = voice.locale.getDisplayLanguage(Locale.getDefault())
-    val region = voice.locale.getDisplayCountry(Locale.getDefault())
-    val gender = voiceGender(voice.name)
-    val quality = when {
-        voice.quality >= Voice.QUALITY_VERY_HIGH -> "Premium"
-        voice.quality >= Voice.QUALITY_HIGH -> "High quality"
-        else -> "Standard"
-    }
-    return listOf(language, region.takeIf { it.isNotBlank() }, gender, quality)
-        .filterNotNull()
-        .filter { it.isNotBlank() }
-        .joinToString(" • ")
+    val language = voice.locale.getDisplayLanguage(Locale.ENGLISH)
+        .ifBlank { voice.locale.language.uppercase(Locale.ROOT) }
+    val languageTag = voice.locale.toLanguageTag()
+    return "$language ($languageTag)"
 }
