@@ -284,7 +284,7 @@ fun MyVoicesScreen() {
                     Text("Voice ID  •  ${voice.id}", color = T2SSecondaryText, fontSize = 10.sp, maxLines = 1)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Text("Saved sample • available for playback", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { runCatching { File(voice.localSamplePath.orEmpty()).delete(); loadVoices(); message = "Voice profile deleted from this device." }.onFailure { message = "Could not delete profile: ${it.message}" } }) { Text("Delete") }
+                        TextButton(onClick = { runCatching { MyVoicesClient.deleteLocal(context, voice.id); loadVoices(); message = "Voice profile deleted from this device." }.onFailure { message = "Could not delete profile: ${it.message}" } }) { Text("Delete") }
                     }
                 }
             }
