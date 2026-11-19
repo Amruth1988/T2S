@@ -6,19 +6,20 @@ Native Android Text-to-Speech application built with Kotlin and Jetpack Compose.
 - Orange & White Material 3 design
 - Home, Projects, Create, Recent and Profile navigation
 - Create and locally persist project names between app launches
-- Online speech generation through TTS.ai anonymous free access for supported English and Hindi voices
-- Automatic fallback to Android TextToSpeech when offline, online service fails, text exceeds the free request limit, or online voices are unavailable
+- Free online Piper speech generation for English, Hindi and Telugu, with MP3, WAV and OGG output
+- Automatic Android TextToSpeech fallback when online voices are unavailable or a request cannot be completed
 - On-device speech generation using Android TextToSpeech
 - English (US), Telugu (India) and Hindi (India) language options
 - Select from matching voices installed on the device
 - Adjustable speaking speed and pitch
-- Generate WAV audio and keep it in app-specific Music storage
+- Generate audio and keep it in app-specific Music storage
 - Play, pause and stop generated audio
 - Export audio to Downloads on Android 10+ (app-specific Music storage on older Android versions)
-- Share generated WAV files through Android's secure share sheet
+- Share generated audio through Android's secure share sheet
 - Persist generated-audio history locally on the device
 - Saved Audio library with playback, download, share and delete actions
 - Recent tab displays saved speech recordings, with missing audio files automatically excluded
+- Save and manage local voice recordings; these are sample recordings, not AI voice clones
 
 ## Telugu offline voice packs
 
@@ -45,5 +46,5 @@ The Android Sherpa-ONNX/Piper synthesis path is implemented and connected to Spe
 ## Speech engine notes
 The app uses Android TextToSpeech as its local fallback and a free online Piper TTS endpoint for English, Hindi, and Telugu when an online voice is selected. Online requests support up to 3,000 characters and can return MP3, WAV, or OGG audio. Telugu offline playback is available through imported, converted Sherpa-ONNX Piper voice packs. Saved voice profiles are local recordings only; they are not AI voice clones. No paid API, subscription, billing, or cloud resource is configured.
 ## Open
-Open this repository in Android Studio and allow Gradle sync to complete. The GitHub Actions workflow builds the debug APK with `gradle :app:assembleDebug`.
+Open this repository in Android Studio and allow Gradle sync to complete. GitHub Actions builds both debug and release APKs. A successful run publishes a direct `T2S.apk` download on the repository's Releases page.
 
