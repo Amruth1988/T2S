@@ -1211,7 +1211,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 isPlaying = false
                                 statusMessage = "Playback paused."
                             } else if (player != null) {
-                                player.start()
+                                player.play()
                                 isPlaying = true
                                 statusMessage = "Playing audio."
                             } else {
