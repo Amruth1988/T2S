@@ -369,11 +369,16 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             }
         }
 
-        Row(
+        Card(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = T2SBackground)
         ) {
-            Column(modifier = Modifier.weight(1.25f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+          ) {
+            Column(modifier = Modifier.weight(1.15f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Language", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 var languageMenuExpanded by remember { mutableStateOf(false) }
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -431,11 +436,12 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     }
                 }
             }
-            Column(modifier = Modifier.weight(0.9f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(modifier = Modifier.weight(0.95f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Gender", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("All", "Male", "Female").forEach { gender ->
                         FilterChip(
+                            modifier = Modifier.weight(1f),
                             selected = selectedGender == gender,
                             onClick = {
                                 selectedGender = gender
@@ -451,6 +457,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     }
                 }
             }
+          }
         }
 
         Card(modifier = Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = T2SBackground)) {
