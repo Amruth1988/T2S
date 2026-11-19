@@ -96,6 +96,10 @@ object TeluguVoicePacks {
                         if (pack != null && !entry.isDirectory) {
                             val name = normalized.substringAfterLast('/')
                             if (name == pack.modelFile || name == "tokens.txt") {
+                                val seen = if (name == pack.modelFile) extractedModels else extractedTokens
+                                check(pack.id !in seen) {
+                                    "Voice archive contains a duplicate $name entry for ${pack.displayName}."
+                                }
                                 val maxEntryBytes = if (name == pack.modelFile) 180L * 1024 * 1024 else 2L * 1024 * 1024
                                 val destinationDir = File(stagingRoot, pack.id)
                                 check(destinationDir.exists() || destinationDir.mkdirs()) {
