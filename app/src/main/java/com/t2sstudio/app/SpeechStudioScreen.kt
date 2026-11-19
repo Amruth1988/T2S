@@ -102,6 +102,9 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
     var isPreviewing by remember { mutableStateOf(false) }
+    var activePreviewKey by remember { mutableStateOf<String?>(null) }
+    var outputFormat by remember { mutableStateOf("WAV") }
+    var autoPlayAfterGeneration by remember { mutableStateOf(false) }
     var voiceSearch by remember { mutableStateOf("") }
     var voiceSearchExpanded by remember { mutableStateOf(false) }
     var selectedVoice by remember { mutableStateOf<Voice?>(null) }
@@ -184,14 +187,26 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         }
     }
 
-    fun previewOnlineVoice(voiceId: String, model: String? = null, personal: Boolean = false) {
-        if (isPreviewing) return
+    fun stopVoicePreview() {
+        runCatching { mediaPlayer?.stop() }
+        mediaPlayer?.release()
+        mediaPlayer = null
+        ttsEngine?.stop()
+        isPlaying = false
+        isPreviewing = false
+        activePreviewKey = null
+    }
+
+    fun previewOnlineVoice(voiceId: String, model: String? = null, personal: Boolean = false, previewKey: String = voiceId) {
+        if (isPreviewing && activePreviewKey == previewKey) { stopVoicePreview(); statusMessage = "Preview stopped."; return }
+        if (isPreviewing) stopVoicePreview()
         val languageCode = when (selectedLanguage) { "English" -> "en"; "Hindi" -> "hi"; else -> null }
         if (languageCode == null) {
             statusMessage = "Online preview is not available for Telugu yet."
             return
         }
         isPreviewing = true
+        activePreviewKey = previewKey
         mediaPlayer?.let { runCatching { it.stop() }; it.release() }
         mediaPlayer = null
         isPlaying = false
@@ -206,29 +221,27 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     TtsAiClient.generate(sample, languageCode, voiceId, 1f, previewFile,
-                        apiKey = if (personal) ttsApiKey else "", model = model)
-                    MediaPlayer().apply { setDataSource(previewFile.absolutePath); prepare() }
+                        apiKey = if (personal) ttsApiKey else "", model = model, format = "wav")
+                }
+                withContext(Dispatchers.Main) {
+                    MediaPlayer().apply {
+                        setDataSource(previewFile.absolutePath)
+                        setOnCompletionListener { it.release(); mediaPlayer = null; isPlaying = false; isPreviewing = false; activePreviewKey = null; previewFile.delete(); statusMessage = "Voice preview finished." }
+                        setOnErrorListener { mp, _, _ -> mp.release(); mediaPlayer = null; isPlaying = false; isPreviewing = false; activePreviewKey = null; previewFile.delete(); statusMessage = "This voice preview could not be played."; true }
+                        prepareAsync()
+                        setOnPreparedListener { it.start(); isPlaying = true; statusMessage = "Playing selected voice: $previewKey" }
+                    }
+                }
                 }
             }
             result.onSuccess { player ->
                 mediaPlayer?.release()
                 mediaPlayer = player
-                player.setOnCompletionListener {
-                    it.release()
-                    mediaPlayer = null
-                    isPlaying = false
-                    isPreviewing = false
-                    previewFile.delete()
-                    statusMessage = "Voice preview finished."
-                }
-                player.start()
-                isPlaying = true
-                statusMessage = "Previewing voice."
             }.onFailure {
                 previewFile.delete()
                 statusMessage = "Voice preview failed: ${it.message ?: "online service unavailable"}"
             }
-            if (result.isFailure) isPreviewing = false
+            if (result.isFailure) { isPreviewing = false; activePreviewKey = null }
         }
     }
 
@@ -238,7 +251,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 context, "${context.packageName}.fileprovider", file
             )
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "audio/wav"
+                type = if (file.extension.equals("mp3", true)) "audio/mpeg" else "audio/wav"
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
@@ -253,7 +266,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val values = ContentValues().apply {
                     put(MediaStore.Downloads.DISPLAY_NAME, file.name)
-                    put(MediaStore.Downloads.MIME_TYPE, "audio/wav")
+                    put(MediaStore.Downloads.MIME_TYPE, if (file.extension.equals("mp3", true)) "audio/mpeg" else "audio/wav")
                     put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/T2S Studio")
                     put(MediaStore.Downloads.IS_PENDING, 1)
                 }
@@ -580,7 +593,8 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     TtsAiClient.generate(
                                         textToSpeak, onlineLanguage, voiceId, speechRate, output,
                                         apiKey = if (chosenMyVoice != null) ttsApiKey else "",
-                                        model = chosenMyVoice?.model
+                                        model = chosenMyVoice?.model,
+                                        format = outputFormat.lowercase()
                                     )
                                 }
                             }
@@ -602,7 +616,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             onAudioGenerated(
                                 AudioRecord(
                                     id = java.util.UUID.randomUUID().toString(),
-                                    filePath = output.absolutePath,
+                                    filePath = fallbackOutput.absolutePath,
                                     textPreview = textToSpeak.take(180),
                                     language = selectedLanguage,
                                     createdAt = System.currentTimeMillis()
@@ -611,6 +625,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             statusMessage = "Online speech audio is ready and saved in T2S Studio."
                         } else {
                             output.delete()
+                            val fallbackOutput = if (outputFormat == "MP3") File(output.parentFile, output.nameWithoutExtension + ".wav") else output
                             val engine = ttsEngine
                             if (engine == null || !engineReady) {
                                 isGenerating = false
@@ -630,7 +645,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                         override fun onStart(utteranceId: String?) { }
                                         override fun onDone(utteranceId: String?) {
                                             isGenerating = false
-                                            generatedFile = output
+                                            generatedFile = fallbackOutput
                                             onAudioGenerated(
                                                 AudioRecord(
                                                     id = java.util.UUID.randomUUID().toString(),
@@ -640,7 +655,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                                     createdAt = System.currentTimeMillis()
                                                 )
                                             )
-                                            statusMessage = "Android speech audio is ready and saved in T2S Studio."
+                                            statusMessage = if (outputFormat == "MP3") "MP3 generation was unavailable; Android fallback saved as WAV." else "Android speech audio is ready and saved in T2S Studio."
                                         }
                                         @Deprecated("Deprecated in Java")
                                         override fun onError(utteranceId: String?) {
@@ -652,7 +667,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                             statusMessage = "Android speech generation failed (code " + errorCode + ")."
                                         }
                                     })
-                                    val result = engine.synthesizeToFile(textToSpeak, Bundle(), output, "t2s-" + output.name)
+                                    val result = engine.synthesizeToFile(textToSpeak, Bundle(), fallbackOutput, "t2s-" + fallbackOutput.name)
                                     if (result != TextToSpeech.SUCCESS) {
                                         isGenerating = false
                                         statusMessage = "Android speech engine could not generate this audio."
