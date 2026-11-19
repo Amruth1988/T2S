@@ -327,13 +327,12 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
             }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text("T2S Studio", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
                 Text("Turn your text into natural voice", color = cream, fontSize = 13.sp)
                 Box(Modifier.fillMaxWidth(0.72f).height(4.dp).clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.2f))) {
                     Box(Modifier.fillMaxWidth(progress).height(4.dp).clip(CircleShape).background(gold))
                 }
-                Text("Preparing your studio…", color = Color.White.copy(alpha = 0.58f), fontSize = 11.sp)
+                Text("Opening your studio…", color = Color.White.copy(alpha = 0.58f), fontSize = 11.sp)
             }
         }
     }
