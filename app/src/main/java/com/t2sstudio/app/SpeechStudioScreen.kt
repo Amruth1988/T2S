@@ -114,7 +114,12 @@ private fun voiceGender(name: String): String? {
 
 
 @Composable
-fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
+fun SpeechStudioScreen(
+    projects: List<T2SProject>,
+    selectedProjectId: String?,
+    onSelectedProjectIdChange: (String?) -> Unit,
+    onAudioGenerated: (AudioRecord) -> Unit
+) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
@@ -135,6 +140,8 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     var autoPlayAfterGeneration by remember { mutableStateOf(false) }
     var voiceSearch by remember { mutableStateOf("") }
     var voiceSearchExpanded by remember { mutableStateOf(false) }
+    var projectMenuExpanded by remember { mutableStateOf(false) }
+    val selectedProject = projects.firstOrNull { it.id == selectedProjectId }
     var selectedVoice by remember { mutableStateOf<Voice?>(null) }
     var selectedPurohitPreset by remember { mutableStateOf<PurohitPreset?>(null) }
     var isPurohitMode by remember { mutableStateOf(false) }
@@ -473,6 +480,49 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             letterSpacing = 0.35.sp,
             color = T2SText
         )
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = T2SBackground)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Save to project", color = T2SText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(selectedProject?.name ?: "Unassigned", color = T2SSecondaryText, fontSize = 12.sp)
+                }
+                Box {
+                    OutlinedButton(onClick = { projectMenuExpanded = true }) {
+                        Text("Change")
+                    }
+                    DropdownMenu(
+                        expanded = projectMenuExpanded,
+                        onDismissRequest = { projectMenuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Unassigned") },
+                            onClick = {
+                                onSelectedProjectIdChange(null)
+                                projectMenuExpanded = false
+                            }
+                        )
+                        projects.forEach { project ->
+                            DropdownMenuItem(
+                                text = { Text(project.name) },
+                                onClick = {
+                                    onSelectedProjectIdChange(project.id)
+                                    projectMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
         if (selectedLanguage == "Telugu") {
             Card(Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = T2SBackground)) {
@@ -1088,7 +1138,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             result.onSuccess {
                                 isGenerating = false
                                 generatedFile = output
-                                onAudioGenerated(AudioRecord(id = java.util.UUID.randomUUID().toString(), filePath = output.absolutePath, textPreview = textToSpeak.take(180), language = "Telugu", createdAt = System.currentTimeMillis()))
+                                onAudioGenerated(AudioRecord(id = java.util.UUID.randomUUID().toString(), filePath = output.absolutePath, textPreview = textToSpeak.take(180), language = "Telugu", createdAt = System.currentTimeMillis(), projectId = selectedProject?.id.orEmpty(), projectName = selectedProject?.name ?: "Unassigned"))
                                 statusMessage = "Offline Telugu WAV is ready."
                                 if (autoPlayAfterGeneration) playGeneratedFile(output)
                             }.onFailure { output.delete(); isGenerating = false; statusMessage = "Offline Telugu generation failed: " + (it.message ?: "engine error") }
