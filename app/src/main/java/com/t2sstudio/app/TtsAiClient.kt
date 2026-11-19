@@ -16,8 +16,8 @@ data class OnlineTtsVoice(
 )
 
 /**
- * Free, keyless India API Piper endpoint.
- * The provider currently allows model calls without a key until 15 Dec 2026.
+ * Free India API Piper endpoint.
+ * Online TTS accepts the optional free API key stored by IndiaApiKeyStore.
  * It returns audio bytes directly; no paid account or billing setup is used.
  */
 object TtsAiClient {
@@ -54,7 +54,7 @@ object TtsAiClient {
             val code = connection.responseCode
             if (code !in 200..299) {
                 val detail = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                error(if (code == 401) "Free online TTS now requires a free India API key. No paid billing is required." else detail.ifBlank { "Voice catalogue unavailable (HTTP $code)." })
+                error(detail.ifBlank { "Voice catalogue unavailable (HTTP $code)." })
             }
             val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
             val voices = json.optJSONArray("data") ?: return emptyList()
