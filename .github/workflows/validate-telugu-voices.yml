@@ -2,6 +2,11 @@ name: Validate Telugu Piper voice packs
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "tools/convert_piper_model.py"
+      - "tools/validate_piper_synthesis.py"
+      - ".github/workflows/validate-telugu-voices.yml"
 
 permissions:
   contents: read
@@ -22,16 +27,8 @@ jobs:
       - name: Install conversion and inference tools
         run: |
           python -m pip install --upgrade pip
-          python -m pip install onnx==1.17.0 sherpa-onnx\n          python -m pip install piper-phonemize -f https://k2-fsa.github.io/icefall/piper_phonemize.html
-
-      - name: Download shared eSpeak data
-        run: |
-          set -euo pipefail
-          mkdir -p build/telugu-voices/shared
-          curl -fL --retry 3 \
-            https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/espeak-ng-data.tar.bz2 \
-            -o build/telugu-voices/espeak-ng-data.tar.bz2
-          tar -xjf build/telugu-voices/espeak-ng-data.tar.bz2 -C build/telugu-voices/shared
+          python -m pip install onnx==1.17.0 sherpa-onnx
+          python -m pip install piper-phonemize -f https://k2-fsa.github.io/icefall/piper_phonemize.html
 
       - name: Download, convert and synthesize Telugu voices
         run: |
@@ -47,7 +44,6 @@ jobs:
             python tools/validate_piper_synthesis.py \
               --model "$dir/$model" \
               --tokens "$dir/tokens.txt" \
-              --data-dir "build/telugu-voices/shared/espeak-ng-data" \
               --output "$dir/test.wav" \
               --text "నమస్కారం. ఇది తెలుగు స్వర పరీక్ష."
             test -s "$dir/test.wav"
