@@ -63,15 +63,24 @@ def main() -> None:
     try:
         if tts.sample_rate != 22050:
             raise RuntimeError(f"Unexpected sample rate: {tts.sample_rate}")
-        # SYSPIN declares character input with no phonemiser. Pass Unicode
-        # characters directly; do not use the Piper/eSpeak phonemizer here.
+
+        # Sherpa documents phoneme_codepoints as replacing the text argument.
+        # Keep the original text as a fallback input as well: some Coqui VITS
+        # builds still inspect it while preparing the frontend.
         generation = sherpa_onnx.GenerationConfig()
         generation.sid = 0
         generation.speed = 1.0
         generation.phoneme_codepoints = [[ord(char) for char in args.text]]
-        audio = tts.generate("", generation)
-        if audio.samples is None or len(audio.samples) < audio.sample_rate // 4:
-            raise RuntimeError("SYSPIN synthesis returned empty or implausibly short audio")
+        audio = tts.generate(args.text, generation)
+
+        if audio.sample_rate <= 0 or audio.samples is None:
+            raise RuntimeError("SYSPIN synthesis returned an invalid audio object")
+        if len(audio.samples) < audio.sample_rate // 4:
+            raise RuntimeError(
+                "SYSPIN synthesis returned empty or implausibly short audio "
+                f"({len(audio.samples)} samples at {audio.sample_rate} Hz)"
+            )
+
         args.output.parent.mkdir(parents=True, exist_ok=True)
         pcm = bytearray()
         for sample in audio.samples:
