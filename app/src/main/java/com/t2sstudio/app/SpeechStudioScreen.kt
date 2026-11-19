@@ -62,6 +62,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -459,8 +461,26 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     Text("♫", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("Text to Speech", fontSize = 23.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-                    Text("Turn your words into natural spoken audio.", fontSize = 13.sp, color = Color.White.copy(alpha = 0.92f))
+                    Text(
+                        "Text to Speech",
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.35.sp,
+                        color = Color.White,
+                        style = androidx.compose.ui.text.TextStyle(
+                            shadow = Shadow(color = Color(0x99000000), offset = Offset(0f, 2f), blurRadius = 5f)
+                        )
+                    )
+                    Text(
+                        "Turn your words into natural spoken audio.",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.1.sp,
+                        color = Color.White,
+                        style = androidx.compose.ui.text.TextStyle(
+                            shadow = Shadow(color = Color(0x66000000), offset = Offset(0f, 1f), blurRadius = 3f)
+                        )
+                    )
                     Row(
                         modifier = Modifier
                             .background(Color.White.copy(alpha = 0.18f), androidx.compose.foundation.shape.RoundedCornerShape(50))
