@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -20,6 +22,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -38,7 +42,7 @@ fun ApiKeySettingsScreen() {
     var status by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(24.dp),
+        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("Online TTS access", color = T2SText, fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -98,7 +102,7 @@ fun ApiKeySettingsScreen() {
                 colors = ButtonDefaults.buttonColors(containerColor = T2SBackground, contentColor = T2SText)
             ) { Text("Remove key") }
             Button(
-                onClick = { status = "Get a free key at api.dharun.dev/keys. No paid billing is required." },
+                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://api.dharun.dev/keys"))) },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground)
             ) { Text("How to get a key") }
