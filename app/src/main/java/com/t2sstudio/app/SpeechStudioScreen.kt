@@ -1366,8 +1366,26 @@ private fun VoicePlaybackWaveform() {
 }
 
 private fun installedVoiceDisplayName(voice: Voice): String {
-    val language = voice.locale.getDisplayLanguage(Locale.ENGLISH)
-        .ifBlank { voice.locale.language.uppercase(Locale.ROOT) }
-    val languageTag = voice.locale.toLanguageTag()
-    return "$language ($languageTag)"
+    val language = voice.locale.language.lowercase(Locale.ROOT)
+    val gender = voiceGender(voice.name)
+    val names = when (language) {
+        "te" -> when (gender) {
+            "Female" -> listOf("Sneha", "Ananya", "Kavya", "Divya")
+            "Male" -> listOf("Ajay", "Raj", "Kiran", "Arjun")
+            else -> listOf("Ajay", "Sneha", "Raj", "Kavya")
+        }
+        "en" -> when (gender) {
+            "Female" -> listOf("Emma", "Olivia", "Sophia", "Mia")
+            "Male" -> listOf("John", "David", "James", "Michael")
+            else -> listOf("John", "Emma", "David", "Olivia")
+        }
+        "hi" -> when (gender) {
+            "Female" -> listOf("Priya", "Ananya", "Neha", "Pooja")
+            "Male" -> listOf("Arjun", "Rahul", "Amit", "Rohan")
+            else -> listOf("Arjun", "Priya", "Rahul", "Neha")
+        }
+        else -> listOf("Voice A", "Voice B", "Voice C", "Voice D")
+    }
+    val index = (voice.name.hashCode() and Int.MAX_VALUE) % names.size
+    return names[index]
 }
