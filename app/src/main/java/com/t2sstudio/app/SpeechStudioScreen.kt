@@ -1315,7 +1315,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
 
         Text(statusMessage, fontSize = 13.sp, color = T2SSecondaryText)
         Text(
-            "Speech is generated with an installed Android voice or an imported Telugu offline voice pack. Cloud TTS is disabled in this free-only build. Audio stays in app storage.",
+            "Use free online Piper voices when available, or installed Android voices and imported Telugu offline packs. Online requests need internet; audio stays in app storage.",
             fontSize = 11.sp,
             color = T2SSecondaryText
         )
