@@ -721,7 +721,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 statusMessage = if (selectedPurohitVoice == null) {
                                     "${preset.name} selected, but no explicitly male Telugu voice is installed. Female voices are blocked for this preset."
                                 } else {
-                                    "${preset.name} selected with male Telugu voice ${selectedVoice?.name}. Preview it before generating audio."
+                                    "${preset.name} selected with male Telugu voice ${selectedPurohitVoice?.name}. Preview it before generating audio."
                                 }
                             },
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(13.dp),
