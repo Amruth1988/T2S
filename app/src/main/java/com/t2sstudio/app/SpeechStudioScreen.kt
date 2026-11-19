@@ -371,7 +371,8 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = T2SBackground)) {
+          Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Choose a voice", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
             val genderMatches = availableVoices.filter { voice -> voiceGender(voice.name) == selectedGender }
             val searchTerm = voiceSearch.trim().lowercase(Locale.ROOT)
@@ -435,7 +436,9 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     TextButton(onClick = {
                                         val engine = ttsEngine
                                         if (engine != null && engineReady) {
+                                            if (isPreviewing && activePreviewKey == "installed:${voice.name}") { stopVoicePreview(); statusMessage = "Preview stopped."; return@TextButton }
                                             stopVoicePreview()
+                                            activePreviewKey = "installed:${voice.name}"
                                             isPreviewing = true
                                             val mainHandler = Handler(Looper.getMainLooper())
                                             engine.setLanguage(voice.locale)
@@ -445,14 +448,14 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                                     mainHandler.post { isPlaying = true; statusMessage = "Playing ${voice.name} preview." }
                                                 }
                                                 override fun onDone(utteranceId: String?) {
-                                                    mainHandler.post { isPlaying = false; isPreviewing = false; statusMessage = "${voice.name} preview finished." }
+                                                    mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "${voice.name} preview finished." }
                                                 }
                                                 @Deprecated("Deprecated in Java")
                                                 override fun onError(utteranceId: String?) {
-                                                    mainHandler.post { isPlaying = false; isPreviewing = false; statusMessage = "Could not play ${voice.name}. Check installed voice data." }
+                                                    mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Could not play ${voice.name}. Check installed voice data." }
                                                 }
                                                 override fun onError(utteranceId: String?, errorCode: Int) {
-                                                    mainHandler.post { isPlaying = false; isPreviewing = false; statusMessage = "Voice preview failed (code $errorCode)." }
+                                                    mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Voice preview failed (code $errorCode)." }
                                                 }
                                             })
                                             val sample = when (voice.locale.language) {
@@ -495,8 +498,8 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
                                     Text("Online • " + voice.gender, color = T2SSecondaryText, fontSize = 11.sp)
                                 }
-                                TextButton(enabled = !isPreviewing, onClick = { previewOnlineVoice(voice.id) }) {
-                                    Text(if (isPreviewing) "…" else "▶ Preview", color = T2SOrange)
+                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.id}") }) {
+                                    Text(if (activePreviewKey == "online:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = T2SOrange)
                                 }
                             }
                         }
@@ -520,8 +523,8 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
                                     Text("Personal voice", color = T2SSecondaryText, fontSize = 11.sp)
                                 }
-                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, voice.model, personal = true) }) {
-                                    Text(if (isPreviewing) "…" else "▶ Preview", color = T2SOrange)
+                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, voice.model, personal = true, previewKey = "personal:${voice.id}") }) {
+                                    Text(if (activePreviewKey == "personal:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = T2SOrange)
                                 }
                             }
                         }
@@ -557,6 +560,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             }
             androidx.compose.material3.Checkbox(checked = autoPlayAfterGeneration, onCheckedChange = { autoPlayAfterGeneration = it })
             Text("Auto-play after generation", color = T2SText, fontSize = 13.sp)
+          }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -641,7 +645,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             onAudioGenerated(
                                 AudioRecord(
                                     id = java.util.UUID.randomUUID().toString(),
-                                    filePath = fallbackOutput.absolutePath,
+                                    filePath = output.absolutePath,
                                     textPreview = textToSpeak.take(180),
                                     language = selectedLanguage,
                                     createdAt = System.currentTimeMillis()
@@ -675,7 +679,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                             onAudioGenerated(
                                                 AudioRecord(
                                                     id = java.util.UUID.randomUUID().toString(),
-                                                    filePath = output.absolutePath,
+                                                    filePath = fallbackOutput.absolutePath,
                                                     textPreview = textToSpeak.take(180),
                                                     language = selectedLanguage,
                                                     createdAt = System.currentTimeMillis()
