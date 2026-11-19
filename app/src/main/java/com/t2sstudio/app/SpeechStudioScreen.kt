@@ -438,11 +438,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        androidx.compose.ui.graphics.Brush.linearGradient(
-                            colors = listOf(Color(0xFFFF9A45), Color(0xFFF47721), Color(0xFFD95712))
-                        )
-                    )
+                    .background(T2SOrange)
                     .padding(horizontal = 18.dp, vertical = 20.dp),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp)
