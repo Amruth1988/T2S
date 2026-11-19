@@ -109,22 +109,22 @@ private fun T2SApp() {
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            modifier = Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(T2SOrange),
+                            modifier = Modifier.size(42.dp).background(Color.White.copy(alpha = 0.18f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("T2S", color = T2SBackground, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                            Text("T2S", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
                         }
                         Spacer(Modifier.width(11.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Studi", fontWeight = FontWeight.Bold, fontSize = 19.sp, color = T2SText)
+                                Text("Studi", fontWeight = FontWeight.Bold, fontSize = 19.sp, color = Color.White)
                                 Image(
                                     painter = painterResource(R.drawable.ic_t2s_mark),
                                     contentDescription = "Studio microphone",
                                     modifier = Modifier.size(21.dp)
                                 )
                             }
-                            Text("Text to Speech", fontSize = 10.sp, color = T2SSecondaryText, lineHeight = 11.sp)
+                            Text("Text to Speech", fontSize = 10.sp, color = Color.White.copy(alpha = 0.92f), lineHeight = 11.sp)
                         }
                     }
                 },
@@ -136,7 +136,7 @@ private fun T2SApp() {
                         Icon(Icons.Filled.AccountCircle, contentDescription = "Profile", tint = T2SOrange, modifier = Modifier.size(27.dp))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = T2SBackground)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = T2SOrange)
             )
         },
         bottomBar = {
