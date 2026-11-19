@@ -317,6 +317,9 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     }
 
     fun previewPurohitPreset(preset: PurohitPreset) {
+        statusMessage = "Purohit recitation is unavailable until a genuine offline priest-style voice model is integrated. Android system voices will not be substituted."
+        return
+        @Suppress("UNREACHABLE_CODE")
         val engine = ttsEngine
         if (engine == null || !engineReady) {
             statusMessage = "Android speech engine is still starting."
