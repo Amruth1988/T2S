@@ -81,7 +81,6 @@ object TtsAiClient {
 
     fun generate(
         text: String,
-        language: String,
         voice: String,
         speed: Float,
         output: File,
