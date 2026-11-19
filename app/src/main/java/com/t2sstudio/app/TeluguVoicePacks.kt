@@ -11,7 +11,6 @@ data class TeluguVoicePack(
     val id: String,
     val displayName: String,
     val group: TeluguVoiceGroup,
-    val modelFile: String,
     val modelFile: String
 )
 
