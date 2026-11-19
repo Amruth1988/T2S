@@ -418,7 +418,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
           Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Voice library", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF101B35))
+                    Text("Voice library", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 }
                 Text("VOICE PICKER", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF101B35))
             }
