@@ -151,19 +151,32 @@ object TtsAiClient {
         }
         val downloadUrl = resultUrl ?: error("Online speech generation timed out")
         val parsedDownloadUrl = URL(downloadUrl)
-        require(parsedDownloadUrl.protocol == "https" && parsedDownloadUrl.host == "api.tts.ai") {
-            "Unexpected audio download host"
+        // TTS.ai returns a signed result_url that may point to its object-storage/CDN
+        // host rather than api.tts.ai. Trust the HTTPS URL supplied by the authenticated
+        // result response, but reject cleartext URLs, user-info and missing hosts.
+        require(parsedDownloadUrl.protocol.equals("https", ignoreCase = true) &&
+            parsedDownloadUrl.host.isNotBlank() && parsedDownloadUrl.userInfo == null) {
+            "TTS service returned an invalid or insecure audio URL"
         }
         val download = parsedDownloadUrl.openConnection() as HttpURLConnection
         try {
+            download.instanceFollowRedirects = true
             download.connectTimeout = 15_000
             download.readTimeout = 60_000
             if (download.responseCode !in 200..299) error("Could not download online speech audio (HTTP ${download.responseCode})")
+            val finalDownloadUrl = URL(download.url.toString())
+            require(finalDownloadUrl.protocol.equals("https", ignoreCase = true) &&
+                finalDownloadUrl.host.isNotBlank() && finalDownloadUrl.userInfo == null) {
+                "Audio download redirected to an invalid or insecure URL"
+            }
             output.parentFile?.mkdirs()
             download.inputStream.use { input -> output.outputStream().use { out -> input.copyTo(out) } }
             if (!output.exists() || output.length() < 44) error("Online speech audio was empty")
             val header = output.inputStream().use { input -> ByteArray(12).also { input.read(it) } }
             if (!isAudioBytes(header)) error("Online speech download did not contain a supported audio file")
+        } catch (error: Exception) {
+            output.delete()
+            throw error
         } finally {
             download.disconnect()
         }
