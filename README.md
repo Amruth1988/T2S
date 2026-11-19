@@ -35,7 +35,7 @@ The validation artifact contains converted Venkatesh, Padmavathi and Maya packs 
 
 The Android Sherpa-ONNX/Piper synthesis path is implemented and connected to Speech Studio. Successful Python validation and an Android build do not replace real-device playback, Telugu-speaker intelligibility review, or licence review. Those remain release gates.
 
-**Purohit / Vedic recitation:** no genuine Telugu priest-recitation model has passed model, quality and licence checks. Purohit presets therefore remain unavailable. T2S does not relabel a generic Android male voice or pitch-shifted voice as a Purohit voice. The SYSPIN Telugu male candidate is a different VITS format and is not selectable until a separate compatible Android adapter and device test are completed.
+**Purohit / Vedic recitation:** three Purohit presets are available as speed-and-pitch profiles for an installed male Telugu Android voice. They are not a dedicated priest-recitation model and do not guarantee authentic Vedic modulation. DhVaani-0.5 MNN is being evaluated as an Android-local zero-shot TTS option; it requires a clean 3–10 second reference recording and its exact transcript. Use only a voice sample whose speaker has explicitly consented to this use. It is not selectable in T2S until the model/runtime, licensing, Android integration and real-device audio quality are verified. See `docs/TELUGU_VOICE_CANDIDATE_EVALUATION_2026-11-20.md`.
 
 ## Android configuration
 - Package: `com.t2sstudio.app`
