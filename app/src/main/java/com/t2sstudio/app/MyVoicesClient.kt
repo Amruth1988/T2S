@@ -8,12 +8,12 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
 
-data class SavedUserVoice(val id: String, val name: String, val model: String, val previewUrl: String?)
+data class SavedUserVoice(val id: String, val name: String, val model: String, val previewUrl: String?, val localSamplePath: String? = null)
 
 object MyVoicesClient {
     private const val VOICES_URL = "https://tts.ai/api/v1/user-voices/"
 
-    fun list(apiKey: String): List<SavedUserVoice> {
+    fun list(context: Context, apiKey: String): List<SavedUserVoice> {
         val connection = URL(VOICES_URL).openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "GET"
@@ -26,8 +26,9 @@ object MyVoicesClient {
             return (0 until array.length()).mapNotNull { i ->
                 val item = array.optJSONObject(i) ?: return@mapNotNull null
                 val id = item.optString("public_id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                val localSample = File(File(context.filesDir, "voice_samples"), "$id.m4a").takeIf { it.exists() && it.length() > 1024L }
                 SavedUserVoice(id, item.optString("name", "My Voice"), item.optString("model_name", "chatterbox"),
-                    item.optString("preview_url").takeIf { it.startsWith("https://") })
+                    item.optString("preview_url").takeIf { it.startsWith("https://") }, localSample?.absolutePath)
             }
         } finally { connection.disconnect() }
     }
@@ -78,8 +79,11 @@ object MyVoicesClient {
             val id = item.optString("public_id").takeIf { it.isNotBlank() }
                 ?: item.optString("voice_id").takeIf { it.isNotBlank() }
                 ?: error("Provider did not return a saved voice ID: $body")
+            val sampleDir = File(context.filesDir, "voice_samples").apply { mkdirs() }
+            val savedSample = File(sampleDir, "$id.m4a")
+            temp.copyTo(savedSample, overwrite = true)
             return SavedUserVoice(id, item.optString("name", name), item.optString("model_name", model),
-                item.optString("preview_url").takeIf { it.startsWith("https://") })
+                item.optString("preview_url").takeIf { it.startsWith("https://") }, savedSample.absolutePath)
         } finally {
             connection.disconnect()
             temp.delete()
