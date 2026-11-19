@@ -83,7 +83,7 @@ object TeluguVoicePacks {
             ZipInputStream(raw.buffered()).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
-                    val normalized = entry.name.replace('\\\\', '/')
+                    val normalized = entry.name.replace('\\', '/')
                     val pack = all.firstOrNull { normalized.contains("/${it.id}/") || normalized.startsWith("build/telugu-voices/${it.id}/") }
                     if (pack != null && !entry.isDirectory) {
                         val name = normalized.substringAfterLast('/')
