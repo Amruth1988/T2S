@@ -83,6 +83,12 @@ import kotlinx.coroutines.withContext
 
 private data class SpeechLanguage(val label: String, val locale: Locale)
 
+private fun audioMimeType(file: File): String = when (file.extension.lowercase(Locale.ROOT)) {
+    "mp3" -> "audio/mpeg"
+    "ogg" -> "audio/ogg"
+    else -> "audio/wav"
+}
+
 private data class PurohitPreset(
     val name: String,
     val description: String,
@@ -430,7 +436,7 @@ fun SpeechStudioScreen(
                 context, "${context.packageName}.fileprovider", file
             )
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = if (file.extension.equals("mp3", true)) "audio/mpeg" else "audio/wav"
+                type = audioMimeType(file)
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
@@ -445,7 +451,7 @@ fun SpeechStudioScreen(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val values = ContentValues().apply {
                     put(MediaStore.Downloads.DISPLAY_NAME, file.name)
-                    put(MediaStore.Downloads.MIME_TYPE, if (file.extension.equals("mp3", true)) "audio/mpeg" else "audio/wav")
+                    put(MediaStore.Downloads.MIME_TYPE, audioMimeType(file))
                     put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/T2S Studio")
                     put(MediaStore.Downloads.IS_PENDING, 1)
                 }
