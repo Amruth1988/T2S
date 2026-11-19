@@ -54,6 +54,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -486,10 +487,10 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
           Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Voice library", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = T2SText)
-                    Text("Find the sound that fits your words", fontSize = 12.sp, color = T2SSecondaryText)
+                    Text("Voice library", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF101B35))
+                    Text("Search and choose your voice", fontSize = 12.sp, color = T2SSecondaryText)
                 }
-                Text("VOICE PICKER", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = T2SOrange)
+                Text("VOICE PICKER", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF101B35))
             }
             val allInstalledForLanguage = availableVoices.toList()
             val genderMatches = allInstalledForLanguage.filter { voice -> selectedGender == "All" || voiceGender(voice.name) == selectedGender }
@@ -548,7 +549,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             DropdownMenuItem(
                                 text = {
                                     Column {
-                                        Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
+                                        Text(voice.name, color = Color(0xFF101B35), fontWeight = FontWeight.Bold)
                                         Text("${voice.locale.displayName} • On-device", color = T2SSecondaryText, fontSize = 11.sp)
                                     }
                                 },
@@ -618,8 +619,9 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                                 shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = T2SBackground),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FB)),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDCE3EF))
                             ) {
                               Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Column(Modifier.weight(1f).clickable {
@@ -631,10 +633,10 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     statusMessage = voice.name + " selected for online speech."
                                 }) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
-                                    Text("Online • " + voice.gender, color = T2SSecondaryText, fontSize = 11.sp)
+                                    Text("Online • " + voice.gender + " • " + selectedLanguage, color = Color(0xFF58677F), fontSize = 11.sp)
                                 }
                                 TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.id}", previewUrl = voice.previewUrl) }) {
-                                    Text(if (activePreviewKey == "online:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = T2SOrange)
+                                    Text(if (activePreviewKey == "online:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = Color(0xFFF47721), fontWeight = FontWeight.Bold)
                                 }
                               }
                             }
