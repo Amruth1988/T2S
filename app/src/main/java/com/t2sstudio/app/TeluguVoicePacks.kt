@@ -18,16 +18,16 @@ data class TeluguVoicePack(
     val modelUrl: String,
     val configUrl: String,
     val approximateBytes: Long,
-    val license: String = "MIT"
+    val license: String = "Check the individual model card"
 ) {
     fun directory(context: Context) = File(context.filesDir, "voice_models/telugu/$id")
     fun model(context: Context) = File(directory(context), modelFile)
     fun config(context: Context) = File(directory(context), configFile)
-    fun isInstalled(context: Context) =
+    fun isDownloaded(context: Context) =
         model(context).length() > 10_000_000L && config(context).length() > 1_000L
 }
 
-/** App-managed Telugu voice packs. Models stay in private app storage and work offline after download. */
+/** Raw Piper model downloads only. These files are NOT runtime-ready until Sherpa conversion creates tokens.txt and model metadata. */
 object TeluguVoicePacks {
     private const val BASE = "https://huggingface.co/rhasspy/piper-voices/resolve/main/te/te_IN"
 
@@ -58,7 +58,7 @@ object TeluguVoicePacks {
         )
     )
 
-    fun installed(context: Context) = all.filter { it.isInstalled(context) }
+    fun downloaded(context: Context) = all.filter { it.isDownloaded(context) }
 
     suspend fun download(
         context: Context,
@@ -71,7 +71,7 @@ object TeluguVoicePacks {
         downloadFile(pack.configUrl, File(directory, pack.configFile), 1_000L) { done, total ->
             onProgress(pack.approximateBytes + done, pack.approximateBytes + total)
         }
-        check(pack.isInstalled(context)) { "The Telugu voice pack is incomplete." }
+        check(pack.isDownloaded(context)) { "The Telugu model download is incomplete." }
     }
 
     private fun downloadFile(
