@@ -988,7 +988,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     }
                     if (filteredPersonal.isNotEmpty()) {
                         DropdownMenuItem(
-                            text = { Text("MY CLONED VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                            text = { Text("MY SAVED VOICE SAMPLES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
                             onClick = {},
                             enabled = false
                         )
@@ -1000,10 +1000,10 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     selectedOnlineVoice = null
                                     voiceSearch = voice.name
                                     voiceSearchExpanded = false
-                                    statusMessage = voice.name + " selected."
+                                    statusMessage = voice.name + " recording selected for preview. It is a saved sample, not an AI clone."
                                 }) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
-                                    Text("Personal voice", color = T2SSecondaryText, fontSize = 11.sp)
+                                    Text("Saved sample • " + voice.language.uppercase(), color = T2SSecondaryText, fontSize = 11.sp)
                                 }
                                 TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, voice.model, personal = true, previewKey = "personal:${voice.id}", previewUrl = voice.previewUrl, localSamplePath = voice.localSamplePath, languageOverride = voice.language) }) {
                                     Text(if (activePreviewKey == "personal:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = T2SOrange)
@@ -1129,7 +1129,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         val chosenOnlineVoice = selectedOnlineVoice
                         val chosenMyVoice = selectedMyVoice
                         val voiceId = chosenMyVoice?.id ?: chosenOnlineVoice?.id
-                        if (onlineLanguage != null && voiceId != null && textToSpeak.length <= 500) {
+                        if (onlineLanguage != null && voiceId != null && chosenMyVoice?.id?.startsWith("local-") != true && textToSpeak.length <= 500) {
                             val onlineResult = runCatching {
                                 withContext(Dispatchers.IO) {
                                     TtsAiClient.generate(
