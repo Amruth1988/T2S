@@ -43,9 +43,7 @@ The Android Sherpa-ONNX/Piper synthesis path is implemented and connected to Spe
 - Jetpack Compose with Material 3
 
 ## Speech engine notes
-For English and Hindi, the app first attempts TTS.ai's anonymous free API and falls back automatically to Android TextToSpeech if the online service is unavailable. The documented anonymous limit is 500 characters per request and 5,000 characters per day per IP. Telugu uses the imported on-device Sherpa-ONNX Piper packs. Online output depends on TTS.ai availability and its free-tier terms. No API key is embedded in the APK; no paid API, subscription, billing, or cloud resource is configured.
-
+The app uses Android TextToSpeech as its local fallback and a free online Piper TTS endpoint for English, Hindi, and Telugu when an online voice is selected. Online requests support up to 3,000 characters and can return MP3, WAV, or OGG audio. Telugu offline playback is available through imported, converted Sherpa-ONNX Piper voice packs. Saved voice profiles are local recordings only; they are not AI voice clones. No paid API, subscription, billing, or cloud resource is configured.
 ## Open
 Open this repository in Android Studio and allow Gradle sync to complete. The GitHub Actions workflow builds the debug APK with `gradle :app:assembleDebug`.
 
-Build note: Personal voice features use the `TTS_API_KEY` GitHub Actions secret at build time. Never commit API keys to source control.
