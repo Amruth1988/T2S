@@ -224,12 +224,16 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 else "Hello. This is a sample of the selected voice."
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    TtsAiClient.generate(
-                        sample, languageCode, voiceId, 1f, previewFile,
-                        apiKey = ttsApiKey,
-                        model = model,
-                        format = "wav"
-                    )
+                    if (!previewUrl.isNullOrBlank()) {
+                        TtsAiClient.downloadPreview(previewUrl, previewFile)
+                    } else {
+                        TtsAiClient.generate(
+                            sample, languageCode, voiceId, 1f, previewFile,
+                            apiKey = ttsApiKey,
+                            model = model,
+                            format = "wav"
+                        )
+                    }
                 }
             }
             if (result.isFailure) {
