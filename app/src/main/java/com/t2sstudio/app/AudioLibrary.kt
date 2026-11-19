@@ -195,9 +195,21 @@ fun SavedAudioScreen(
                                         val file = File(record.filePath)
                                         if (!file.exists()) {
                                             message = "Audio file is no longer available."
-                                        } else if (playingId == record.id && player?.isPlaying == true) {
-                                            player?.pause()
-                                            message = "Playback paused."
+                                        } else if (playingId == record.id && player != null) {
+                                            if (player?.isPlaying == true) {
+                                                player?.pause()
+                                                message = "Playback paused."
+                                            } else {
+                                                runCatching {
+                                                    player?.start()
+                                                    message = "Resuming recording."
+                                                }.onFailure {
+                                                    player?.release()
+                                                    player = null
+                                                    playingId = null
+                                                    message = "Unable to resume this recording. Tap Play to restart."
+                                                }
+                                            }
                                         } else {
                                             runCatching {
                                                 player?.release()
