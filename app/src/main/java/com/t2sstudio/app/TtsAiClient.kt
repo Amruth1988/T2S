@@ -81,8 +81,8 @@ object TtsAiClient {
         val payload = JSONObject().apply {
             put("text", text)
             put("language", language)
-            put("voice", voice)
-            userVoiceId?.takeIf { it.isNotBlank() }?.let { put("user_voice_id", it) }
+            if (userVoiceId.isNullOrBlank()) put("voice", voice)
+            else put("user_voice_id", userVoiceId)
             put("format", when (format.lowercase()) { "mp3" -> "mp3"; "flac" -> "flac"; "ogg" -> "ogg"; else -> "wav" })
             put("speed", speed.toDouble())
             if (!model.isNullOrBlank()) put("model", model)
