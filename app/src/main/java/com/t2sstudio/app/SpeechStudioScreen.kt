@@ -242,7 +242,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     when {
                         personal -> TtsAiClient.generate(
                             text = sample,
-                            language = voiceLanguageCode(voiceId, languageCode),
+                            language = languageCode,
                             voice = "",
                             speed = 1f,
                             output = previewFile,
