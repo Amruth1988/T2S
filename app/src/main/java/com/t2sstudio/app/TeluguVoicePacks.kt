@@ -78,51 +78,83 @@ object TeluguVoicePacks {
     fun importConvertedArchive(context: Context, uri: Uri): List<InstalledConvertedVoice> {
         val root = File(context.filesDir, "voice_models/telugu_converted")
         check(root.exists() || root.mkdirs()) { "Could not create converted voice storage." }
+        val stagingRoot = File(root, ".import-${System.currentTimeMillis()}")
+        check(stagingRoot.mkdirs()) { "Could not create temporary import storage." }
         val extractedModels = mutableSetOf<String>()
         val extractedTokens = mutableSetOf<String>()
         var totalExpandedBytes = 0L
-        context.contentResolver.openInputStream(uri)?.use { raw ->
-            ZipInputStream(raw.buffered()).use { zip ->
-                var entry = zip.nextEntry
-                while (entry != null) {
-                    val normalized = entry.name.replace('\\', '/')
-                    val pack = all.firstOrNull { normalized.contains("/\${it.id}/") || normalized.startsWith("build/telugu-voices/\${it.id}/") }
-                    if (pack != null && !entry.isDirectory) {
-                        val name = normalized.substringAfterLast('/')
-                        if (name == pack.modelFile || name == "tokens.txt") {
-                            val maxEntryBytes = if (name == pack.modelFile) 180L * 1024 * 1024 else 2L * 1024 * 1024
-                            val destinationDir = File(root, pack.id)
-                            check(destinationDir.exists() || destinationDir.mkdirs()) { "Could not create voice folder." }
-                            val partial = File(destinationDir, "$name.part")
-                            partial.delete()
-                            try {
-                                val written = zip.copyEntryBounded(partial, maxEntryBytes)
-                                totalExpandedBytes += written
-                                check(totalExpandedBytes <= 500L * 1024 * 1024) { "Voice archive expands beyond the 500 MB safety limit." }
-                                check(partial.renameTo(File(destinationDir, name))) { "Could not finalize imported voice file." }
-                                if (name == pack.modelFile) extractedModels.add(pack.id)
-                                if (name == "tokens.txt") extractedTokens.add(pack.id)
-                            } catch (error: Exception) {
+        try {
+            context.contentResolver.openInputStream(uri)?.use { raw ->
+                ZipInputStream(raw.buffered()).use { zip ->
+                    var entry = zip.nextEntry
+                    while (entry != null) {
+                        val normalized = entry.name.replace('\\\\', '/')
+                        val pack = all.firstOrNull {
+                            normalized.contains("/${it.id}/") ||
+                                normalized.startsWith("build/telugu-voices/${it.id}/")
+                        }
+                        if (pack != null && !entry.isDirectory) {
+                            val name = normalized.substringAfterLast('/')
+                            if (name == pack.modelFile || name == "tokens.txt") {
+                                val maxEntryBytes = if (name == pack.modelFile) 180L * 1024 * 1024 else 2L * 1024 * 1024
+                                val destinationDir = File(stagingRoot, pack.id)
+                                check(destinationDir.exists() || destinationDir.mkdirs()) {
+                                    "Could not create temporary voice folder."
+                                }
+                                val partial = File(destinationDir, "$name.part")
                                 partial.delete()
-                                throw error
+                                try {
+                                    val written = zip.copyEntryBounded(partial, maxEntryBytes)
+                                    totalExpandedBytes += written
+                                    check(totalExpandedBytes <= 500L * 1024 * 1024) {
+                                        "Voice archive expands beyond the 500 MB safety limit."
+                                    }
+                                    check(partial.renameTo(File(destinationDir, name))) {
+                                        "Could not finalize imported voice file."
+                                    }
+                                    if (name == pack.modelFile) extractedModels.add(pack.id)
+                                    if (name == "tokens.txt") extractedTokens.add(pack.id)
+                                } catch (error: Exception) {
+                                    partial.delete()
+                                    throw error
+                                }
                             }
                         }
+                        zip.closeEntry()
+                        entry = zip.nextEntry
                     }
-                    zip.closeEntry()
-                    entry = zip.nextEntry
                 }
+            } ?: error("Could not open the selected ZIP file.")
+
+            val ready = all.filter { pack ->
+                if (pack.id !in extractedModels || pack.id !in extractedTokens) return@filter false
+                val dir = File(stagingRoot, pack.id)
+                File(dir, pack.modelFile).let { it.isFile && it.length() > 10_000_000L } &&
+                    File(dir, "tokens.txt").let { it.isFile && it.length() > 100L }
             }
-        } ?: error("Could not open the selected ZIP file.")
-        val installed = all.filter { it.id in extractedModels && it.id in extractedTokens }.mapNotNull { pack ->
-            val dir = File(root, pack.id)
-            val model = File(dir, pack.modelFile)
-            val tokens = File(dir, "tokens.txt")
-            if (model.isFile && model.length() > 10_000_000L && tokens.isFile && tokens.length() > 100L) {
-                InstalledConvertedVoice(pack.id, pack.displayName, pack.group, dir, model, tokens)
-            } else null
+            check(ready.isNotEmpty()) { "No complete converted Telugu voice packs were found in this ZIP." }
+
+            val installed = mutableListOf<InstalledConvertedVoice>()
+            for (pack in ready) {
+                val staged = File(stagingRoot, pack.id)
+                val destination = File(root, pack.id)
+                val backup = File(stagingRoot, "${pack.id}.previous")
+                if (destination.exists()) {
+                    check(destination.renameTo(backup)) { "Could not safely replace the existing ${pack.displayName} voice." }
+                }
+                if (!staged.renameTo(destination)) {
+                    if (backup.exists()) backup.renameTo(destination)
+                    error("Could not install the complete ${pack.displayName} voice pack.")
+                }
+                val model = File(destination, pack.modelFile)
+                val tokens = File(destination, "tokens.txt")
+                installed.add(InstalledConvertedVoice(pack.id, pack.displayName, pack.group, destination, model, tokens))
+                backup.deleteRecursively()
+            }
+            return installed
+        } finally {
+            stagingRoot.deleteRecursively()
         }
-        check(installed.isNotEmpty()) { "No complete converted Telugu voice packs were found in this ZIP." }
-        return installed
     }
 
     private fun ZipInputStream.copyEntryBounded(destination: File, maxBytes: Long): Long {
