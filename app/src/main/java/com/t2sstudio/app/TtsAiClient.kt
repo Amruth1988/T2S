@@ -4,7 +4,6 @@ import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
 import java.util.Locale
 
 data class OnlineTtsVoice(
@@ -12,11 +11,8 @@ data class OnlineTtsVoice(
     val name: String,
     val language: String,
     val gender: String,
-    val model: String? = null,
-    val previewUrl: String? = null,
     val licence: String = "",
     val attribution: String = "",
-    val nonCommercial: Boolean = false
 )
 
 /**
@@ -76,16 +72,11 @@ object TtsAiClient {
                     gender = item.optString("gender", "Voice"),
                     licence = item.optString("licence"),
                     attribution = item.optString("attribution"),
-                    nonCommercial = false
                 )
             }
         } finally {
             connection.disconnect()
         }
-    }
-
-    fun downloadPreview(previewUrl: String, output: File) {
-        error("This free provider generates previews directly; external preview URLs are not used.")
     }
 
     fun generate(
@@ -94,14 +85,10 @@ object TtsAiClient {
         voice: String,
         speed: Float,
         output: File,
-        apiKey: String = "",
-        model: String? = null,
         format: String = "mp3",
-        userVoiceId: String? = null
     ) {
         require(text.isNotBlank()) { "Enter text to generate speech." }
         require(text.length <= 3000) { "Free online TTS supports up to 3,000 characters per request." }
-        require(userVoiceId.isNullOrBlank()) { "Cloud-cloned voices are not supported by this free provider. Use a public voice or your saved local sample." }
         require(voice.isNotBlank()) { "Choose an online voice first." }
         val safeFormat = when (format.lowercase(Locale.ROOT)) {
             "mp3" -> "mp3"
