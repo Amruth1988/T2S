@@ -3,6 +3,7 @@ package com.t2sstudio.app
 import android.Manifest
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
+import android.media.MediaPlayer
 import androidx.core.content.ContextCompat
 import java.io.File
 import android.content.Intent
@@ -62,6 +63,7 @@ fun MyVoicesScreen() {
     var recording by remember { mutableStateOf(false) }
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordingFile by remember { mutableStateOf<File?>(null) }
+    var previewPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     var recordingStartedAt by remember { mutableStateOf(0L) }
     var hasMicPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
     var message by remember { mutableStateOf("Add a clear recording of your own voice to create a reusable voice profile.") }
@@ -86,7 +88,7 @@ fun MyVoicesScreen() {
     }
 
     LaunchedEffect(Unit) { if (apiKey.isNotBlank()) loadVoices() }
-    DisposableEffect(Unit) { onDispose { runCatching { recorder?.stop() }; runCatching { recorder?.release() }; recorder = null } }
+    DisposableEffect(Unit) { onDispose { runCatching { recorder?.stop() }; runCatching { recorder?.release() }; recorder = null; runCatching { previewPlayer?.stop() }; runCatching { previewPlayer?.release() }; previewPlayer = null } }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -178,7 +180,21 @@ fun MyVoicesScreen() {
                     }
                 }
                 OutlinedTextField(value = pickedLabel, onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth(), label = { Text("Reference recording") })
-                TextButton(onClick = { picker.launch("audio/*") }, enabled = !recording) { Text("Or upload an audio file") }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    TextButton(onClick = {
+                        val uri = pickedUri
+                        if (uri == null) message = "Record or select an audio file first."
+                        else runCatching {
+                            previewPlayer?.release()
+                            val player = MediaPlayer.create(context, uri) ?: error("Could not open this audio sample.")
+                            previewPlayer = player
+                            player.setOnCompletionListener { it.release(); if (previewPlayer === it) previewPlayer = null; message = "Recording preview finished." }
+                            player.start()
+                            message = "Playing your recording…"
+                        }.onFailure { message = "Preview failed: " + (it.localizedMessage ?: "audio could not be played") }
+                    }, enabled = pickedUri != null && !recording) { Text("▶ Preview recording") }
+                    TextButton(onClick = { picker.launch("audio/*") }, enabled = !recording) { Text("Upload audio") }
+                }
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     androidx.compose.material3.Checkbox(checked = consentConfirmed, onCheckedChange = { consentConfirmed = it }, enabled = !busy)
                     Text("I confirm this is my voice, or I have permission to clone it.", color = T2SSecondaryText, fontSize = 12.sp)
