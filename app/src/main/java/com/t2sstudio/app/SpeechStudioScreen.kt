@@ -747,6 +747,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             }
         }
         }
+        }
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(
