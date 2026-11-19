@@ -52,8 +52,6 @@ jobs:
           gradle-version: "8.9"
 
       - name: Build Debug and Release APKs
-        env:
-          TTS_API_KEY: ${{ secrets.TTS_API_KEY }}
         run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease
 
       - name: Prepare direct APK download
