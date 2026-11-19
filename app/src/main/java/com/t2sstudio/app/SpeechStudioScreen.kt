@@ -248,7 +248,8 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             output = previewFile,
                             apiKey = ttsApiKey,
                             model = model,
-                            format = "mp3"
+                            format = "mp3",
+                            userVoiceId = voiceId
                         )
                         localSample != null -> localSample.copyTo(previewFile, overwrite = true)
                         !previewUrl.isNullOrBlank() -> TtsAiClient.downloadPreview(previewUrl, previewFile)
@@ -1041,6 +1042,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         val onlineLanguage = if (selectedPurohitPreset != null) null else when (selectedLanguage) {
                             "English" -> "en"
                             "Hindi" -> "hi"
+                            "Telugu" -> "te"
                             else -> null
                         }
                         var onlineSuccess = false
@@ -1054,7 +1056,8 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                         textToSpeak, onlineLanguage, voiceId, speechRate, output,
                                         apiKey = if (chosenMyVoice != null) ttsApiKey else "",
                                         model = chosenMyVoice?.model ?: chosenOnlineVoice?.model,
-                                        format = outputFormat.lowercase()
+                                        format = outputFormat.lowercase(),
+                                        userVoiceId = chosenMyVoice?.id
                                     )
                                 }
                             }
