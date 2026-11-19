@@ -199,141 +199,149 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
         delay(8_000)
         onFinished()
     }
+
     val progress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = 1f,
-        animationSpec = tween(durationMillis = 7_600, easing = FastOutSlowInEasing),
-        label = "story-to-voice"
+        animationSpec = tween(durationMillis = 7_700, easing = FastOutSlowInEasing),
+        label = "splash-story-flow"
     )
-    val gold = Color(0xFFFFB21A)
-    val cream = Color(0xFFFFF3D6)
-    val dark = Color(0xFF120D24)
-    val firstFlow = ((progress - 0.02f) / 0.46f).coerceIn(0f, 1f)
-    val secondFlow = ((progress - 0.48f) / 0.46f).coerceIn(0f, 1f)
+    val pulse = rememberInfiniteTransition(label = "splash-pulse")
+    val logoPulse by pulse.animateFloat(
+        initialValue = 0.96f,
+        targetValue = 1.04f,
+        animationSpec = infiniteRepeatable(tween(1_100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "logo-pulse"
+    )
+    val gold = Color(0xFFFFB52E)
+    val cream = Color(0xFFFFF4DE)
+    val muted = Color(0xFFB9B5C9)
+    val firstFlow = ((progress - 0.06f) / 0.43f).coerceIn(0f, 1f)
+    val secondFlow = ((progress - 0.51f) / 0.43f).coerceIn(0f, 1f)
 
     Box(
         modifier = Modifier.fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF101A35), dark, Color(0xFF241333))))
-            .padding(horizontal = 18.dp, vertical = 26.dp),
-        contentAlignment = Alignment.Center
+            .background(Brush.verticalGradient(listOf(Color(0xFF10182F), Color(0xFF171329), Color(0xFF25152E))))
+            .padding(horizontal = 22.dp, vertical = 25.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("FROM WORDS TO VOICE", color = gold, fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
-                Text("Every story deserves a voice", color = cream.copy(alpha = 0.78f),
-                    fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            // TOP: the writer sits at a desk on the left.
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("🧑🏻‍💻", fontSize = 66.sp)
+                    Box(
+                        modifier = Modifier.padding(top = 2.dp).width(142.dp).height(13.dp)
+                            .clip(RoundedCornerShape(5.dp)).background(Color(0xFF9A613C))
+                    )
+                    Text("WRITING YOUR STORY", color = cream, fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp,
+                        modifier = Modifier.padding(top = 10.dp))
+                }
+                Column(
+                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("✍️", fontSize = 30.sp)
+                    Text("Words", color = muted, fontSize = 11.sp)
+                }
+                // A paper-like glow where the letters begin.
+                Box(
+                    Modifier.align(Alignment.BottomStart).padding(start = 104.dp, bottom = 22.dp)
+                        .size(54.dp, 28.dp).clip(RoundedCornerShape(5.dp))
+                        .background(Color(0xFFFFE8BD)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Aa  అ", color = Color(0xFF513A35), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
             }
 
-            androidx.compose.foundation.layout.BoxWithConstraints(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                val sceneWidth = maxWidth
-                // The writer and speaker are drawn as people, not emoji or placeholder icons.
-                androidx.compose.foundation.Canvas(
-                    modifier = Modifier.fillMaxWidth().height(300.dp)
-                ) {
-                    val w = size.width
-                    val h = size.height
-                    val ink = Color(0xFFFFD18A)
-                    val skin = Color(0xFFE7AD83)
-                    val shirt = Color(0xFF5D6C9A)
-                    val table = Color(0xFF9B613D)
-                    // Writer: head, hair, body, arm, pen and desk.
-                    drawCircle(skin, radius = 25f, center = androidx.compose.ui.geometry.Offset(w * 0.17f, h * 0.29f))
-                    drawArc(Color(0xFF21182D), 180f, 180f, false,
-                        topLeft = androidx.compose.ui.geometry.Offset(w * 0.17f - 27f, h * 0.29f - 27f),
-                        size = androidx.compose.ui.geometry.Size(54f, 48f), style = androidx.compose.ui.graphics.drawscope.Stroke(9f))
-                    drawRoundRect(shirt, topLeft = androidx.compose.ui.geometry.Offset(w * 0.17f - 34f, h * 0.39f),
-                        size = androidx.compose.ui.geometry.Size(78f, 92f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(24f))
-                    drawLine(skin, androidx.compose.ui.geometry.Offset(w * 0.20f, h * 0.48f),
-                        androidx.compose.ui.geometry.Offset(w * 0.30f, h * 0.64f), 13f)
-                    drawLine(ink, androidx.compose.ui.geometry.Offset(w * 0.30f, h * 0.64f),
-                        androidx.compose.ui.geometry.Offset(w * 0.34f, h * 0.56f), 4f)
-                    drawRoundRect(table, topLeft = androidx.compose.ui.geometry.Offset(w * 0.04f, h * 0.69f),
-                        size = androidx.compose.ui.geometry.Size(w * 0.39f, 15f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f))
-                    drawRoundRect(Color(0xFFFFE9C2), topLeft = androidx.compose.ui.geometry.Offset(w * 0.25f, h * 0.59f),
-                        size = androidx.compose.ui.geometry.Size(74f, 45f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f))
-                    // Speaker: head, shoulders and visible sound waves leaving his mouth.
-                    drawRoundRect(Color(0xFF34445F), topLeft = androidx.compose.ui.geometry.Offset(w * 0.77f, h * 0.48f),
-                        size = androidx.compose.ui.geometry.Size(w * 0.19f, h * 0.34f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(35f))
-                    drawCircle(skin, radius = 29f, center = androidx.compose.ui.geometry.Offset(w * 0.865f, h * 0.31f))
-                    drawArc(Color(0xFF21182D), 180f, 180f, false,
-                        topLeft = androidx.compose.ui.geometry.Offset(w * 0.865f - 30f, h * 0.31f - 30f),
-                        size = androidx.compose.ui.geometry.Size(60f, 54f), style = androidx.compose.ui.graphics.drawscope.Stroke(10f))
-                    drawCircle(Color(0xFF5A2630), radius = 4f,
-                        center = androidx.compose.ui.geometry.Offset(w * 0.895f, h * 0.34f))
-                    drawArc(gold.copy(alpha = 0.9f), -55f, 110f, false,
-                        topLeft = androidx.compose.ui.geometry.Offset(w * 0.89f, h * 0.24f),
-                        size = androidx.compose.ui.geometry.Size(42f, 55f), style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
-                    drawArc(gold.copy(alpha = 0.6f), -55f, 110f, false,
-                        topLeft = androidx.compose.ui.geometry.Offset(w * 0.91f, h * 0.19f),
-                        size = androidx.compose.ui.geometry.Size(60f, 68f), style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
-                }
-
-                // Brand mark is the destination of the written letters and source of spoken letters.
-                Column(
-                    modifier = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
+            // MIDDLE: a single, central brand mark.
+            Box(Modifier.weight(0.92f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(
-                        modifier = Modifier.size(104.dp).shadow(20.dp, RoundedCornerShape(28.dp))
-                            .clip(RoundedCornerShape(28.dp)).background(Color(0xFF34213F))
-                            .border(2.dp, gold, RoundedCornerShape(28.dp)),
+                        modifier = Modifier.size(112.dp).shadow(24.dp, RoundedCornerShape(30.dp))
+                            .clip(RoundedCornerShape(30.dp))
+                            .background(Brush.linearGradient(listOf(Color(0xFF49304E), Color(0xFF24213F))))
+                            .border(2.dp, gold.copy(alpha = 0.9f), RoundedCornerShape(30.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("T2S", color = Color.White, fontSize = 35.sp, fontWeight = FontWeight.Black)
+                        Box(
+                            Modifier.size((96 * logoPulse).dp).clip(RoundedCornerShape(24.dp))
+                                .background(Color.White.copy(alpha = 0.035f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("T2S", color = Color.White, fontSize = 37.sp, fontWeight = FontWeight.Black)
+                        }
                     }
-                    Text("STUDIO", color = gold, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 4.sp)
+                    Text("STUDIO", color = gold, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 5.sp, modifier = Modifier.padding(top = 9.dp))
+                    Text("TEXT  •  CREATE  •  SPEAK", color = muted, fontSize = 9.sp,
+                        letterSpacing = 1.5.sp, modifier = Modifier.padding(top = 5.dp))
                 }
+            }
 
-                // Staggered characters travel from the paper to the logo, then from the logo to the speaker.
-                listOf("A", "త", "S", "మ", "♪").forEachIndexed { index, letter ->
-                    val stagger = index * 0.055f
-                    val phase = (progress - stagger).coerceIn(0f, 1f)
-                    val xFraction = if (phase < 0.5f) {
-                        val t = (phase / 0.5f).coerceIn(0f, 1f)
-                        0.27f + (0.50f - 0.27f) * t
-                    } else {
-                        val t = ((phase - 0.5f) / 0.5f).coerceIn(0f, 1f)
-                        0.50f + (0.83f - 0.50f) * t
-                    }
-                    val visible = if (progress < 0.08f) 0.35f else 1f
-                    Text(
-                        letter, color = gold.copy(alpha = visible), fontSize = 22.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.align(Alignment.TopStart)
-                            .offset(x = sceneWidth * xFraction, y = (118 + (index % 2) * 26).dp)
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+            // BOTTOM: the speaking avatar is anchored to the right.
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("WRITE", color = cream.copy(alpha = 0.78f), fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                    Text("CREATE", color = gold, fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                    Text("SPEAK", color = cream.copy(alpha = 0.78f), fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(")))", color = gold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text("🗣️", fontSize = 66.sp)
+                    }
+                    Text("YOUR VOICE", color = cream, fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp,
+                        modifier = Modifier.padding(top = 8.dp))
                 }
+                Text("♪", color = gold.copy(alpha = 0.85f), fontSize = 26.sp,
+                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
+                Text("SPEAKING", color = muted, fontSize = 10.sp,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = 7.dp))
             }
+        }
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text("Turn your text into natural voice", color = cream, fontSize = 13.sp)
-                Box(Modifier.fillMaxWidth(0.72f).height(4.dp).clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.2f))) {
-                    Box(Modifier.fillMaxWidth(progress).height(4.dp).clip(CircleShape).background(gold))
-                }
-                Text("Opening your studio…", color = Color.White.copy(alpha = 0.58f), fontSize = 11.sp)
+        // Two distinct letter journeys: paper -> logo, then logo -> speaker.
+        val letters = listOf("A", "త", "S", "మ", "♪")
+        letters.forEachIndexed { index, letter ->
+            val t = if (progress < 0.51f) firstFlow else secondFlow
+            val x = if (progress < 0.51f) {
+                0.18f + 0.32f * t
+            } else {
+                0.50f + 0.34f * t
             }
+            val y = if (progress < 0.51f) {
+                0.24f + 0.27f * t + (index % 2) * 0.018f
+            } else {
+                0.51f + 0.28f * t + (index % 2) * 0.018f
+            }
+            val visible = if (progress < 0.06f || (progress > 0.49f && progress < 0.53f)) 0f else 1f
+            Text(
+                letter,
+                color = gold.copy(alpha = visible),
+                fontSize = (17 + (index % 2) * 4).sp,
+                fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.align(Alignment.TopStart)
+                    .offset(x = (x * 330).dp, y = (y * 690).dp)
+            )
+        }
+
+        Column(
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(bottom = 2.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Text("From your words to a voice that speaks", color = cream, fontSize = 12.sp)
+            Box(Modifier.fillMaxWidth(0.68f).height(3.dp).clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.16f))) {
+                Box(Modifier.fillMaxWidth(progress).height(3.dp).clip(CircleShape).background(gold))
+            }
+            Text("Opening your studio…", color = muted, fontSize = 10.sp)
         }
     }
 }
