@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -82,6 +83,7 @@ private data class Destination(val label: String, val icon: ImageVector)
 
 private val destinations = listOf(
     Destination("Create", Icons.Filled.Add),
+    Destination("Projects", Icons.Filled.Folder),
     Destination("Recent", Icons.Filled.AccessTime),
     Destination("My Voices", Icons.Filled.RecordVoiceOver),
     Destination("Profile", Icons.Filled.Person)
@@ -100,6 +102,10 @@ private fun T2SApp() {
     val audioRecords = remember {
         mutableStateListOf<AudioRecord>().apply { addAll(AudioHistoryStore.load(context)) }
     }
+    val projects = remember {
+        mutableStateListOf<T2SProject>().apply { addAll(ProjectStore.load(context)) }
+    }
+    var selectedProjectId by remember { mutableStateOf(projects.firstOrNull()?.id) }
 
     Scaffold(
         containerColor = T2SBackground,
@@ -163,12 +169,50 @@ private fun T2SApp() {
         Box(Modifier.fillMaxSize().padding(innerPadding)) {
             when (selectedDestination) {
                 0 -> SpeechStudioScreen(
+                    projects = projects,
+                    selectedProjectId = selectedProjectId,
+                    onSelectedProjectIdChange = { selectedProjectId = it },
                     onAudioGenerated = { record ->
                         audioRecords.add(0, record)
                         AudioHistoryStore.save(context, audioRecords)
                     }
                 )
-                1 -> SavedAudioScreen(
+                1 -> ProjectsScreen(
+                    projects = projects,
+                    selectedProjectId = selectedProjectId,
+                    onSelectProject = { selectedProjectId = it },
+                    onCreateProject = { name ->
+                        val project = ProjectStore.create(name)
+                        projects.add(0, project)
+                        selectedProjectId = project.id
+                        ProjectStore.save(context, projects)
+                    },
+                    onRenameProject = { id, name ->
+                        val index = projects.indexOfFirst { it.id == id }
+                        if (index >= 0) {
+                            projects[index] = projects[index].copy(name = name)
+                            for (audioIndex in audioRecords.indices) {
+                                val record = audioRecords[audioIndex]
+                                if (record.projectId == id) audioRecords[audioIndex] = record.copy(projectName = name)
+                            }
+                            ProjectStore.save(context, projects)
+                            AudioHistoryStore.save(context, audioRecords)
+                        }
+                    },
+                    onDeleteProject = { id ->
+                        projects.removeAll { it.id == id }
+                        if (selectedProjectId == id) selectedProjectId = null
+                        for (audioIndex in audioRecords.indices) {
+                            val record = audioRecords[audioIndex]
+                            if (record.projectId == id) {
+                                audioRecords[audioIndex] = record.copy(projectId = "", projectName = "Unassigned")
+                            }
+                        }
+                        ProjectStore.save(context, projects)
+                        AudioHistoryStore.save(context, audioRecords)
+                    }
+                )
+                2 -> SavedAudioScreen(
                     records = audioRecords,
                     onDelete = { record ->
                         audioRecords.removeAll { it.id == record.id }
@@ -176,8 +220,8 @@ private fun T2SApp() {
                         AudioHistoryStore.save(context, audioRecords)
                     }
                 )
-                2 -> MyVoicesScreen()
-                3 -> ApiKeySettingsScreen()
+                3 -> MyVoicesScreen()
+                4 -> ApiKeySettingsScreen()
             }
         }
     }
