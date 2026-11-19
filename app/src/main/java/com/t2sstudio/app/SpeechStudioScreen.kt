@@ -552,42 +552,39 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (languageMenuExpanded) Color(0xFFF47721) else Color(0xFFD5DCE8)),
-                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color(0xFFF5F7FB),
-                            contentColor = Color(0xFF101B35)
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            if (languageMenuExpanded) 1.5.dp else 1.dp,
+                            if (languageMenuExpanded) T2SOrange else Color(0xFFD8D2CC)
                         ),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.White,
+                            contentColor = T2SText
+                        ),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         Text(
                             selectedLanguage,
                             modifier = Modifier.weight(1f),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
                         )
-                        Box(
-                            modifier = Modifier
-                                .background(Color(0xFFFFE8D6), androidx.compose.foundation.shape.CircleShape)
-                                .padding(horizontal = 9.dp, vertical = 5.dp),
-                            contentAlignment = androidx.compose.ui.Alignment.Center
-                        ) {
-                            Text(
-                                if (languageMenuExpanded) "▴" else "▾",
-                                color = Color(0xFFE96812),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-                        }
+                        Text(
+                            if (languageMenuExpanded) "⌃" else "⌄",
+                            color = T2SOrange,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Medium,
+                            lineHeight = 22.sp
+                        )
                     }
                     DropdownMenu(
                         expanded = languageMenuExpanded,
                         onDismissRequest = { languageMenuExpanded = false },
                         modifier = Modifier
                             .width(languageDropdownWidth)
-                            .background(Color.White)
-                            .border(1.dp, Color(0xFFDCE3EF), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                            .background(Color.White, androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                            .border(1.dp, Color(0xFFE7DED6), androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
                     ) {
                         languages.forEach { language ->
                             DropdownMenuItem(
