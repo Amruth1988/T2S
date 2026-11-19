@@ -8,6 +8,10 @@ import java.io.File
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -104,9 +108,28 @@ fun MyVoicesScreen() {
                     }
                 }
                 Text("Record your voice directly here, or select an existing file. Speak naturally in a quiet room for 10–30 seconds.", fontSize = 12.sp, color = T2SSecondaryText)
-                Card(colors = CardDefaults.cardColors(containerColor = T2SCream), modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Record with your phone microphone", fontWeight = FontWeight.SemiBold, color = T2SText)
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = T2SCream),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(1.dp, T2SOrange.copy(alpha = 0.35f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            androidx.compose.foundation.layout.Box(
+                                Modifier.size(46.dp).background(T2SOrange.copy(alpha = 0.14f), RoundedCornerShape(15.dp)),
+                                contentAlignment = androidx.compose.ui.Alignment.Center
+                            ) { Text("🎙️", fontSize = 24.sp) }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text("Record with your phone microphone", fontWeight = FontWeight.Bold, color = T2SText, fontSize = 15.sp)
+                                Text("Capture a clear sample using your device", color = T2SSecondaryText, fontSize = 11.sp)
+                            }
+                            Text(if (recording) "● LIVE" else "READY", color = if (recording) androidx.compose.ui.graphics.Color(0xFFC62828) else T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.background(T2SBackground, RoundedCornerShape(20.dp)).padding(horizontal = 9.dp, vertical = 6.dp))
+                        }
+                        androidx.compose.material3.HorizontalDivider(color = T2SOrange.copy(alpha = 0.18f))
+                        Text("Speak naturally for 10–30 seconds in a quiet room.", color = T2SSecondaryText, fontSize = 12.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = {
                                 if (!hasMicPermission) micPermission.launch(Manifest.permission.RECORD_AUDIO)
@@ -120,7 +143,7 @@ fun MyVoicesScreen() {
                                     mr.setOutputFile(file.absolutePath); mr.prepare(); mr.start()
                                     recorder = mr; recordingFile = file; recordingStartedAt = android.os.SystemClock.elapsedRealtime(); recording = true; message = "Recording started. Speak clearly for at least 3 seconds; 10–30 seconds is recommended."
                                 }.onFailure { message = "Could not start recording: " + it.message }
-                            }, enabled = !recording && !busy) { Text("Start recording") }
+                            }, enabled = !recording && !busy, shape = RoundedCornerShape(14.dp)) { Text("▶", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
                             Button(onClick = {
                                 val activeRecorder = recorder
                                 val elapsedMs = android.os.SystemClock.elapsedRealtime() - recordingStartedAt
@@ -149,9 +172,9 @@ fun MyVoicesScreen() {
                                     recorder = null
                                     recording = false
                                 }
-                            }, enabled = recording) { Text("Stop recording") }
+                            }, enabled = recording, shape = RoundedCornerShape(14.dp)) { Text("■", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
                         }
-                        if (recording) Text("Recording… tap Stop when finished.", color = T2SSecondaryText, fontSize = 12.sp)
+                        if (recording) Text("● Recording in progress — tap ■ when finished", color = androidx.compose.ui.graphics.Color(0xFFC62828), fontSize = 12.sp, fontWeight = FontWeight.SemiBold) else Text("Tap ▶ to begin recording", color = T2SSecondaryText, fontSize = 11.sp)
                     }
                 }
                 OutlinedTextField(value = pickedLabel, onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth(), label = { Text("Reference recording") })
