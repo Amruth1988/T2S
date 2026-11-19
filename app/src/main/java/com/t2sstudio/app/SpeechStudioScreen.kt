@@ -148,7 +148,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
 
     LaunchedEffect(ttsApiKey) {
         if (ttsApiKey.isNotBlank()) {
-            runCatching { withContext(Dispatchers.IO) { MyVoicesClient.list(ttsApiKey) } }
+            runCatching { withContext(Dispatchers.IO) { MyVoicesClient.list(context, ttsApiKey) } }
                 .onSuccess { saved -> myVoices.clear(); myVoices.addAll(saved) }
         }
     }
@@ -203,91 +203,65 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         activePreviewKey = null
     }
 
-    fun previewOnlineVoice(voiceId: String, model: String? = null, personal: Boolean = false, previewKey: String = voiceId, previewUrl: String? = null) {
-        if (isPreviewing && activePreviewKey == previewKey) {
-            stopVoicePreview()
-            statusMessage = "Preview stopped."
-            return
-        }
+    fun previewOnlineVoice(voiceId: String, model: String? = null, personal: Boolean = false, previewKey: String = voiceId, previewUrl: String? = null, localSamplePath: String? = null) {
+        if (isPreviewing && activePreviewKey == previewKey) { stopVoicePreview(); statusMessage = "Preview stopped."; return }
         stopVoicePreview()
-        if (personal && previewUrl.isNullOrBlank()) {
-            statusMessage = "This saved voice has no preview sample supplied by the provider. Preview generation for this voice model requires a paid plan."
+        val localSample = localSamplePath?.let { File(it) }?.takeIf { it.exists() && it.length() > 1024L }
+        if (personal && previewUrl.isNullOrBlank() && localSample == null) {
+            statusMessage = "No preview audio is available for this saved voice. Re-record and save it in My Voices to keep a local sample preview."
             return
         }
         val languageCode = when (selectedLanguage) { "English" -> "en"; "Hindi" -> "hi"; "Telugu" -> "te"; else -> "en" }
         isPreviewing = true
         activePreviewKey = previewKey
-        statusMessage = if (!previewUrl.isNullOrBlank()) "Downloading voice sample for $previewKey…" else "Generating preview for $previewKey…"
+        statusMessage = if (localSample != null) "Preparing your saved recording…" else if (!previewUrl.isNullOrBlank()) "Downloading voice sample…" else "Generating preview…"
         coroutineScope.launch {
-            val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.wav")
-            val sample = if (selectedLanguage == "Hindi") "नमस्ते। यह आवाज़ का नमूना है।"
-                else "Hello. This is a sample of the selected voice."
+            val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.audio")
+            val sample = when (selectedLanguage) {
+                "Hindi" -> "नमस्ते। यह आवाज़ का नमूना है।"
+                "Telugu" -> "నమస్కారం. ఇది మీ వాయిస్ ప్రివ్యూ నమూనా."
+                else -> "Hello. This is a sample of the selected voice."
+            }
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    if (!previewUrl.isNullOrBlank()) {
-                        TtsAiClient.downloadPreview(previewUrl, previewFile)
-                    } else {
-                        TtsAiClient.generate(
-                            sample, languageCode, voiceId, 1f, previewFile,
-                            apiKey = ttsApiKey,
-                            model = model,
-                            format = "wav"
-                        )
+                    when {
+                        localSample != null -> localSample.copyTo(previewFile, overwrite = true)
+                        !previewUrl.isNullOrBlank() -> TtsAiClient.downloadPreview(previewUrl, previewFile)
+                        else -> TtsAiClient.generate(sample, languageCode, voiceId, 1f, previewFile, apiKey = ttsApiKey, model = model, format = "wav")
                     }
                 }
             }
             if (result.isFailure) {
-                previewFile.delete()
-                isPreviewing = false
-                activePreviewKey = null
+                previewFile.delete(); isPreviewing = false; activePreviewKey = null
                 statusMessage = "Preview failed: ${result.exceptionOrNull()?.message ?: "voice service unavailable"}"
                 return@launch
             }
-            if (activePreviewKey != previewKey) {
-                previewFile.delete()
-                return@launch
-            }
+            if (activePreviewKey != previewKey) { previewFile.delete(); return@launch }
             runCatching {
                 val player = MediaPlayer()
                 mediaPlayer = player
                 player.setDataSource(previewFile.absolutePath)
                 player.setOnPreparedListener {
-                    if (activePreviewKey == previewKey) {
-                        it.start()
-                        isPlaying = true
-                        statusMessage = "Playing only: $previewKey"
-                    } else {
-                        it.release()
-                        previewFile.delete()
-                    }
+                    if (activePreviewKey == previewKey) { it.start(); isPlaying = true; statusMessage = "Playing preview: $previewKey" }
+                    else { it.release(); previewFile.delete() }
                 }
                 player.setOnCompletionListener {
                     it.release()
                     if (mediaPlayer === it) mediaPlayer = null
-                    previewFile.delete()
-                    isPlaying = false
-                    isPreviewing = false
-                    activePreviewKey = null
-                    statusMessage = "Preview finished: $previewKey"
+                    previewFile.delete(); isPlaying = false; isPreviewing = false; activePreviewKey = null
+                    statusMessage = "Preview finished."
                 }
                 player.setOnErrorListener { mp, _, _ ->
                     mp.release()
                     if (mediaPlayer === mp) mediaPlayer = null
-                    previewFile.delete()
-                    isPlaying = false
-                    isPreviewing = false
-                    activePreviewKey = null
-                    statusMessage = "Audio could not be played for $previewKey."
+                    previewFile.delete(); isPlaying = false; isPreviewing = false; activePreviewKey = null
+                    statusMessage = "Audio playback failed for $previewKey."
                     true
                 }
                 player.prepareAsync()
             }.onFailure {
-                previewFile.delete()
-                mediaPlayer?.release()
-                mediaPlayer = null
-                isPlaying = false
-                isPreviewing = false
-                activePreviewKey = null
+                previewFile.delete(); mediaPlayer?.release(); mediaPlayer = null
+                isPlaying = false; isPreviewing = false; activePreviewKey = null
                 statusMessage = "Preview playback error: ${it.message ?: "unknown error"}"
             }
         }
@@ -724,7 +698,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
                                     Text("Personal voice", color = T2SSecondaryText, fontSize = 11.sp)
                                 }
-                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, voice.model, personal = true, previewKey = "personal:${voice.id}", previewUrl = voice.previewUrl) }) {
+                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, voice.model, personal = true, previewKey = "personal:${voice.id}", previewUrl = voice.previewUrl, localSamplePath = voice.localSamplePath) }) {
                                     Text(if (activePreviewKey == "personal:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = T2SOrange)
                                 }
                             }
