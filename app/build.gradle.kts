@@ -85,5 +85,7 @@ dependencies {
     implementation("com.github.k2-fsa:sherpa-onnx:v2.0.1") {
         exclude(group = "com.github.k2-fsa.sherpa-onnx", module = "sherpa-onnx-jvm")
     }
+    // Official Sherpa-ONNX Android sample dependency: Piper/eSpeak text frontend.
+    implementation("com.github.csukuangfj.piper-phonemize:piper-phonemize:v1.5.9")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
