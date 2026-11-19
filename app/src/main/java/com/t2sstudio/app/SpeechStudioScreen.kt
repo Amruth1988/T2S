@@ -52,6 +52,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -144,6 +146,24 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     val myVoices = remember { mutableStateListOf<SavedUserVoice>() }
     var selectedMyVoice by remember { mutableStateOf<SavedUserVoice?>(null) }
     val ttsApiKey = remember { storedTtsApiKey(context) }
+    val convertedTeluguPacks = remember { mutableStateListOf<TeluguVoicePacks.InstalledConvertedVoice>().apply { addAll(TeluguVoicePacks.installedConverted(context)) } }
+    var selectedTeluguPackId by remember { mutableStateOf(convertedTeluguPacks.firstOrNull()?.id) }
+    var importingTeluguPacks by remember { mutableStateOf(false) }
+    val importTeluguPackLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            importingTeluguPacks = true
+            coroutineScope.launch {
+                val result = runCatching { withContext(Dispatchers.IO) { TeluguVoicePacks.importConvertedArchive(context, uri) } }
+                result.onSuccess {
+                    convertedTeluguPacks.clear()
+                    convertedTeluguPacks.addAll(TeluguVoicePacks.installedConverted(context))
+                    selectedTeluguPackId = convertedTeluguPacks.firstOrNull()?.id
+                    statusMessage = "Imported " + convertedTeluguPacks.size + " converted Telugu voice pack(s)."
+                }.onFailure { statusMessage = "Voice-pack import failed: " + (it.message ?: "invalid archive") }
+                importingTeluguPacks = false
+            }
+        }
+    }
 
     val languages = listOf(
         SpeechLanguage("English", Locale.US),
@@ -415,6 +435,40 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             letterSpacing = 0.35.sp,
             color = T2SText
         )
+
+        if (selectedLanguage == "Telugu") {
+            Card(Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = T2SBackground)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Telugu offline voice packs", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                    Text("Import converted model ZIP. Raw Piper downloads are not ready for offline playback.", fontSize = 12.sp, color = T2SSecondaryText)
+                    Button(onClick = { importTeluguPackLauncher.launch(arrayOf("application/zip", "application/octet-stream")) }, enabled = !importingTeluguPacks) {
+                        if (importingTeluguPacks) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp) else Text("Import converted voice ZIP")
+                    }
+                    if (convertedTeluguPacks.isEmpty()) Text("No converted Telugu voices installed.", color = T2SSecondaryText, fontSize = 12.sp)
+                    convertedTeluguPacks.forEach { pack ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(pack.displayName, color = T2SText, fontWeight = FontWeight.SemiBold)
+                                Text(if (pack.group == TeluguVoiceGroup.MALE) "Male" else "Female", color = T2SSecondaryText, fontSize = 11.sp)
+                            }
+                            FilterChip(selected = selectedTeluguPackId == pack.id, onClick = { selectedTeluguPackId = pack.id }, label = { Text(if (selectedTeluguPackId == pack.id) "Selected" else "Select") })
+                        }
+                        TextButton(onClick = {
+                            val preview = File(context.cacheDir, "telugu_preview_" + pack.id + ".wav")
+                            stopVoicePreview()
+                            isPreviewing = true
+                            statusMessage = "Generating offline Telugu preview…"
+                            coroutineScope.launch {
+                                val result = runCatching { withContext(Dispatchers.IO) { TeluguOfflineTtsEngine(context, pack.model, pack.tokens).use { it.synthesizeToWav("నమస్కారం. ఇది తెలుగు స్వర పరీక్ష.", preview, speechRate) } } }
+                                result.onSuccess { isPreviewing = false; playGeneratedFile(preview); statusMessage = "Playing offline Telugu preview: " + pack.displayName }
+                                result.onFailure { isPreviewing = false; statusMessage = "Telugu preview failed: " + (it.message ?: "engine error") }
+                            }
+                        }) { Text("▶ Preview voice") }
+                    }
+                    Text("Purohit voices are not listed until a genuine priest-recitation model is verified.", color = T2SSecondaryText, fontSize = 11.sp)
+                }
+            }
+        }
 
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -971,6 +1025,28 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 val language = languages.first { it.label == selectedLanguage }
                 if (textToSpeak.isBlank()) {
                     statusMessage = "Please enter some text first."
+                } else if (selectedLanguage == "Telugu") {
+                    val pack = convertedTeluguPacks.firstOrNull { it.id == selectedTeluguPackId }
+                    if (pack == null) {
+                        statusMessage = "Import and select a converted Telugu voice pack first."
+                    } else {
+                        val directory = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir, "T2SStudio").apply { mkdirs() }
+                        val output = File(directory, "telugu_speech_" + System.currentTimeMillis() + ".wav")
+                        isGenerating = true
+                        generatedFile = null
+                        stopVoicePreview()
+                        statusMessage = "Generating offline Telugu speech with " + pack.displayName + "…"
+                        coroutineScope.launch {
+                            val result = runCatching { withContext(Dispatchers.IO) { TeluguOfflineTtsEngine(context, pack.model, pack.tokens).use { it.synthesizeToWav(textToSpeak, output, speechRate) } } }
+                            result.onSuccess {
+                                isGenerating = false
+                                generatedFile = output
+                                onAudioGenerated(AudioRecord(id = java.util.UUID.randomUUID().toString(), filePath = output.absolutePath, textPreview = textToSpeak.take(180), language = "Telugu", createdAt = System.currentTimeMillis()))
+                                statusMessage = "Offline Telugu WAV is ready."
+                                if (autoPlayAfterGeneration) playGeneratedFile(output)
+                            }.onFailure { output.delete(); isGenerating = false; statusMessage = "Offline Telugu generation failed: " + (it.message ?: "engine error") }
+                        }
+                    }
                 } else if (!engineReady || ttsEngine == null) {
                     statusMessage = "Speech engine is still starting. Please try again."
                 } else if (!OFFLINE_TTS_ENGINE_READY) {
