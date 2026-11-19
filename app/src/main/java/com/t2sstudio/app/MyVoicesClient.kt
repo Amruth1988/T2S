@@ -61,9 +61,11 @@ object MyVoicesClient {
                     out.write("Content-Disposition: form-data; name=\"$key\"\r\n\r\n$value\r\n".toByteArray())
                 }
                 field("name", name)
-                field("model_name", model)
+                field("language", "en")
+                field("model", model)
+                field("consent_confirmed", "true")
                 out.write("--$boundary\r\n".toByteArray())
-                out.write("Content-Disposition: form-data; name=\"reference_audio\"; filename=\"voice_sample.$extension\"\r\n".toByteArray())
+                out.write("Content-Disposition: form-data; name=\"file\"; filename=\"voice_sample.$extension\"\r\n".toByteArray())
                 out.write("Content-Type: $mime\r\n\r\n".toByteArray())
                 temp.inputStream().use { it.copyTo(out) }
                 out.write("\r\n--$boundary--\r\n".toByteArray())
@@ -73,7 +75,9 @@ object MyVoicesClient {
             if (connection.responseCode !in 200..299) error("Voice save failed (HTTP ${connection.responseCode}): $body")
             val json = JSONObject(body)
             val item = json.optJSONObject("voice") ?: json
-            val id = item.optString("public_id").takeIf { it.isNotBlank() } ?: error("Provider did not return a saved voice ID.")
+            val id = item.optString("public_id").takeIf { it.isNotBlank() }
+                ?: item.optString("voice_id").takeIf { it.isNotBlank() }
+                ?: error("Provider did not return a saved voice ID: $body")
             return SavedUserVoice(id, item.optString("name", name), item.optString("model_name", model),
                 item.optString("preview_url").takeIf { it.startsWith("https://") })
         } finally {
