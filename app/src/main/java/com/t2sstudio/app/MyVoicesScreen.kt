@@ -214,11 +214,11 @@ fun MyVoicesScreen() {
                         Text(voice.model, color = T2SText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Text("Voice ID  •  ${voice.id}", color = T2SSecondaryText, fontSize = 10.sp, maxLines = 1)
-                    Text("Ready for supported voice generation", color = T2SSecondaryText, fontSize = 11.sp)
+                    Text("Ready for supported voice generation", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
                 }
             }
         }
-        Text("Language note: English and Hindi are documented for multilingual voice workflows. Telugu availability depends on the selected model and is not guaranteed by the provider.", color = T2SSecondaryText, fontSize = 11.sp)
-        Text("Voice cloning consumes account credits. Check the provider's current usage before creating profiles.", color = T2SSecondaryText, fontSize = 11.sp)
+        Text("Language note: English and Hindi are documented for multilingual voice workflows. Telugu availability depends on the selected model and is not guaranteed by the provider.", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
+        Text("Voice cloning consumes account credits. Check the provider's current usage before creating profiles.", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
     }
 }
