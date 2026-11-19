@@ -60,9 +60,7 @@ import kotlinx.coroutines.withTimeout
 fun MyVoicesScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val apiKey = BuildConfig.TTS_API_KEY
     var voiceName by remember { mutableStateOf("My Voice") }
-    var model by remember { mutableStateOf("chatterbox") }
     var cloneLanguage by remember { mutableStateOf("en") }
     var pickedUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var pickedLabel by remember { mutableStateOf("No audio selected") }
@@ -112,15 +110,7 @@ fun MyVoicesScreen() {
                         androidx.compose.material3.FilterChip(selected = cloneLanguage == code, onClick = { cloneLanguage = code }, label = { Text(label) })
                     }
                 }
-                Text("Cloning model", color = T2SText, fontSize = 13.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("chatterbox", "cosyvoice2").forEach { option ->
-                        androidx.compose.material3.FilterChip(
-                            selected = model == option, onClick = { model = option },
-                            label = { Text(option) }
-                        )
-                    }
-                }
+                Text("Free-only mode: premium cloud cloning models and paid API calls are disabled. The offline engine must be completed before cloning can be enabled.", fontSize = 12.sp, color = T2SSecondaryText)
                 Text("Record your voice directly here, or select an existing file. Speak naturally in a quiet room for 10–30 seconds.", fontSize = 12.sp, color = T2SSecondaryText)
                 Card(
                     colors = CardDefaults.cardColors(containerColor = T2SCream),
