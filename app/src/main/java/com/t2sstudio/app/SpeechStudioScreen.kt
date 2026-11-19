@@ -210,14 +210,14 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             return
         }
         stopVoicePreview()
-        val languageCode = when (selectedLanguage) { "English" -> "en"; "Hindi" -> "hi"; "Telugu" -> "te"; else -> "en" }
-        if (languageCode == null) {
-            statusMessage = "Online preview is not available for Telugu yet. Use an installed Telugu voice."
+        if (personal && previewUrl.isNullOrBlank()) {
+            statusMessage = "This saved voice has no preview sample supplied by the provider. Preview generation for this voice model requires a paid plan."
             return
         }
+        val languageCode = when (selectedLanguage) { "English" -> "en"; "Hindi" -> "hi"; "Telugu" -> "te"; else -> "en" }
         isPreviewing = true
         activePreviewKey = previewKey
-        statusMessage = "Generating preview for $previewKey…"
+        statusMessage = if (!previewUrl.isNullOrBlank()) "Downloading voice sample for $previewKey…" else "Generating preview for $previewKey…"
         coroutineScope.launch {
             val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.wav")
             val sample = if (selectedLanguage == "Hindi") "नमस्ते। यह आवाज़ का नमूना है।"
