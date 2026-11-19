@@ -240,6 +240,16 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     when {
+                        personal -> TtsAiClient.generate(
+                            text = sample,
+                            language = languageCode,
+                            voice = voiceId,
+                            speed = 1f,
+                            output = previewFile,
+                            apiKey = ttsApiKey,
+                            model = model,
+                            format = "mp3"
+                        )
                         localSample != null -> localSample.copyTo(previewFile, overwrite = true)
                         !previewUrl.isNullOrBlank() -> TtsAiClient.downloadPreview(previewUrl, previewFile)
                         else -> TtsAiClient.generate(sample, languageCode, voiceId, 1f, previewFile, apiKey = ttsApiKey, model = model, format = "mp3")
