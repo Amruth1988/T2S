@@ -335,7 +335,64 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     }
 
     fun previewPurohitPreset(preset: PurohitPreset) {
-        statusMessage = "Purohit recitation is unavailable until a genuine offline priest-style voice model is integrated. Android system voices will not be substituted."
+        val engine = ttsEngine
+        val maleTeluguVoice = selectedVoice?.takeIf {
+            it.locale.language == "te" && voiceGender(it.name) == "Male"
+        } ?: engine?.voices.orEmpty().firstOrNull {
+            it.locale.language == "te" && voiceGender(it.name) == "Male"
+        }
+        if (engine == null || !engineReady) {
+            statusMessage = "Android speech engine is still starting. Try the preview again."
+            return
+        }
+        if (maleTeluguVoice == null) {
+            statusMessage = "No explicitly male Telugu system voice is installed. Install a Telugu male voice in Android speech settings, then retry."
+            return
+        }
+        stopVoicePreview()
+        selectedVoice = maleTeluguVoice
+        val languageResult = engine.setLanguage(Locale("te", "IN"))
+        if (languageResult == TextToSpeech.LANG_MISSING_DATA || languageResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+            statusMessage = "Telugu voice data is missing. Install Telugu speech data in Android settings."
+            return
+        }
+        engine.voice = maleTeluguVoice
+        engine.setSpeechRate((speechRate * preset.speedMultiplier).coerceIn(0.5f, 2f))
+        engine.setPitch((speechPitch * preset.pitchMultiplier).coerceIn(0.5f, 2f))
+        val key = "purohit:${preset.name}"
+        activePreviewKey = key
+        isPreviewing = true
+        isPlaying = false
+        engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            private val main = Handler(Looper.getMainLooper())
+            override fun onStart(utteranceId: String?) {
+                main.post { isPlaying = true; statusMessage = "Playing ${preset.name} style preview using ${maleTeluguVoice.name}." }
+            }
+            override fun onDone(utteranceId: String?) {
+                main.post {
+                    isPlaying = false
+                    isPreviewing = false
+                    activePreviewKey = null
+                    statusMessage = "${preset.name} style preview finished. This uses the installed Android voice, not a dedicated priest-recitation model."
+                }
+            }
+            @Deprecated("Deprecated in Java")
+            override fun onError(utteranceId: String?) {
+                main.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Purohit-style preview failed. Check the installed Telugu voice." }
+            }
+            override fun onError(utteranceId: String?, errorCode: Int) {
+                main.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Purohit-style preview failed (code $errorCode)." }
+            }
+        })
+        val result = engine.speak("నమస్కారం. ఇది పూజారి శైలిలో తెలుగు స్వర పరీక్ష.", TextToSpeech.QUEUE_FLUSH, Bundle(), key)
+        if (result == TextToSpeech.ERROR) {
+            isPreviewing = false
+            isPlaying = false
+            activePreviewKey = null
+            statusMessage = "Android could not start the Telugu preview."
+        } else {
+            statusMessage = "Preparing ${preset.name} style preview…"
+        }
     }
 
     fun playGeneratedFile(file: File) {
@@ -654,9 +711,9 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 border = androidx.compose.foundation.BorderStroke(1.dp, T2SOrange.copy(alpha = 0.35f))
             ) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Purohit voice — unavailable", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                    Text("Purohit-style voice presets", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
                     Text(
-                        "A genuine priest-recitation model has not passed language, quality and licence checks yet. These presets are not real Purohit voices and are disabled.",
+                        "These presets adjust speed and pitch on your installed male Telugu Android voice. They are usable previews, not a dedicated or verified priest-recitation model.",
                         fontSize = 11.sp,
                         color = T2SSecondaryText
                     )
@@ -709,7 +766,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 if (preset == null) statusMessage = "Select Purohit 1, 2 or 3 first."
                                 else previewPurohitPreset(preset)
                             },
-                            enabled = false,
+                            enabled = selectedPurohitPreset != null && selectedVoice?.let { it.locale.language == "te" && voiceGender(it.name) == "Male" } == true && engineReady,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
                         ) {
@@ -1025,7 +1082,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 val language = languages.first { it.label == selectedLanguage }
                 if (textToSpeak.isBlank()) {
                     statusMessage = "Please enter some text first."
-                } else if (selectedLanguage == "Telugu") {
+                } else if (selectedLanguage == "Telugu" && selectedPurohitPreset == null && convertedTeluguPacks.any { it.id == selectedTeluguPackId }) {
                     val pack = convertedTeluguPacks.firstOrNull { it.id == selectedTeluguPackId }
                     if (pack == null) {
                         statusMessage = "Import and select a converted Telugu voice pack first."
@@ -1259,7 +1316,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
 
         Text(statusMessage, fontSize = 13.sp, color = T2SSecondaryText)
         Text(
-            "Online speech is attempted first for supported languages. If unavailable, T2S Studio automatically uses your installed Android speech engine. Audio stays in app storage.",
+            "Speech is generated with an installed Android voice or an imported Telugu offline voice pack. Cloud TTS is disabled in this free-only build. Audio stays in app storage.",
             fontSize = 11.sp,
             color = T2SSecondaryText
         )
