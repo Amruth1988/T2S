@@ -656,9 +656,9 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 border = androidx.compose.foundation.BorderStroke(1.dp, T2SOrange.copy(alpha = 0.35f))
             ) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Telugu Purohit Chanting", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                    Text("Purohit voice — unavailable", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
                     Text(
-                        "Original delivery presets for devotional Telugu recitation. These use your installed Android Telugu voice; they do not clone a priest or singer.",
+                        "A genuine priest-recitation model has not passed language, quality and licence checks yet. These presets are not real Purohit voices and are disabled.",
                         fontSize = 11.sp,
                         color = T2SSecondaryText
                     )
@@ -711,7 +711,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 if (preset == null) statusMessage = "Select Purohit 1, 2 or 3 first."
                                 else previewPurohitPreset(preset)
                             },
-                            enabled = selectedPurohitPreset != null && engineReady,
+                            enabled = false,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
                         ) {
