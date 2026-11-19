@@ -512,7 +512,12 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("Voice library", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 }
-                Text("VOICE PICKER", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF101B35))
+                Text(
+                    "${availableVoices.size + onlineVoices.size + myVoices.size} voices",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = T2SOrange
+                )
             }
             val allInstalledForLanguage = availableVoices.toList()
             val genderMatches = allInstalledForLanguage.filter { voice -> selectedGender == "All" || voiceGender(voice.name) == selectedGender }
