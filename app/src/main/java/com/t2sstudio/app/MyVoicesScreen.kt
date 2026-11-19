@@ -218,7 +218,7 @@ fun MyVoicesScreen() {
                 }
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     androidx.compose.material3.Checkbox(checked = consentConfirmed, onCheckedChange = { consentConfirmed = it }, enabled = !busy)
-                    Text("I confirm this is my voice, or I have permission to clone it.", color = T2SSecondaryText, fontSize = 12.sp)
+                    Text("I confirm this is my voice, or I have permission to save and use this recording.", color = T2SSecondaryText, fontSize = 12.sp)
                 }
                 Button(
                     onClick = {
@@ -279,7 +279,7 @@ fun MyVoicesScreen() {
                     androidx.compose.material3.HorizontalDivider(color = T2SOrange.copy(alpha = 0.16f))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Text("MODEL", color = T2SSecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        Text(voice.model, color = T2SText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Local recording", color = T2SText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Text("Voice ID  •  ${voice.id}", color = T2SSecondaryText, fontSize = 10.sp, maxLines = 1)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
