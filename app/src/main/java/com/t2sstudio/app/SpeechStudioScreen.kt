@@ -925,7 +925,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
                                     Text("Online • " + voice.gender + " • " + selectedLanguage, color = Color(0xFF58677F), fontSize = 11.sp)
                                 }
-                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.id}", previewUrl = voice.previewUrl) }) {
+                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, model = voice.model, previewKey = "online:${voice.id}", previewUrl = voice.previewUrl) }) {
                                     Text(if (activePreviewKey == "online:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = Color(0xFFF47721), fontWeight = FontWeight.Bold)
                                 }
                               }
@@ -1057,7 +1057,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     TtsAiClient.generate(
                                         textToSpeak, onlineLanguage, voiceId, speechRate, output,
                                         apiKey = if (chosenMyVoice != null) ttsApiKey else "",
-                                        model = chosenMyVoice?.model,
+                                        model = chosenMyVoice?.model ?: chosenOnlineVoice?.model,
                                         format = outputFormat.lowercase()
                                     )
                                 }
