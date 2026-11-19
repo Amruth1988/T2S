@@ -24,7 +24,7 @@ object TtsAiClient {
             return (0 until voices.length()).mapNotNull { index ->
                 val item = voices.optJSONObject(index) ?: return@mapNotNull null
                 val id = item.optString("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                OnlineTtsVoice(id, item.optString("name", id), item.optString("language", language), item.optString("gender", "unknown"), item.optString("preview_url").takeIf { it.startsWith("https://api.tts.ai/") })
+                OnlineTtsVoice(id, item.optString("name", id), item.optString("language", language), item.optString("gender", "unknown"), item.optString("preview_url").takeIf { it.startsWith("https://") })
             }
         } finally {
             connection.disconnect()
