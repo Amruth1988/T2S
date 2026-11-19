@@ -138,6 +138,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     var selectedVoice by remember { mutableStateOf<Voice?>(null) }
     var selectedPurohitPreset by remember { mutableStateOf<PurohitPreset?>(null) }
     var isPurohitMode by remember { mutableStateOf(false) }
+    var selectedPurohitVoice by remember { mutableStateOf<Voice?>(null) }
     val availableVoices = remember { mutableStateListOf<Voice>() }
     val onlineVoices = remember { mutableStateListOf<OnlineTtsVoice>() }
     var selectedOnlineVoice by remember { mutableStateOf<OnlineTtsVoice?>(null) }
@@ -337,7 +338,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
 
     fun previewPurohitPreset(preset: PurohitPreset) {
         val engine = ttsEngine
-        val maleTeluguVoice = selectedVoice?.takeIf {
+        val maleTeluguVoice = selectedPurohitVoice?.takeIf {
             it.locale.language == "te" && voiceGender(it.name) == "Male"
         } ?: engine?.voices.orEmpty().firstOrNull {
             it.locale.language == "te" && voiceGender(it.name) == "Male"
@@ -351,7 +352,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             return
         }
         stopVoicePreview()
-        selectedVoice = maleTeluguVoice
+        selectedPurohitVoice = maleTeluguVoice
         val languageResult = engine.setLanguage(Locale("te", "IN"))
         if (languageResult == TextToSpeech.LANG_MISSING_DATA || languageResult == TextToSpeech.LANG_NOT_SUPPORTED) {
             statusMessage = "Telugu voice data is missing. Install Telugu speech data in Android settings."
@@ -725,16 +726,18 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 selectedPurohitPreset = preset
                                 isPurohitMode = true
                                 val engine = ttsEngine
-                                selectedVoice = availableVoices.firstOrNull {
+                                selectedPurohitVoice = selectedPurohitVoice?.takeIf {
+                                    it.locale.language == "te" && voiceGender(it.name) == "Male"
+                                } ?: availableVoices.firstOrNull {
                                     it.locale.language == "te" && voiceGender(it.name) == "Male"
                                 } ?: engine?.voices.orEmpty().firstOrNull {
                                     it.locale.language == "te" && voiceGender(it.name) == "Male"
                                 }
                                 engine?.let {
                                     it.setLanguage(Locale("te", "IN"))
-                                    selectedVoice?.let { voice -> it.voice = voice }
+                                    selectedPurohitVoice?.let { voice -> it.voice = voice }
                                 }
-                                statusMessage = if (selectedVoice == null) {
+                                statusMessage = if (selectedPurohitVoice == null) {
                                     "${preset.name} selected, but no explicitly male Telugu voice is installed. Female voices are blocked for this preset."
                                 } else {
                                     "${preset.name} selected with male Telugu voice ${selectedVoice?.name}. Preview it before generating audio."
@@ -769,7 +772,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 if (preset == null) statusMessage = "Select Purohit 1, 2 or 3 first."
                                 else previewPurohitPreset(preset)
                             },
-                            enabled = isPurohitMode && selectedPurohitPreset != null && selectedVoice?.let { it.locale.language == "te" && voiceGender(it.name) == "Male" } == true && engineReady,
+                            enabled = isPurohitMode && selectedPurohitPreset != null && selectedPurohitVoice?.let { it.locale.language == "te" && voiceGender(it.name) == "Male" } == true && engineReady,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
                         ) {
@@ -1180,7 +1183,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             } else {
                                 val preset = selectedPurohitPreset.takeIf { isPurohitMode }
                                 val presetVoice = if (preset != null) {
-                                    selectedVoice?.takeIf {
+                                    selectedPurohitVoice?.takeIf {
                                         it.locale.language == "te" && voiceGender(it.name) == "Male"
                                     } ?: engine.voices.orEmpty().firstOrNull {
                                         it.locale.language == "te" && voiceGender(it.name) == "Male"
