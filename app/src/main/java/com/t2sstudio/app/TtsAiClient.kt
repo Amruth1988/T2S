@@ -9,6 +9,14 @@ import java.net.URLEncoder
 data class OnlineTtsVoice(val id: String, val name: String, val language: String, val gender: String, val model: String? = null, val previewUrl: String? = null)
 
 object TtsAiClient {
+
+    private fun isAudioBytes(bytes: ByteArray): Boolean {
+        if (bytes.size < 4) return false
+        val head = String(bytes, 0, minOf(bytes.size, 12), Charsets.US_ASCII)
+        return head.startsWith("ID3") || head.startsWith("RIFF") || head.startsWith("OggS") ||
+            head.startsWith("fLaC") || ((bytes[0].toInt() and 0xFF) == 0xFF && (bytes[1].toInt() and 0xE0) == 0xE0)
+    }
+
     private const val BASE = "https://api.tts.ai/v1"
 
     fun listVoices(language: String): List<OnlineTtsVoice> {
@@ -73,27 +81,43 @@ object TtsAiClient {
         val payload = JSONObject().apply {
             put("text", text)
             put("language", language)
-            if (!userVoiceId.isNullOrBlank()) put("user_voice_id", userVoiceId) else put("voice", voice)
+            put("voice", userVoiceId?.takeIf { it.isNotBlank() } ?: voice)
             put("format", if (format.equals("mp3", true)) "mp3" else "wav")
             put("speed", speed.toDouble())
             if (!model.isNullOrBlank()) put("model", model)
         }.toString()
         val submit = URL(BASE + "/tts/").openConnection() as HttpURLConnection
-        val uuid: String
+        val uuid: String?
         try {
             submit.requestMethod = "POST"
             submit.connectTimeout = 15_000
-            submit.readTimeout = 30_000
+            submit.readTimeout = 120_000
             submit.doOutput = true
             submit.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            submit.setRequestProperty("Accept", "audio/mpeg,audio/wav,audio/*;q=0.9,application/json")
             if (apiKey.isNotBlank()) submit.setRequestProperty("Authorization", "Bearer $apiKey")
             submit.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
-            if (submit.responseCode !in 200..299) {
+            val code = submit.responseCode
+            if (code !in 200..299) {
                 val message = submit.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                error(message.ifBlank { "Online TTS request failed (" + submit.responseCode + ")" })
+                error(message.ifBlank { "Online TTS request failed ($code)" })
             }
-            uuid = JSONObject(submit.inputStream.bufferedReader().use { it.readText() })
-                .optString("uuid").takeIf { it.isNotBlank() } ?: error("Online TTS returned no job ID")
+            val contentType = submit.contentType.orEmpty().lowercase()
+            val bytes = submit.inputStream.use { it.readBytes() }
+            require(bytes.isNotEmpty()) { "Online TTS returned an empty response" }
+            if (contentType.startsWith("audio/") || isAudioBytes(bytes)) {
+                output.parentFile?.mkdirs()
+                output.writeBytes(bytes)
+                if (output.length() < 44) error("Online TTS audio was incomplete")
+                return
+            }
+            val responseText = bytes.toString(Charsets.UTF_8)
+            val responseJson = runCatching { JSONObject(responseText) }.getOrElse {
+                error("Online TTS returned an unexpected response: " + responseText.take(240))
+            }
+            uuid = responseJson.optString("uuid").takeIf { it.isNotBlank() }
+                ?: responseJson.optString("job_id").takeIf { it.isNotBlank() }
+                ?: error(responseJson.optString("error").ifBlank { "Online TTS returned neither audio nor a job ID" })
         } finally {
             submit.disconnect()
         }
@@ -107,26 +131,33 @@ object TtsAiClient {
                 poll.requestMethod = "GET"
                 poll.connectTimeout = 10_000
                 poll.readTimeout = 15_000
-                if (poll.responseCode !in 200..299) error("Could not check online speech status")
+                if (poll.responseCode !in 200..299) {
+                    val message = poll.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                    error(message.ifBlank { "Could not check online speech status (HTTP ${poll.responseCode})" })
+                }
                 val result = JSONObject(poll.inputStream.bufferedReader().use { it.readText() })
-                when (result.optString("status")) {
-                    "completed" -> {
+                when (result.optString("status").lowercase()) {
+                    "completed", "success", "succeeded" -> {
                         resultUrl = result.optString("result_url").takeIf { it.isNotBlank() }
                         if (resultUrl != null) break
+                        error("Online speech completed but returned no audio URL")
                     }
-                    "failed" -> error(result.optString("error").ifBlank { "Online speech generation failed" })
+                    "failed", "error" -> error(result.optString("error").ifBlank { "Online speech generation failed" })
                 }
             } finally {
                 poll.disconnect()
             }
         }
         val downloadUrl = resultUrl ?: error("Online speech generation timed out")
-        require(downloadUrl.startsWith("https://api.tts.ai/")) { "Unexpected audio download host" }
-        val download = URL(downloadUrl).openConnection() as HttpURLConnection
+        val parsedDownloadUrl = URL(downloadUrl)
+        require(parsedDownloadUrl.protocol == "https" && parsedDownloadUrl.host == "api.tts.ai") {
+            "Unexpected audio download host"
+        }
+        val download = parsedDownloadUrl.openConnection() as HttpURLConnection
         try {
             download.connectTimeout = 15_000
             download.readTimeout = 60_000
-            if (download.responseCode !in 200..299) error("Could not download online speech audio")
+            if (download.responseCode !in 200..299) error("Could not download online speech audio (HTTP ${download.responseCode})")
             output.parentFile?.mkdirs()
             download.inputStream.use { input -> output.outputStream().use { out -> input.copyTo(out) } }
             if (!output.exists() || output.length() < 44) error("Online speech audio was empty")
