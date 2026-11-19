@@ -430,7 +430,19 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
                         )
-                        Text("⌄", color = Color(0xFFF47721), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFFFFE8D6), androidx.compose.foundation.shape.CircleShape)
+                                .padding(horizontal = 9.dp, vertical = 5.dp),
+                            contentAlignment = androidx.compose.ui.Alignment.Center
+                        ) {
+                            Text(
+                                if (languageMenuExpanded) "▴" else "▾",
+                                color = Color(0xFFE96812),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
                     }
                     DropdownMenu(
                         expanded = languageMenuExpanded,
@@ -470,6 +482,20 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         FilterChip(
                             modifier = Modifier.weight(1f),
                             selected = selectedGender == gender,
+                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFF47721),
+                                selectedLabelColor = Color.White,
+                                selectedLeadingIconColor = Color.White,
+                                selectedTrailingIconColor = Color.White,
+                                containerColor = Color(0xFFFFF7F0),
+                                labelColor = Color(0xFF6B5546)
+                            ),
+                            border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = selectedGender == gender,
+                                borderColor = Color(0xFFE6CDB8),
+                                selectedBorderColor = Color(0xFFF47721)
+                            ),
                             onClick = {
                                 selectedGender = gender
                                 selectedVoice = availableVoices.firstOrNull { voice ->
