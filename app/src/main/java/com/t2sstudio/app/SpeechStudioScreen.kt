@@ -242,8 +242,8 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     when {
                         personal -> TtsAiClient.generate(
                             text = sample,
-                            language = languageCode,
-                            voice = voiceId,
+                            language = voiceLanguageCode(voiceId, languageCode),
+                            voice = "",
                             speed = 1f,
                             output = previewFile,
                             apiKey = ttsApiKey,
@@ -1053,7 +1053,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             val onlineResult = runCatching {
                                 withContext(Dispatchers.IO) {
                                     TtsAiClient.generate(
-                                        textToSpeak, onlineLanguage, voiceId, speechRate, output,
+                                        textToSpeak, if (chosenMyVoice != null) chosenMyVoice.language else onlineLanguage, if (chosenMyVoice != null) "" else voiceId, speechRate, output,
                                         apiKey = if (chosenMyVoice != null) ttsApiKey else "",
                                         model = chosenMyVoice?.model ?: chosenOnlineVoice?.model,
                                         format = outputFormat.lowercase(),
