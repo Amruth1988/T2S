@@ -598,6 +598,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 },
                                 onClick = {
                                     selectedLanguage = language.label
+                                    if (language.label == "Telugu") outputFormat = "WAV"
                                     if (language.label != "Telugu") selectedPurohitPreset = null
                                     generatedFile = null
                                     languageMenuExpanded = false
@@ -975,6 +976,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 listOf("WAV", "MP3").forEach { format ->
                     FilterChip(
                         selected = outputFormat == format,
+                        enabled = selectedLanguage != "Telugu" || format == "WAV",
                         onClick = { outputFormat = format },
                         label = { Text(format, fontSize = 12.sp) }
                     )
