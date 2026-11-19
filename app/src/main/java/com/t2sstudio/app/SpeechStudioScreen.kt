@@ -231,7 +231,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         activePreviewKey = previewKey
         statusMessage = if (localSample != null) "Preparing your saved recording…" else if (!previewUrl.isNullOrBlank()) "Downloading voice sample…" else "Generating preview…"
         coroutineScope.launch {
-            val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.audio")
+            val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.mp3")
             val sample = when (selectedLanguage) {
                 "Hindi" -> "नमस्ते। यह आवाज़ का नमूना है।"
                 "Telugu" -> "నమస్కారం. ఇది మీ వాయిస్ ప్రివ్యూ నమూనా."
@@ -242,7 +242,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     when {
                         localSample != null -> localSample.copyTo(previewFile, overwrite = true)
                         !previewUrl.isNullOrBlank() -> TtsAiClient.downloadPreview(previewUrl, previewFile)
-                        else -> TtsAiClient.generate(sample, languageCode, voiceId, 1f, previewFile, apiKey = ttsApiKey, model = model, format = "wav")
+                        else -> TtsAiClient.generate(sample, languageCode, voiceId, 1f, previewFile, apiKey = ttsApiKey, model = model, format = "mp3")
                     }
                 }
             }
@@ -255,6 +255,13 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             runCatching {
                 val player = MediaPlayer()
                 mediaPlayer = player
+                player.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                player.setVolume(1f, 1f)
                 player.setDataSource(previewFile.absolutePath)
                 player.setOnPreparedListener {
                     if (activePreviewKey == previewKey) { it.start(); isPlaying = true; statusMessage = "Playing preview: $previewKey" }
