@@ -460,7 +460,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             Column(modifier = Modifier.weight(0.9f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Gender", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    listOf("Male", "Female").forEach { gender ->
+                    listOf("All", "Male", "Female").forEach { gender ->
                         FilterChip(
                             selected = selectedGender == gender,
                             onClick = {
@@ -488,20 +488,21 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 }
                 Text("VOICE PICKER", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = T2SOrange)
             }
-            val genderMatches = availableVoices.filter { voice -> voiceGender(voice.name) == selectedGender }
+            val genderMatches = availableVoices.filter { voice -> selectedGender == "All" || voiceGender(voice.name) == selectedGender }
             val searchTerm = voiceSearch.trim().lowercase(Locale.ROOT)
             val filteredInstalled = genderMatches.filter { voice ->
                 "${voice.name} ${voice.locale.displayName} ${voice.locale.toLanguageTag()}".lowercase(Locale.ROOT).contains(searchTerm)
             }
             val filteredOnline = onlineVoices.filter { voice ->
-                voice.gender.equals(selectedGender, true) &&
+                (selectedGender == "All" || voice.gender.equals(selectedGender, true)) &&
                     "${voice.name} ${voice.language}".lowercase(Locale.ROOT).contains(searchTerm)
             }
             val filteredPersonal = myVoices.filter { voice ->
-                voice.name.lowercase(Locale.ROOT).contains(searchTerm)
+                (selectedGender == "All" || voice.gender.equals(selectedGender, true)) &&
+                    "${voice.name} ${voice.model}".lowercase(Locale.ROOT).contains(searchTerm)
             }
 
-            Box(Modifier.fillMaxWidth()) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = voiceSearch,
                     onValueChange = {
@@ -511,20 +512,23 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-                    placeholder = { Text("Search voices by name or language…") },
-                    label = { Text("Search voices") },
+                    placeholder = { Text("Search by voice name") },
+                    label = { Text("Voice Search") },
                     leadingIcon = { Text("⌕", fontSize = 25.sp, color = T2SOrange, fontWeight = FontWeight.Bold) },
-                    supportingText = { Text("Search by voice name or language • ${filteredInstalled.size + filteredOnline.size + filteredPersonal.size} results") },
+                    supportingText = { Text("${filteredInstalled.size + filteredOnline.size + filteredPersonal.size} voices available") },
                     trailingIcon = {
                         if (voiceSearch.isNotBlank()) {
                             TextButton(onClick = { voiceSearch = ""; voiceSearchExpanded = false }) { Text("✕ Clear") }
                         }
                     }
                 )
-                DropdownMenu(
-                    expanded = voiceSearchExpanded && voiceSearch.isNotBlank(),
-                    onDismissRequest = { voiceSearchExpanded = false },
-                    modifier = Modifier.fillMaxWidth(0.92f).heightIn(max = 340.dp)
+                Column(
+                    Modifier.fillMaxWidth()
+                        .heightIn(max = 390.dp)
+                        .verticalScroll(rememberScrollState())
+                        .border(1.dp, T2SBorder, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                        .padding(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     if (filteredInstalled.isNotEmpty()) {
                         DropdownMenuItem(
