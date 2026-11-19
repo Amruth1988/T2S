@@ -198,50 +198,88 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     }
 
     fun previewOnlineVoice(voiceId: String, model: String? = null, personal: Boolean = false, previewKey: String = voiceId) {
-        if (isPreviewing && activePreviewKey == previewKey) { stopVoicePreview(); statusMessage = "Preview stopped."; return }
-        if (isPreviewing) stopVoicePreview()
+        if (isPreviewing && activePreviewKey == previewKey) {
+            stopVoicePreview()
+            statusMessage = "Preview stopped."
+            return
+        }
+        stopVoicePreview()
         val languageCode = when (selectedLanguage) { "English" -> "en"; "Hindi" -> "hi"; else -> null }
         if (languageCode == null) {
-            statusMessage = "Online preview is not available for Telugu yet."
+            statusMessage = "Online preview is not available for Telugu yet. Use an installed Telugu voice."
             return
         }
         isPreviewing = true
         activePreviewKey = previewKey
-        mediaPlayer?.let { runCatching { it.stop() }; it.release() }
-        mediaPlayer = null
-        isPlaying = false
-        ttsEngine?.stop()
-        statusMessage = "Generating voice preview…"
+        statusMessage = "Generating preview for $previewKey…"
         coroutineScope.launch {
             val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.wav")
-            val sample = when (selectedLanguage) {
-                "Hindi" -> "नमस्ते। यह आवाज़ का नमूना है।"
-                else -> "Hello. This is a sample of this voice."
-            }
+            val sample = if (selectedLanguage == "Hindi") "नमस्ते। यह आवाज़ का नमूना है।"
+                else "Hello. This is a sample of the selected voice."
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    TtsAiClient.generate(sample, languageCode, voiceId, 1f, previewFile,
-                        apiKey = if (personal) ttsApiKey else "", model = model, format = "wav")
+                    TtsAiClient.generate(
+                        sample, languageCode, voiceId, 1f, previewFile,
+                        apiKey = if (personal) ttsApiKey else "",
+                        model = model,
+                        format = "wav"
+                    )
                 }
-                withContext(Dispatchers.Main) {
-                    MediaPlayer().apply {
-                        setDataSource(previewFile.absolutePath)
-                        setOnCompletionListener { it.release(); mediaPlayer = null; isPlaying = false; isPreviewing = false; activePreviewKey = null; previewFile.delete(); statusMessage = "Voice preview finished." }
-                        setOnErrorListener { mp, _, _ -> mp.release(); mediaPlayer = null; isPlaying = false; isPreviewing = false; activePreviewKey = null; previewFile.delete(); statusMessage = "This voice preview could not be played."; true }
-                        prepareAsync()
-                        setOnPreparedListener { it.start(); isPlaying = true; statusMessage = "Playing selected voice: $previewKey" }
+            }
+            if (result.isFailure) {
+                previewFile.delete()
+                isPreviewing = false
+                activePreviewKey = null
+                statusMessage = "Preview failed: ${result.exceptionOrNull()?.message ?: "voice service unavailable"}"
+                return@launch
+            }
+            if (activePreviewKey != previewKey) {
+                previewFile.delete()
+                return@launch
+            }
+            runCatching {
+                val player = MediaPlayer()
+                mediaPlayer = player
+                player.setDataSource(previewFile.absolutePath)
+                player.setOnPreparedListener {
+                    if (activePreviewKey == previewKey) {
+                        it.start()
+                        isPlaying = true
+                        statusMessage = "Playing only: $previewKey"
+                    } else {
+                        it.release()
+                        previewFile.delete()
                     }
                 }
+                player.setOnCompletionListener {
+                    it.release()
+                    if (mediaPlayer === it) mediaPlayer = null
+                    previewFile.delete()
+                    isPlaying = false
+                    isPreviewing = false
+                    activePreviewKey = null
+                    statusMessage = "Preview finished: $previewKey"
                 }
-            }
-            result.onSuccess { player ->
-                mediaPlayer?.release()
-                mediaPlayer = player
+                player.setOnErrorListener { mp, _, _ ->
+                    mp.release()
+                    if (mediaPlayer === mp) mediaPlayer = null
+                    previewFile.delete()
+                    isPlaying = false
+                    isPreviewing = false
+                    activePreviewKey = null
+                    statusMessage = "Audio could not be played for $previewKey."
+                    true
+                }
+                player.prepareAsync()
             }.onFailure {
                 previewFile.delete()
-                statusMessage = "Voice preview failed: ${it.message ?: "online service unavailable"}"
+                mediaPlayer?.release()
+                mediaPlayer = null
+                isPlaying = false
+                isPreviewing = false
+                activePreviewKey = null
+                statusMessage = "Preview playback error: ${it.message ?: "unknown error"}"
             }
-            if (result.isFailure) { isPreviewing = false; activePreviewKey = null }
         }
     }
 
@@ -559,8 +597,10 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 }
             }
             androidx.compose.material3.Checkbox(checked = autoPlayAfterGeneration, onCheckedChange = { autoPlayAfterGeneration = it })
-            Text("Auto-play after generation", color = T2SText, fontSize = 13.sp)
-          }
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                androidx.compose.material3.Checkbox(checked = autoPlayAfterGeneration, onCheckedChange = { autoPlayAfterGeneration = it })
+                Text("Auto-play after generation", color = T2SText, fontSize = 13.sp)
+            }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -736,19 +776,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 isPlaying = true
                                 statusMessage = "Playing audio."
                             } else {
-                                mediaPlayer = MediaPlayer().apply {
-                                    setDataSource(file.absolutePath)
-                                    setOnCompletionListener {
-                                        it.release()
-                                        mediaPlayer = null
-                                        isPlaying = false
-                                        statusMessage = "Playback finished."
-                                    }
-                                    prepare()
-                                    start()
-                                }
-                                isPlaying = true
-                                statusMessage = "Playing audio."
+                                playGeneratedFile(file)
                             }
                         } catch (error: Exception) {
                             statusMessage = "Unable to play audio on this device."
