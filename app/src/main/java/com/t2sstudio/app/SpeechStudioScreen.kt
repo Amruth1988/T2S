@@ -604,6 +604,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 color = T2SSecondaryText
             )
         }
+        }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Output format", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
