@@ -81,9 +81,12 @@ fun MyVoicesScreen() {
     }
 
     fun loadVoices() {
-        voices.clear()
-        message = "Cloud voice profiles are disabled. The free offline voice engine is being integrated."
+        runCatching { MyVoicesClient.list(context) }
+            .onSuccess { saved -> voices.clear(); voices.addAll(saved) }
+            .onFailure { message = "Could not load saved voice profiles: ${it.message}" }
     }
+
+    LaunchedEffect(Unit) { loadVoices() }
 
     DisposableEffect(Unit) { onDispose { runCatching { recorder?.stop() }; runCatching { recorder?.release() }; recorder = null; runCatching { previewPlayer?.stop() }; runCatching { previewPlayer?.release() }; previewPlayer = null } }
 
@@ -92,7 +95,7 @@ fun MyVoicesScreen() {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
-        Text("Create and manage reusable AI voice profiles from your own recordings.", color = T2SSecondaryText, fontSize = 14.sp)
+        Text("Save and manage reusable voice recordings on this device. Local profiles remain available after reopening the app.", color = T2SSecondaryText, fontSize = 14.sp)
         Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("Add a voice", fontWeight = FontWeight.SemiBold, color = T2SText)
@@ -103,7 +106,7 @@ fun MyVoicesScreen() {
                         androidx.compose.material3.FilterChip(selected = cloneLanguage == code, onClick = { cloneLanguage = code }, label = { Text(label) })
                     }
                 }
-                Text("Free-only mode: premium cloud cloning models and paid API calls are disabled. The offline engine must be completed before cloning can be enabled.", fontSize = 12.sp, color = T2SSecondaryText)
+                Text("Your recording and profile details are stored locally. This does not yet create an AI-cloned voice; no paid cloud service is used.", fontSize = 12.sp, color = T2SSecondaryText)
                 Text("Record your voice directly here, or select an existing file. Speak naturally in a quiet room for 10–30 seconds.", fontSize = 12.sp, color = T2SSecondaryText)
                 Card(
                     colors = CardDefaults.cardColors(containerColor = T2SCream),
@@ -217,7 +220,33 @@ fun MyVoicesScreen() {
                     androidx.compose.material3.Checkbox(checked = consentConfirmed, onCheckedChange = { consentConfirmed = it }, enabled = !busy)
                     Text("I confirm this is my voice, or I have permission to clone it.", color = T2SSecondaryText, fontSize = 12.sp)
                 }
-                Button(onClick = { message = "Free offline voice cloning is not ready yet. No premium service will be called." }, enabled = false) { Text("Offline voice cloning — coming soon") }
+                Button(
+                    onClick = {
+                        val uri = pickedUri
+                        if (uri == null) message = "Record or select an audio file first."
+                        else if (!consentConfirmed) message = "Confirm that this is your voice or that you have permission to use it."
+                        else if (voiceName.isBlank()) message = "Enter a name for this voice profile."
+                        else {
+                            busy = true
+                            scope.launch {
+                                runCatching {
+                                    withContext(Dispatchers.IO) {
+                                        MyVoicesClient.createLocal(context, voiceName, uri, cloneLanguage)
+                                    }
+                                }.onSuccess { saved ->
+                                    loadVoices()
+                                    voiceName = "My Voice"
+                                    pickedUri = null
+                                    pickedLabel = "No audio selected"
+                                    consentConfirmed = false
+                                    message = "${saved.name} saved on this device. This stores your sample; AI voice cloning is not yet active."
+                                }.onFailure { message = "Could not save voice profile: ${it.message}" }
+                                busy = false
+                            }
+                        }
+                    },
+                    enabled = !busy && !recording && pickedUri != null && consentConfirmed && voiceName.isNotBlank()
+                ) { Text("Save voice profile") }
             }
         }
         if (busy) CircularProgressIndicator()
@@ -242,7 +271,7 @@ fun MyVoicesScreen() {
                         ) { Text("🎙️", fontSize = 23.sp) }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(voice.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("Personal voice profile", color = T2SSecondaryText, fontSize = 12.sp)
+                            Text("${voice.language.uppercase()} • Local recording", color = T2SSecondaryText, fontSize = 12.sp)
                         }
                         Text("SAVED", color = T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
                             modifier = Modifier.background(T2SCream, androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 6.dp))
@@ -254,13 +283,13 @@ fun MyVoicesScreen() {
                     }
                     Text("Voice ID  •  ${voice.id}", color = T2SSecondaryText, fontSize = 10.sp, maxLines = 1)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Text("Ready for supported voice generation", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { message = "Cloud voice preview is disabled in free-only mode." }, enabled = false) { Text("Cloud preview disabled") }
+                        Text("Saved sample • available for playback", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { runCatching { File(voice.localSamplePath.orEmpty()).delete(); loadVoices(); message = "Voice profile deleted from this device." }.onFailure { message = "Could not delete profile: ${it.message}" } }) { Text("Delete") }
                     }
                 }
             }
         }
-        Text("Free offline voice cloning is not yet available. No cloud credits or premium model are used by this screen.", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
+        Text("Note: these are saved voice recordings, not trained voice clones. AI cloning requires a compatible offline model.", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
         
     }
 }
