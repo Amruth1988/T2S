@@ -90,3 +90,4 @@ object MyVoicesClient {
         localProfilesFile(context).writeText(array.toString())
         target?.localSamplePath?.let { File(it).delete() }
     }
+}
