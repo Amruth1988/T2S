@@ -26,6 +26,22 @@ Candidate: https://huggingface.co/Prahaladha/hima-tts-nano-te-ONNX
 
 Do not redistribute or package it until the exact license terms are clarified. Its multi-graph runtime is not compatible with the current single-model Piper VITS adapter without a separate implementation. Treat it as research only.
 
+## DhVaani-0.5 MNN — Android zero-shot TTS candidate
+
+Candidate model: https://huggingface.co/ARTPARK-IISc/DhVaani-0.5  
+Android MNN port: https://huggingface.co/Bbkblo/DhVaani-0.5-MNN
+
+- The official DhVaani model card lists Telugu among its well-represented languages and describes zero-shot synthesis from a reference recording plus its exact transcript.
+- The Android MNN port advertises a complete Kotlin/JNI/C++ integration and Apache-2.0 metadata. Its model assets total approximately 140 MB.
+- The port's documented prompt requirement is a clean 3–10 second single-speaker recording with an exact transcript. It reports Android builds for arm64-v8a and armeabi-v7a.
+- This is a voice-cloning engine, not a ready-made priest voice. A Vedic-recitation sample would need to come from a speaker who has explicitly consented to this use. The generated output can only imitate the provided sample's delivery to the extent the model preserves it.
+- The official model repository is gated behind acceptance of its access conditions. The MNN port is a third-party conversion with a single published contributor/commit, so the conversion, dependency and model provenance need an independent review before bundling.
+- Training-corpus terms still need to be respected even though the model card reports Apache-2.0.
+
+### T2S decision
+
+Promising Android-local candidate; not yet integrated. Do not label it as a Purohit model or enable it in production until the MNN source and binaries are reviewed, the model assets are reproducibly obtained, a consent-based reference-audio/transcript flow is added, and the result passes a real-device Telugu recitation listening test. Do not use a public figure's recording or the Chaganti CC BY-NC dataset as a substitute for explicit voice-owner consent.
+
 ## Release rule
 
 A candidate becomes a selectable T2S voice only after:
