@@ -81,8 +81,9 @@ object TtsAiClient {
         val payload = JSONObject().apply {
             put("text", text)
             put("language", language)
-            put("voice", userVoiceId?.takeIf { it.isNotBlank() } ?: voice)
-            put("format", if (format.equals("mp3", true)) "mp3" else "wav")
+            put("voice", voice)
+            userVoiceId?.takeIf { it.isNotBlank() }?.let { put("user_voice_id", it) }
+            put("format", when (format.lowercase()) { "mp3" -> "mp3"; "flac" -> "flac"; "ogg" -> "ogg"; else -> "wav" })
             put("speed", speed.toDouble())
             if (!model.isNullOrBlank()) put("model", model)
         }.toString()
@@ -161,6 +162,8 @@ object TtsAiClient {
             output.parentFile?.mkdirs()
             download.inputStream.use { input -> output.outputStream().use { out -> input.copyTo(out) } }
             if (!output.exists() || output.length() < 44) error("Online speech audio was empty")
+            val header = output.inputStream().use { input -> ByteArray(12).also { input.read(it) } }
+            if (!isAudioBytes(header)) error("Online speech download did not contain a supported audio file")
         } finally {
             download.disconnect()
         }
