@@ -81,8 +81,13 @@ object TtsAiClient {
         val payload = JSONObject().apply {
             put("text", text)
             put("language", language)
-            // TTS.ai documents saved-voice public_id as the normal "voice" value.
-            put("voice", userVoiceId?.takeIf { it.isNotBlank() } ?: voice)
+            // Saved cloned profiles must use user_voice_id. Sending their public_id
+            // as "voice" silently selects/falls back to a catalogue voice on the API.
+            if (!userVoiceId.isNullOrBlank()) {
+                put("user_voice_id", userVoiceId)
+            } else {
+                put("voice", voice)
+            }
             put("format", when (format.lowercase()) { "mp3" -> "mp3"; "flac" -> "flac"; "ogg" -> "ogg"; else -> "wav" })
             put("speed", speed.toDouble())
             if (!model.isNullOrBlank()) put("model", model)
