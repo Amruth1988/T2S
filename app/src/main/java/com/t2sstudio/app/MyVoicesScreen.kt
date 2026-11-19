@@ -80,7 +80,7 @@ fun MyVoicesScreen() {
         if (apiKey.isBlank()) { message = "Personal voices are not configured in this build. Add the TTS_API_KEY GitHub Actions secret and rebuild."; return }
         busy = true
         scope.launch {
-            runCatching { withContext(Dispatchers.IO) { MyVoicesClient.list(apiKey.trim()) } }
+            runCatching { withContext(Dispatchers.IO) { MyVoicesClient.list(context, apiKey.trim()) } }
                 .onSuccess { voices.clear(); voices.addAll(it); message = "Loaded ${it.size} saved voice profiles." }
                 .onFailure { message = it.message ?: "Could not load saved voices." }
             busy = false
@@ -256,20 +256,30 @@ fun MyVoicesScreen() {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Text("Ready for supported voice generation", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp, modifier = Modifier.weight(1f))
                         TextButton(onClick = {
+                            val localFile = voice.localSamplePath?.let { File(it) }?.takeIf { it.exists() && it.length() > 1024L }
                             val url = voice.previewUrl
-                            if (url.isNullOrBlank()) {
-                                message = "No preview sample was supplied for ${voice.name} by the voice provider."
+                            if (localFile == null && url.isNullOrBlank()) {
+                                message = "No local recording or provider preview is available for ${voice.name}."
                             } else {
-                                runCatching {
-                                    previewPlayer?.release()
-                                    val player = MediaPlayer()
-                                    previewPlayer = player
-                                    player.setDataSource(url)
-                                    player.setOnPreparedListener { it.start(); message = "Playing ${voice.name} preview…" }
-                                    player.setOnCompletionListener { it.release(); if (previewPlayer === it) previewPlayer = null; message = "Voice preview finished." }
-                                    player.setOnErrorListener { mp, _, _ -> mp.release(); if (previewPlayer === mp) previewPlayer = null; message = "Could not play this voice preview."; true }
-                                    player.prepareAsync()
-                                }.onFailure { message = "Preview failed: ${it.localizedMessage ?: "audio unavailable"}"; previewPlayer?.release(); previewPlayer = null }
+                                busy = true
+                                message = "Preparing ${voice.name} preview…"
+                                scope.launch {
+                                    val audioFile = localFile ?: File(context.cacheDir, "saved_voice_preview_${voice.id.hashCode()}.audio")
+                                    val result = runCatching { withContext(Dispatchers.IO) { if (localFile == null) TtsAiClient.downloadPreview(url!!, audioFile) } }
+                                    if (result.isSuccess) {
+                                        runCatching {
+                                            previewPlayer?.release()
+                                            val player = MediaPlayer()
+                                            previewPlayer = player
+                                            player.setDataSource(audioFile.absolutePath)
+                                            player.setOnPreparedListener { it.start(); message = "Playing ${voice.name} sample…" }
+                                            player.setOnCompletionListener { it.release(); if (previewPlayer === it) previewPlayer = null; if (localFile == null) audioFile.delete(); message = "Voice preview finished." }
+                                            player.setOnErrorListener { mp, _, _ -> mp.release(); if (previewPlayer === mp) previewPlayer = null; if (localFile == null) audioFile.delete(); message = "Could not play this voice sample."; true }
+                                            player.prepareAsync()
+                                        }.onFailure { if (localFile == null) audioFile.delete(); message = "Preview playback failed: ${it.localizedMessage}" }
+                                    } else message = "Preview download failed: ${result.exceptionOrNull()?.message}"
+                                    busy = false
+                                }
                             }
                         }, enabled = !busy && !recording) { Text("▶ Preview") }
                     }
