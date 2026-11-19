@@ -20,6 +20,8 @@ The upstream repository's MIT licence does not replace the individual dataset li
 
 No Telugu priest-recitation model has been approved for this app. Generic male voices with pitch or speed changes are not Purohit voices and must not be presented as such. The Chaganti discourse dataset found during research is marked CC BY-NC 4.0, so it is not suitable for commercial redistribution without separate permission. A Sanskrit chant model is not a Telugu priest voice and must not be substituted.
 
+The Vāgdhenu project was also reviewed. It is a metered Sanskrit classical-chant system, not a Telugu Purohit model; its published model notes that it does not produce Vedic svaras. It requires a CUDA 12.1/Python inference stack and is not an Android Sherpa-ONNX voice pack. It is therefore not substituted into T2S.
+
 ## Release gate
 
 Before any voice pack is shipped in a public release:
