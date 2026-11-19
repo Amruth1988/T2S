@@ -480,8 +480,11 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             DropdownMenuItem(
                                 text = {
                                     Column {
-                                        Text(voice.name, color = Color(0xFF101B35), fontWeight = FontWeight.Bold)
-                                        Text("${voice.locale.displayName} • On-device", color = T2SSecondaryText, fontSize = 11.sp)
+                                        Text(installedVoiceDisplayName(voice), color = Color(0xFF101B35), fontWeight = FontWeight.Bold, maxLines = 1)
+                                        Text("${voice.locale.getDisplayLanguage(Locale.getDefault())} • ${voiceGender(voice.name)} • On device", color = Color(0xFF58677F), fontSize = 11.sp, maxLines = 1)
+                                        if (isPlaying && activePreviewKey == "installed:${voice.name}") {
+                                            VoicePlaybackWaveform()
+                                        }
                                     }
                                 },
                                 onClick = {
@@ -535,7 +538,16 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                         } else {
                                             statusMessage = "Android speech engine is not ready yet."
                                         }
-                                    }, enabled = engineReady) { Text("▶", color = T2SOrange) }
+                                    }, enabled = engineReady) {
+                                        Text(
+                                            if (isPreviewing && activePreviewKey == "installed:${voice.name}") "Ⅱ" else "▶",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier
+                                                .background(Color(0xFFF47721), androidx.compose.foundation.shape.CircleShape)
+                                                .padding(horizontal = 13.dp, vertical = 8.dp)
+                                        )
+                                    }
                                 }
                             )
                         }
@@ -852,4 +864,52 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             color = T2SSecondaryText
         )
     }
+}
+
+@Composable
+private fun VoicePlaybackWaveform() {
+    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "voice-wave")
+    val heights = (0..8).map { index ->
+        transition.animateFloat(
+            initialValue = 4f,
+            targetValue = (9 + (index * 7 % 15)).toFloat(),
+            animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                animation = androidx.compose.animation.core.tween(
+                    durationMillis = 260 + index * 55,
+                    delayMillis = index * 35
+                ),
+                repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+            ),
+            label = "voice-wave-$index"
+        )
+    }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        modifier = Modifier.height(22.dp)
+    ) {
+        heights.forEach { height ->
+            Box(
+                Modifier
+                    .width(3.dp)
+                    .height(height.value.dp)
+                    .background(Color(0xFFF47721), androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
+            )
+        }
+    }
+}
+
+private fun installedVoiceDisplayName(voice: Voice): String {
+    val language = voice.locale.getDisplayLanguage(Locale.getDefault())
+    val region = voice.locale.getDisplayCountry(Locale.getDefault())
+    val gender = voiceGender(voice.name)
+    val quality = when {
+        voice.quality >= Voice.QUALITY_VERY_HIGH -> "Premium"
+        voice.quality >= Voice.QUALITY_HIGH -> "High quality"
+        else -> "Standard"
+    }
+    return listOf(language, region.takeIf { it.isNotBlank() }, gender, quality)
+        .filterNotNull()
+        .filter { it.isNotBlank() }
+        .joinToString(" • ")
 }
