@@ -297,9 +297,17 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             statusMessage = "Telugu voice data is not installed on this device. Install a Telugu voice in Android Text-to-Speech settings."
             return
         }
-        val teluguVoice = selectedVoice?.takeIf { it.locale.language == "te" }
-            ?: engine.voices.orEmpty().firstOrNull { it.locale.language == "te" }
-        if (teluguVoice != null) engine.voice = teluguVoice
+        val teluguVoice = selectedVoice?.takeIf {
+            it.locale.language == "te" && voiceGender(it.name) == "Male"
+        } ?: engine.voices.orEmpty().firstOrNull {
+            it.locale.language == "te" && voiceGender(it.name) == "Male"
+        }
+        if (teluguVoice == null) {
+            statusMessage = "No Telugu male voice is identified on this device. Install a Telugu male voice in your TTS engine. Female voices will not be used for Purohit presets."
+            return
+        }
+        selectedVoice = teluguVoice
+        engine.voice = teluguVoice
         engine.setSpeechRate((speechRate * preset.speedMultiplier).coerceIn(0.5f, 2f))
         engine.setPitch((speechPitch * preset.pitchMultiplier).coerceIn(0.5f, 2f))
         val previewKey = "purohit:${preset.name}"
@@ -658,12 +666,18 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 selectedPurohitPreset = preset
                                 selectedOnlineVoice = null
                                 selectedMyVoice = null
-                                selectedVoice = availableVoices.firstOrNull { it.locale.language == "te" }
+                                selectedVoice = availableVoices.firstOrNull {
+                                    it.locale.language == "te" && voiceGender(it.name) == "Male"
+                                }
                                 ttsEngine?.let { engine ->
                                     engine.setLanguage(Locale("te", "IN"))
                                     selectedVoice?.let { engine.voice = it }
                                 }
-                                statusMessage = "${preset.name} selected. Preview it before generating audio."
+                                statusMessage = if (selectedVoice == null) {
+                                    "${preset.name} selected, but no explicitly male Telugu voice is installed. Female voices are blocked for this preset."
+                                } else {
+                                    "${preset.name} selected with male Telugu voice ${selectedVoice?.name}. Preview it before generating audio."
+                                }
                             },
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(13.dp),
                             colors = CardDefaults.cardColors(
@@ -1075,6 +1089,18 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 isGenerating = false
                                 statusMessage = "Online speech failed and Android speech engine is unavailable."
                             } else {
+                                val preset = selectedPurohitPreset
+                                val presetVoice = if (preset != null) {
+                                    selectedVoice?.takeIf {
+                                        it.locale.language == "te" && voiceGender(it.name) == "Male"
+                                    } ?: engine.voices.orEmpty().firstOrNull {
+                                        it.locale.language == "te" && voiceGender(it.name) == "Male"
+                                    }
+                                } else null
+                                if (preset != null && presetVoice == null) {
+                                    isGenerating = false
+                                    statusMessage = "Cannot generate ${preset.name}: no explicitly male Telugu voice is installed. Female voices are blocked. Install a male Telugu TTS voice first."
+                                } else {
                                 val languageResult = engine.setLanguage(language.locale)
                                 if (languageResult == TextToSpeech.LANG_MISSING_DATA ||
                                     languageResult == TextToSpeech.LANG_NOT_SUPPORTED
@@ -1082,8 +1108,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     isGenerating = false
                                     statusMessage = language.label + " voice data is not installed or supported on this device."
                                 } else {
-                                    selectedVoice?.let { engine.voice = it }
-                                    val preset = selectedPurohitPreset
+                                    (presetVoice ?: selectedVoice)?.let { engine.voice = it }
                                     engine.setSpeechRate((speechRate * (preset?.speedMultiplier ?: 1f)).coerceIn(0.5f, 2f))
                                     engine.setPitch((speechPitch * (preset?.pitchMultiplier ?: 1f)).coerceIn(0.5f, 2f))
                                     engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
@@ -1118,6 +1143,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                         isGenerating = false
                                         statusMessage = "Android speech engine could not generate this audio."
                                     }
+                                }
                                 }
                             }
                         }
