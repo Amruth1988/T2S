@@ -124,8 +124,8 @@ object TtsAiClient {
             if (code !in 200..299) {
                 val detail = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
                 error(when (code) {
-                    401 -> "Free online TTS requires a free India API key from 15 Dec 2026. No paid billing is required."
-                    429 -> "Free online TTS rate limit reached. Please wait and try again."
+                    401 -> detail.ifBlank { "Online TTS needs a valid free India API key. Check Profile → Online TTS access." }
+                    429 -> detail.ifBlank { "Free online TTS daily quota or rate limit reached. Please try again later." }
                     else -> detail.ifBlank { "Online TTS failed (HTTP $code)." }
                 })
             }
