@@ -761,8 +761,15 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     )
                 }
             }
-            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                androidx.compose.material3.Checkbox(checked = autoPlayAfterGeneration, onCheckedChange = { autoPlayAfterGeneration = it })
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            ) {
+                androidx.compose.material3.Checkbox(
+                    modifier = Modifier.offset(x = (-12).dp),
+                    checked = autoPlayAfterGeneration,
+                    onCheckedChange = { autoPlayAfterGeneration = it }
+                )
                 Text("Auto-play after generation", color = T2SText, fontSize = 13.sp)
             }
         }
