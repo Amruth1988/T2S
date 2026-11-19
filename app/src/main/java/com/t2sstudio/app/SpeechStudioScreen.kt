@@ -60,10 +60,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -443,26 +440,6 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             .padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(6.dp)
-                .background(T2SOrange)
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-        ) {
-            Text(
-                "Text to Speech",
-                fontSize = 25.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 0.35.sp,
-                color = Color.White,
-                style = androidx.compose.ui.text.TextStyle(
-                    shadow = Shadow(color = Color(0x99000000), offset = Offset(0f, 2f), blurRadius = 5f)
-                )
-            )
-        }
-
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
