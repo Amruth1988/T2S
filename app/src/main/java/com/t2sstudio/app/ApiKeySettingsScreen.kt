@@ -47,13 +47,13 @@ fun ApiKeySettingsScreen() {
     ) {
         Text("Online TTS access", color = T2SText, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Text(
-            "Optional free India API key. Online Piper speech generation will require a key from 15 December 2026. You can continue using Android and imported offline voices without one.",
+            "Optional free India API key. Online Piper speech generation will require a key from 15 December 2026. The provider documents up to 500 model requests per day per free key. Android and imported offline voices continue working without one.",
             color = T2SSecondaryText,
             fontSize = 13.sp,
             lineHeight = 19.sp
         )
         Text(
-            if (configured) "A key is saved securely on this device." else "No API key saved. Keyless access may work until 15 December 2026.",
+            if (configured) "A key is encrypted on this device; the provider checks it when you generate speech." else "No API key saved. Keyless access may work until 15 December 2026.",
             color = if (configured) T2SOrange else T2SSecondaryText,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold
