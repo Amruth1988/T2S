@@ -20,6 +20,21 @@ Native Android Text-to-Speech application built with Kotlin and Jetpack Compose.
 - Saved Audio library with playback, download, share and delete actions
 - Recent tab displays saved speech recordings, with missing audio files automatically excluded
 
+## Telugu offline voice packs
+
+Speech Studio includes an app-managed Sherpa-ONNX Piper runtime for converted Telugu voice packs. To use it:
+
+1. Open the **Actions** tab in this repository and download the `t2s-telugu-piper-validation` artifact from a successful **Validate Telugu Piper voice packs** run.
+2. Keep the downloaded artifact ZIP intact.
+3. In T2S Studio, open **Create**, select **Telugu**, and choose **Import converted voice ZIP**.
+4. Select an installed voice pack, preview it, then generate Telugu WAV audio. Synthesis runs on-device; no online TTS service is used for this Telugu path.
+
+The validation artifact contains converted Venkatesh, Padmavathi and Maya packs plus sample WAV files. Models are not bundled in the APK. Their individual dataset licences and attribution terms differ; the upstream Piper repository licence does not replace those terms. Do not redistribute model weights until the exact model card and dataset licence have been reviewed.
+
+The Android Sherpa-ONNX/Piper synthesis path is implemented and connected to Speech Studio. Successful Python validation and an Android build do not replace real-device playback, Telugu-speaker intelligibility review, or licence review. Those remain release gates.
+
+**Purohit / Vedic recitation:** no genuine Telugu priest-recitation model has passed model, quality and licence checks. Purohit presets therefore remain unavailable. T2S does not relabel a generic Android male voice or pitch-shifted voice as a Purohit voice. The SYSPIN Telugu male candidate is a different VITS format and is not selectable until a separate compatible Android adapter and device test are completed.
+
 ## Android configuration
 - Package: `com.t2sstudio.app`
 - Minimum SDK: 24
@@ -28,10 +43,9 @@ Native Android Text-to-Speech application built with Kotlin and Jetpack Compose.
 - Jetpack Compose with Material 3
 
 ## Speech engine notes
-For English and Hindi, the app first attempts TTS.ai's anonymous free API and falls back automatically to Android TextToSpeech if the online service is unavailable. The documented anonymous limit is 500 characters per request and 5,000 characters per day per IP. Telugu remains on-device until compatible online voices are verified. Online output depends on TTS.ai availability and its free-tier terms. No API key is embedded in the APK; no paid API, subscription, billing, or cloud resource is configured.
+For English and Hindi, the app first attempts TTS.ai's anonymous free API and falls back automatically to Android TextToSpeech if the online service is unavailable. The documented anonymous limit is 500 characters per request and 5,000 characters per day per IP. Telugu uses the imported on-device Sherpa-ONNX Piper packs. Online output depends on TTS.ai availability and its free-tier terms. No API key is embedded in the APK; no paid API, subscription, billing, or cloud resource is configured.
 
 ## Open
 Open this repository in Android Studio and allow Gradle sync to complete. The GitHub Actions workflow builds the debug APK with `gradle :app:assembleDebug`.
-
 
 Build note: Personal voice features use the `TTS_API_KEY` GitHub Actions secret at build time. Never commit API keys to source control.
