@@ -153,21 +153,18 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         val languageCode = when (selectedLanguage) {
             "English" -> "en"
             "Hindi" -> "hi"
-            else -> null
+            "Telugu" -> "te"
+            else -> "en"
         }
-        if (languageCode == null) {
-            onlineCatalogueStatus = "Online Telugu voices are not verified yet. On-device Telugu remains available."
-        } else {
-            onlineCatalogueStatus = "Loading online " + selectedLanguage + " voices…"
-            runCatching { withContext(Dispatchers.IO) { TtsAiClient.listVoices(languageCode) } }
-                .onSuccess { voices ->
-                    onlineVoices.addAll(voices)
-                    selectedOnlineVoice = voices.firstOrNull { it.gender.equals(selectedGender, ignoreCase = true) }
-                    onlineCatalogueStatus = if (voices.isEmpty()) "No online voices returned. On-device speech is available."
-                        else voices.size.toString() + " online " + selectedLanguage + " voices available."
-                }
-                .onFailure { onlineCatalogueStatus = "Online voice catalogue unavailable. On-device speech is available." }
-        }
+        onlineCatalogueStatus = "Loading online " + selectedLanguage + " voices…"
+        runCatching { withContext(Dispatchers.IO) { TtsAiClient.listVoices(languageCode) } }
+            .onSuccess { voices ->
+                onlineVoices.addAll(voices)
+                selectedOnlineVoice = voices.firstOrNull { selectedGender == "All" || it.gender.equals(selectedGender, ignoreCase = true) }
+                onlineCatalogueStatus = if (voices.isEmpty()) "No online " + selectedLanguage + " voices returned. Showing installed voices where available."
+                    else voices.size.toString() + " online " + selectedLanguage + " voices available."
+            }
+            .onFailure { onlineCatalogueStatus = "Online " + selectedLanguage + " voice catalogue unavailable. Showing installed voices where available." }
     }
 
     DisposableEffect(context) {
@@ -494,18 +491,24 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 }
                 Text("VOICE PICKER", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = T2SOrange)
             }
-            val genderMatches = availableVoices.filter { voice -> selectedGender == "All" || voiceGender(voice.name) == selectedGender }
+            val allInstalledForLanguage = availableVoices.toList()
+            val genderMatches = allInstalledForLanguage.filter { voice -> selectedGender == "All" || voiceGender(voice.name) == selectedGender }
+            val installedPool = if (genderMatches.isNotEmpty()) genderMatches else allInstalledForLanguage
+            val onlineGenderMatches = onlineVoices.filter { voice -> selectedGender == "All" || voice.gender.equals(selectedGender, true) }
+            val onlinePool = if (onlineGenderMatches.isNotEmpty()) onlineGenderMatches else onlineVoices.toList()
             val searchTerm = voiceSearch.trim().lowercase(Locale.ROOT)
-            val filteredInstalled = genderMatches.filter { voice ->
+            val searchedInstalled = installedPool.filter { voice ->
                 "${voice.name} ${voice.locale.displayName} ${voice.locale.toLanguageTag()}".lowercase(Locale.ROOT).contains(searchTerm)
             }
-            val filteredOnline = onlineVoices.filter { voice ->
-                (selectedGender == "All" || voice.gender.equals(selectedGender, true)) &&
-                    "${voice.name} ${voice.language}".lowercase(Locale.ROOT).contains(searchTerm)
+            val searchedOnline = onlinePool.filter { voice ->
+                "${voice.name} ${voice.language}".lowercase(Locale.ROOT).contains(searchTerm)
             }
+            val filteredInstalled = if (searchedInstalled.isNotEmpty() || searchTerm.isBlank()) searchedInstalled else installedPool.take(5)
+            val filteredOnline = if (searchedOnline.isNotEmpty() || searchTerm.isBlank()) searchedOnline else onlinePool.take(5)
             val filteredPersonal = myVoices.filter { voice ->
                 "${voice.name} ${voice.model}".lowercase(Locale.ROOT).contains(searchTerm)
             }
+            val showingSuggestions = searchTerm.isNotBlank() && searchedInstalled.isEmpty() && searchedOnline.isEmpty() && filteredPersonal.isEmpty()
 
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
@@ -537,7 +540,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 ) {
                     if (filteredInstalled.isNotEmpty()) {
                         DropdownMenuItem(
-                            text = { Text("INSTALLED VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                            text = { Text(if (showingSuggestions) "SUGGESTED INSTALLED VOICES" else "INSTALLED VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
                             onClick = {},
                             enabled = false
                         )
@@ -607,7 +610,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     }
                     if (filteredOnline.isNotEmpty()) {
                         DropdownMenuItem(
-                            text = { Text("ONLINE VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                            text = { Text(if (showingSuggestions) "SUGGESTED ONLINE VOICES" else "ONLINE VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
                             onClick = {},
                             enabled = false
                         )
@@ -664,7 +667,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     }
                     if (filteredInstalled.isEmpty() && filteredOnline.isEmpty() && filteredPersonal.isEmpty()) {
                         DropdownMenuItem(
-                            text = { Text("No matching voices found", color = T2SSecondaryText) },
+                            text = { Text(if (onlineCatalogueStatus.startsWith("Loading")) "Loading voices…" else "No voices are installed or available for this language yet. Try another language.", color = T2SSecondaryText) },
                             onClick = {},
                             enabled = false
                         )
@@ -672,13 +675,13 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 }
             }
             Text(
-                "${filteredInstalled.size + filteredOnline.size + filteredPersonal.size} matching voices • ${selectedGender} • ${selectedLanguage}",
+                "${filteredInstalled.size + filteredOnline.size + filteredPersonal.size} voices shown • ${selectedGender} • ${selectedLanguage}",
                 fontSize = 11.sp,
                 color = T2SSecondaryText
             )
             Text(
                 if (onlineCatalogueStatus.startsWith("Loading")) onlineCatalogueStatus
-                else "Search results include installed, online and your personal voices. Scroll inside the results list to see more.",
+                else if (showingSuggestions) "No exact match found. Showing suggested voices for this language." else "Search results include installed, online and your personal voices. Scroll inside the results list to see more.",
                 fontSize = 11.sp,
                 color = T2SSecondaryText
             )
