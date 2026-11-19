@@ -7,7 +7,7 @@ import org.json.JSONArray
 import java.io.File
 import java.util.UUID
 
-data class SavedUserVoice(val id: String, val name: String, val model: String, val previewUrl: String?, val localSamplePath: String? = null, val language: String = "en")
+data class SavedUserVoice(val id: String, val name: String, val model: String, val localSamplePath: String? = null, val language: String = "en")
 
 object MyVoicesClient {
     private fun localProfilesFile(context: Context) = File(context.filesDir, "voice_profiles.json")
@@ -25,7 +25,6 @@ object MyVoicesClient {
                 id = id,
                 name = item.optString("name", "My Voice"),
                 model = "Local recording",
-                previewUrl = null,
                 localSamplePath = sample.absolutePath,
                 language = item.optString("language", "en").ifBlank { "en" }
             )
@@ -92,6 +91,3 @@ object MyVoicesClient {
         localProfilesFile(context).writeText(array.toString())
         target?.localSamplePath?.let { File(it).delete() }
     }
-
-
-
