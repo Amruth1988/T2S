@@ -2,8 +2,11 @@ package com.t2sstudio.app
 
 import android.content.ContentValues
 import android.content.Intent
-import android.media.MediaPlayer
-import android.media.AudioAttributes
+import androidx.media3.common.AudioAttributes as Media3AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -122,7 +125,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
     var generatedFile by remember { mutableStateOf<File?>(null) }
     var statusMessage by remember { mutableStateOf("Enter text to create your first voice recording.") }
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
-    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var mediaPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
     var isPreviewing by remember { mutableStateOf(false) }
     var activePreviewKey by remember { mutableStateOf<String?>(null) }
@@ -264,34 +267,45 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             }
             if (activePreviewKey != previewKey) { previewFile.delete(); return@launch }
             runCatching {
-                val player = MediaPlayer()
+                val player = ExoPlayer.Builder(context).build()
                 mediaPlayer = player
                 player.setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
-                )
-                player.setVolume(1f, 1f)
-                player.setDataSource(previewFile.absolutePath)
-                player.setOnPreparedListener {
-                    if (activePreviewKey == previewKey) { it.start(); isPlaying = true; statusMessage = "Playing preview: $previewKey" }
-                    else { it.release(); previewFile.delete() }
-                }
-                player.setOnCompletionListener {
-                    it.release()
-                    if (mediaPlayer === it) mediaPlayer = null
-                    previewFile.delete(); isPlaying = false; isPreviewing = false; activePreviewKey = null
-                    statusMessage = "Preview finished."
-                }
-                player.setOnErrorListener { mp, _, _ ->
-                    mp.release()
-                    if (mediaPlayer === mp) mediaPlayer = null
-                    previewFile.delete(); isPlaying = false; isPreviewing = false; activePreviewKey = null
-                    statusMessage = "Audio playback failed for $previewKey."
+                    Media3AudioAttributes.Builder()
+                        .setUsage(C.USAGE_MEDIA)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                        .build(),
                     true
-                }
-                player.prepareAsync()
+                )
+                player.volume = 1f
+                player.addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        when (playbackState) {
+                            Player.STATE_READY -> {
+                                if (activePreviewKey == previewKey) {
+                                    player.play()
+                                    isPlaying = true
+                                    statusMessage = "Playing preview: $previewKey"
+                                }
+                            }
+                            Player.STATE_ENDED -> {
+                                player.release()
+                                if (mediaPlayer === player) mediaPlayer = null
+                                previewFile.delete()
+                                isPlaying = false; isPreviewing = false; activePreviewKey = null
+                                statusMessage = "Preview finished."
+                            }
+                        }
+                    }
+                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                        player.release()
+                        if (mediaPlayer === player) mediaPlayer = null
+                        previewFile.delete()
+                        isPlaying = false; isPreviewing = false; activePreviewKey = null
+                        statusMessage = "Preview playback failed: ${error.errorCodeName}"
+                    }
+                })
+                player.setMediaItem(MediaItem.fromUri(Uri.fromFile(previewFile)))
+                player.prepare()
             }.onFailure {
                 previewFile.delete(); mediaPlayer?.release(); mediaPlayer = null
                 isPlaying = false; isPreviewing = false; activePreviewKey = null
@@ -382,13 +396,38 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         stopVoicePreview()
         runCatching {
             mediaPlayer?.release()
-            val player = MediaPlayer()
+            val player = ExoPlayer.Builder(context).build()
             mediaPlayer = player
-            player.setDataSource(file.absolutePath)
-            player.setOnPreparedListener { it.start(); isPlaying = true; statusMessage = "Auto-playing generated audio." }
-            player.setOnCompletionListener { it.release(); mediaPlayer = null; isPlaying = false; statusMessage = "Playback finished." }
-            player.setOnErrorListener { mp, _, _ -> mp.release(); mediaPlayer = null; isPlaying = false; statusMessage = "Audio playback failed. Try downloading the file."; true }
-            player.prepareAsync()
+            player.setAudioAttributes(
+                Media3AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                    .build(),
+                true
+            )
+            player.volume = 1f
+            player.addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    when (playbackState) {
+                        Player.STATE_READY -> {
+                            player.play()
+                            isPlaying = true
+                            statusMessage = "Playing generated audio."
+                        }
+                        Player.STATE_ENDED -> {
+                            player.release(); if (mediaPlayer === player) mediaPlayer = null
+                            isPlaying = false; statusMessage = "Playback finished."
+                        }
+                    }
+                }
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    player.release(); if (mediaPlayer === player) mediaPlayer = null
+                    isPlaying = false
+                    statusMessage = "Audio playback failed: ${error.errorCodeName}"
+                }
+            })
+            player.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
+            player.prepare()
         }.onFailure { statusMessage = "Unable to play generated audio: ${it.message ?: "unknown error"}" }
     }
 
