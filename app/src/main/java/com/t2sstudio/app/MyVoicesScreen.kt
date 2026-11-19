@@ -188,11 +188,33 @@ fun MyVoicesScreen() {
             TextButton(onClick = { loadVoices() }, enabled = !busy, modifier = Modifier.padding(0.dp)) { Text("↻ Refresh") }
         }
         voices.forEach { voice ->
-            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = T2SCream)) {
-                Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
-                    Text("Model: ${voice.model} • ID: ${voice.id}", color = T2SSecondaryText, fontSize = 11.sp)
-                    Text("Saved to your TTS.ai account. Available for supported voice-cloning/TTS endpoints.", color = T2SSecondaryText, fontSize = 11.sp)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = T2SBackground),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, T2SOrange.copy(alpha = 0.22f))
+            ) {
+                Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(11.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        androidx.compose.foundation.layout.Box(
+                            Modifier.size(48.dp).background(T2SCream, androidx.compose.foundation.shape.CircleShape),
+                            contentAlignment = androidx.compose.ui.Alignment.Center
+                        ) { Text("🎙️", fontSize = 23.sp) }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(voice.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("Personal voice profile", color = T2SSecondaryText, fontSize = 12.sp)
+                        }
+                        Text("SAVED", color = T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.background(T2SCream, androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 6.dp))
+                    }
+                    androidx.compose.material3.HorizontalDivider(color = T2SOrange.copy(alpha = 0.16f))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text("MODEL", color = T2SSecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(voice.model, color = T2SText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Text("Voice ID  •  ${voice.id}", color = T2SSecondaryText, fontSize = 10.sp, maxLines = 1)
+                    Text("Ready for supported voice generation", color = T2SSecondaryText, fontSize = 11.sp)
                 }
             }
         }
