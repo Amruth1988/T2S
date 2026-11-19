@@ -454,7 +454,6 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     placeholder = { Text("Search by voice name") },
                     label = { Text("Voice Search") },
                     leadingIcon = { Text("⌕", fontSize = 25.sp, color = T2SOrange, fontWeight = FontWeight.Bold) },
-                    supportingText = { Text("${filteredInstalled.size + filteredOnline.size + filteredPersonal.size} voices available") },
                     trailingIcon = {
                         if (voiceSearch.isNotBlank()) {
                             TextButton(onClick = { voiceSearch = ""; voiceSearchExpanded = false }) { Text("✕ Clear") }
