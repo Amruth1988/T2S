@@ -54,6 +54,9 @@ object IndiaApiKeyStore {
     fun clear(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().remove(VALUE).apply()
+        runCatching {
+            KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(KEY_ALIAS)
+        }
     }
 
     private fun secretKey(): SecretKey {
