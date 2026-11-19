@@ -259,7 +259,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 withContext(Dispatchers.IO) {
                     when {
                         localSample != null -> localSample.copyTo(previewFile, overwrite = true)
-                        else -> TtsAiClient.generate(sample, voiceId, 1f, previewFile, format = "mp3")
+                        else -> TtsAiClient.generate(sample, voiceId, 1f, previewFile, format = "mp3", apiKey = IndiaApiKeyStore.get(context))
                     }
                 }
             }
@@ -1121,7 +1121,8 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 withContext(Dispatchers.IO) {
                                     TtsAiClient.generate(
                                         textToSpeak, voiceId, speechRate, output,
-                                        format = outputFormat.lowercase()
+                                        format = outputFormat.lowercase(),
+                                        apiKey = IndiaApiKeyStore.get(context)
                                     )
                                 }
                             }
