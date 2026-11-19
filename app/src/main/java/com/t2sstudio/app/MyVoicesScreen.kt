@@ -269,8 +269,7 @@ fun MyVoicesScreen() {
                                             TtsAiClient.generate(
                                                 text = "Hello. This is a preview of my saved voice.",
                                                 language = "en",
-                                                voice = "",
-                                                userVoiceId = voice.id,
+                                                voice = voice.id,
                                                 speed = 1f,
                                                 output = audioFile,
                                                 apiKey = apiKey.trim(),
