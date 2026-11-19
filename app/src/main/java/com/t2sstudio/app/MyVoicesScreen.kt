@@ -183,9 +183,9 @@ fun MyVoicesScreen() {
         }
         if (busy) CircularProgressIndicator()
         Text(message, color = T2SSecondaryText, fontSize = 12.sp)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text("Saved voice profiles", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-            TextButton(onClick = { loadVoices() }, enabled = !busy) { Text("Refresh") }
+            TextButton(onClick = { loadVoices() }, enabled = !busy, modifier = Modifier.padding(0.dp)) { Text("↻ Refresh") }
         }
         voices.forEach { voice ->
             Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = T2SCream)) {
