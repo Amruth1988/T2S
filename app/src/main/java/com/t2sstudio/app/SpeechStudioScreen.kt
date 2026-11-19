@@ -439,20 +439,14 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             .padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF47721)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(T2SOrange)
+                .padding(horizontal = 18.dp, vertical = 20.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(T2SOrange)
-                    .padding(horizontal = 18.dp, vertical = 20.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
                 Box(
                     modifier = Modifier
                         .background(Color.White.copy(alpha = 0.20f), androidx.compose.foundation.shape.RoundedCornerShape(17.dp))
@@ -475,7 +469,6 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         Text(if (engineReady) "VOICE ENGINE READY" else "VOICE STUDIO", fontSize = 9.sp, color = Color.White, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                     }
                 }
-            }
         }
 
         Card(
