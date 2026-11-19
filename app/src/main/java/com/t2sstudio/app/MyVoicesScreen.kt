@@ -58,6 +58,7 @@ fun MyVoicesScreen() {
     val apiKey = BuildConfig.TTS_API_KEY
     var voiceName by remember { mutableStateOf("My Voice") }
     var model by remember { mutableStateOf("chatterbox") }
+    var cloneLanguage by remember { mutableStateOf("en") }
     var pickedUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var pickedLabel by remember { mutableStateOf("No audio selected") }
     var recording by remember { mutableStateOf(false) }
@@ -100,6 +101,12 @@ fun MyVoicesScreen() {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("Add a voice", fontWeight = FontWeight.SemiBold, color = T2SText)
                 OutlinedTextField(value = voiceName, onValueChange = { voiceName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Voice name") }, singleLine = true)
+                Text("Voice sample language", color = T2SText, fontSize = 13.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("en" to "English", "te" to "Telugu", "hi" to "Hindi").forEach { (code, label) ->
+                        androidx.compose.material3.FilterChip(selected = cloneLanguage == code, onClick = { cloneLanguage = code }, label = { Text(label) })
+                    }
+                }
                 Text("Cloning model", color = T2SText, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("chatterbox", "cosyvoice2").forEach { option ->
@@ -210,7 +217,7 @@ fun MyVoicesScreen() {
                             busy = true
                             message = "Uploading sample and creating your saved voice…"
                             scope.launch {
-                                runCatching { withContext(Dispatchers.IO) { MyVoicesClient.create(context, apiKey.trim(), voiceName.trim(), uri, model) } }
+                                runCatching { withContext(Dispatchers.IO) { MyVoicesClient.create(context, apiKey.trim(), voiceName.trim(), uri, model, cloneLanguage) } }
                                     .onSuccess { created -> voices.add(0, created); pickedUri = null; pickedLabel = "No audio selected"; message = "${created.name} was saved to your voice library." }
                                     .onFailure { message = it.message ?: "Could not create voice profile." }
                                 busy = false
@@ -265,12 +272,13 @@ fun MyVoicesScreen() {
                                         TtsAiClient.generate(
                                             text = "Hello. This is a preview of my saved voice.",
                                             language = "en",
-                                            voice = voice.id,
+                                            voice = "",
                                             speed = 1f,
                                             output = audioFile,
                                             apiKey = apiKey.trim(),
                                             model = voice.model,
-                                            format = "mp3"
+                                            format = "mp3",
+                                            userVoiceId = voice.id
                                         )
                                     }
                                 }
