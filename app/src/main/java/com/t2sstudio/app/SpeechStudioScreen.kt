@@ -411,7 +411,13 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
 
         Card(modifier = Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = T2SBackground)) {
           Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Choose a voice", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Voice library", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                    Text("Find the sound that fits your words", fontSize = 12.sp, color = T2SSecondaryText)
+                }
+                Text("VOICE PICKER", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = T2SOrange)
+            }
             val genderMatches = availableVoices.filter { voice -> voiceGender(voice.name) == selectedGender }
             val searchTerm = voiceSearch.trim().lowercase(Locale.ROOT)
             val filteredInstalled = genderMatches.filter { voice ->
@@ -434,11 +440,14 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("Search voices by name…") },
-                    label = { Text("Search voice") },
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                    placeholder = { Text("Search voices by name or language…") },
+                    label = { Text("Search voices") },
+                    leadingIcon = { Text("⌕", fontSize = 25.sp, color = T2SOrange, fontWeight = FontWeight.Bold) },
+                    supportingText = { Text("Search by voice name or language • ${filteredInstalled.size + filteredOnline.size + filteredPersonal.size} results") },
                     trailingIcon = {
                         if (voiceSearch.isNotBlank()) {
-                            TextButton(onClick = { voiceSearch = ""; voiceSearchExpanded = false }) { Text("Clear") }
+                            TextButton(onClick = { voiceSearch = ""; voiceSearchExpanded = false }) { Text("✕ Clear") }
                         }
                     }
                 )
@@ -524,7 +533,13 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                             enabled = false
                         )
                         filteredOnline.forEach { voice ->
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = T2SBackground),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                            ) {
+                              Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Column(Modifier.weight(1f).clickable {
                                     selectedOnlineVoice = voice
                                     selectedVoice = null
@@ -539,6 +554,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                 TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.id}") }) {
                                     Text(if (activePreviewKey == "online:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = T2SOrange)
                                 }
+                              }
                             }
                         }
                     }
