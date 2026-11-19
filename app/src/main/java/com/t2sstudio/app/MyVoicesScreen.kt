@@ -278,7 +278,7 @@ fun MyVoicesScreen() {
                     }
                     androidx.compose.material3.HorizontalDivider(color = T2SOrange.copy(alpha = 0.16f))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Text("MODEL", color = T2SSecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("TYPE", color = T2SSecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         Text("Local recording", color = T2SText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Text("Voice ID  •  ${voice.id}", color = T2SSecondaryText, fontSize = 10.sp, maxLines = 1)
@@ -289,7 +289,7 @@ fun MyVoicesScreen() {
                 }
             }
         }
-        Text("Note: these are saved voice recordings, not trained voice clones. AI cloning requires a compatible offline model.", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
+        Text("These recordings are stored locally as audio samples. They do not create new speech in your recorded voice.", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
         
     }
 }
