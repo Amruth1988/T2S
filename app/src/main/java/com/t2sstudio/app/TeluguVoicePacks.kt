@@ -89,9 +89,11 @@ object TeluguVoicePacks {
                     var entry = zip.nextEntry
                     while (entry != null) {
                         val normalized = entry.name
+                        val archivePath = normalized.trimStart('/')
                         val pack = all.firstOrNull {
-                            normalized.contains("/${it.id}/") ||
-                                normalized.startsWith("build/telugu-voices/${it.id}/")
+                            archivePath.startsWith("${it.id}/") ||
+                                archivePath.contains("/${it.id}/") ||
+                                archivePath.startsWith("build/telugu-voices/${it.id}/")
                         }
                         if (pack != null && !entry.isDirectory) {
                             val name = normalized.substringAfterLast('/')
