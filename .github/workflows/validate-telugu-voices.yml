@@ -1,0 +1,62 @@
+name: Validate Telugu Piper voice packs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  convert-and-synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out T2S
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install conversion and inference tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install onnx==1.17.0 sherpa-onnx
+
+      - name: Download shared eSpeak data
+        run: |
+          set -euo pipefail
+          mkdir -p build/telugu-voices/shared
+          curl -fL --retry 3 \
+            https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/espeak-ng-data.tar.bz2 \
+            -o build/telugu-voices/espeak-ng-data.tar.bz2
+          tar -xjf build/telugu-voices/espeak-ng-data.tar.bz2 -C build/telugu-voices/shared
+
+      - name: Download, convert and synthesize Telugu voices
+        run: |
+          set -euo pipefail
+          base="https://huggingface.co/rhasspy/piper-voices/resolve/main/te/te_IN"
+          for voice in venkatesh padmavathi maya; do
+            dir="build/telugu-voices/$voice"
+            mkdir -p "$dir"
+            model="te_IN-$voice-medium.onnx"
+            curl -fL --retry 3 "$base/$voice/medium/$model" -o "$dir/$model"
+            curl -fL --retry 3 "$base/$voice/medium/$model.json" -o "$dir/$model.json"
+            python tools/convert_piper_model.py "$dir/$model"
+            sherpa-onnx-offline-tts \
+              --vits-model="$dir/$model" \
+              --vits-tokens="$dir/tokens.txt" \
+              --vits-data-dir="build/telugu-voices/shared/espeak-ng-data" \
+              --output-filename="$dir/test.wav" \
+              "నమస్కారం. ఇది తెలుగు స్వర పరీక్ష."
+            test -s "$dir/test.wav"
+          done
+
+      - name: Upload converted models and audio verification samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: t2s-telugu-piper-validation
+          path: build/telugu-voices/
+          if-no-files-found: error
+          retention-days: 7
