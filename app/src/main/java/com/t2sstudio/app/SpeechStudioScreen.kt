@@ -443,17 +443,21 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         ) {
             Column(modifier = Modifier.weight(1.25f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Language", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    languages.forEach { language ->
-                        FilterChip(
-                            selected = selectedLanguage == language.label,
-                            onClick = {
+                var languageMenuExpanded by remember { mutableStateOf(false) }
+                Box {
+                    OutlinedButton(onClick = { languageMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(selectedLanguage, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Start)
+                        Text("⌄")
+                    }
+                    DropdownMenu(expanded = languageMenuExpanded, onDismissRequest = { languageMenuExpanded = false }) {
+                        languages.forEach { language ->
+                            DropdownMenuItem(text = { Text(language.label) }, onClick = {
                                 selectedLanguage = language.label
                                 generatedFile = null
+                                languageMenuExpanded = false
                                 ttsEngine?.let { refreshVoices(it, language.locale) }
-                            },
-                            label = { Text(language.label, fontSize = 10.sp, maxLines = 1) }
-                        )
+                            })
+                        }
                     }
                 }
             }
