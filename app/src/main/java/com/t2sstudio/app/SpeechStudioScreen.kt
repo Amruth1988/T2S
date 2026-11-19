@@ -538,14 +538,20 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                         }
                     }
                 )
-                Column(
+                Card(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 390.dp),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFCF6)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 5.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE7D7C2))
+                ) {
+                  Column(
                     Modifier.fillMaxWidth()
                         .heightIn(max = 390.dp)
                         .verticalScroll(rememberScrollState())
-                        .border(1.dp, T2SCream, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-                        .padding(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
+                        .padding(horizontal = 10.dp, vertical = 9.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                  ) {
                     if (filteredInstalled.isNotEmpty()) {
                         DropdownMenuItem(
                             text = {
@@ -713,17 +719,6 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     }
                 }
             }
-            Text(
-                "${filteredInstalled.size + filteredOnline.size + filteredPersonal.size} voices shown • ${selectedGender} • ${selectedLanguage}",
-                fontSize = 11.sp,
-                color = T2SSecondaryText
-            )
-            Text(
-                if (onlineCatalogueStatus.startsWith("Loading")) onlineCatalogueStatus
-                else if (showingSuggestions) "No exact match found. Showing suggested voices for this language." else "Search results include installed, online and your personal voices. Scroll inside the results list to see more.",
-                fontSize = 11.sp,
-                color = T2SSecondaryText
-            )
         }
         }
 
