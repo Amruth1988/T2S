@@ -33,8 +33,8 @@ object TtsAiClient {
 
     fun downloadPreview(previewUrl: String, output: File) {
         val initial = URL(previewUrl)
-        require(initial.protocol == "https" && (initial.host == "api.tts.ai" || initial.host == "tts.ai")) {
-            "Untrusted voice preview URL"
+        require(initial.protocol == "https") {
+            "Voice preview URL must use secure HTTPS"
         }
         val connection = initial.openConnection() as HttpURLConnection
         try {
@@ -47,8 +47,8 @@ object TtsAiClient {
             val code = connection.responseCode
             if (code !in 200..299) error("Voice preview download failed (HTTP $code)")
             val finalUrl = URL(connection.url.toString())
-            require(finalUrl.protocol == "https" && (finalUrl.host == "api.tts.ai" || finalUrl.host == "tts.ai")) {
-                "Voice preview redirected to an untrusted host"
+            require(finalUrl.protocol == "https") {
+                "Voice preview redirected to an insecure URL"
             }
             output.parentFile?.mkdirs()
             connection.inputStream.use { input -> output.outputStream().use { out -> input.copyTo(out) } }
