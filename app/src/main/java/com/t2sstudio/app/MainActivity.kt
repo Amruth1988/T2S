@@ -94,16 +94,16 @@ private fun T2SApp() {
                             Text("T2S", color = T2SBackground, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
                         }
                         Spacer(Modifier.width(11.dp))
-                        Column(verticalArrangement = Arrangement.Center) {
+                        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("T2S Studi", fontWeight = FontWeight.Bold, fontSize = 19.sp, color = T2SText)
+                                Text("Studi", fontWeight = FontWeight.Bold, fontSize = 19.sp, color = T2SText)
                                 Image(
                                     painter = painterResource(R.drawable.ic_t2s_mark),
-                                    contentDescription = "T2S Studio microphone logo",
+                                    contentDescription = "Studio microphone",
                                     modifier = Modifier.size(21.dp)
                                 )
                             }
-                            Text("Text to Speech", fontSize = 10.sp, color = T2SSecondaryText)
+                            Text("Text to Speech", fontSize = 10.sp, color = T2SSecondaryText, lineHeight = 11.sp)
                         }
                     }
                 },
