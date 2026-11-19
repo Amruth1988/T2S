@@ -7,6 +7,7 @@ Native Android Text-to-Speech application built with Kotlin and Jetpack Compose.
 - Home, Projects, Create, Recent and Profile navigation
 - Create and locally persist project names between app launches
 - Free online Piper speech generation for English, Hindi and Telugu, with MP3, WAV and OGG output
+- Optional free India API key stored encrypted with Android Keystore for online TTS authentication
 - Automatic Android TextToSpeech fallback when online voices are unavailable or a request cannot be completed
 - On-device speech generation using Android TextToSpeech
 - English (US), Telugu (India) and Hindi (India) language options
@@ -44,7 +45,7 @@ The Android Sherpa-ONNX/Piper synthesis path is implemented and connected to Spe
 - Jetpack Compose with Material 3
 
 ## Speech engine notes
-The app uses Android TextToSpeech as its local fallback and a free online Piper TTS endpoint for English, Hindi, and Telugu when an online voice is selected. Online requests support up to 3,000 characters and can return MP3, WAV, or OGG audio. Telugu offline playback is available through imported, converted Sherpa-ONNX Piper voice packs. Saved voice profiles are local recordings only; they are not AI voice clones. No paid API, subscription, billing, or cloud resource is configured.
+The app uses Android TextToSpeech as its local fallback and a free online Piper TTS endpoint for English, Hindi, and Telugu when an online voice is selected. Online requests support up to 3,000 characters and can return MP3, WAV, or OGG audio. From 15 December 2026, online TTS requires a free India API key. Add it in **Profile → Online TTS access**; the key is encrypted with Android Keystore and sent only in the HTTPS Authorization header. Obtain a key at https://api.dharun.dev/keys. The provider currently documents 500 model requests per day per free key, with no paid billing requirement. Telugu offline playback is available through imported, converted Sherpa-ONNX Piper voice packs. Saved voice profiles are local recordings only; they are not AI voice clones. No paid API, subscription, billing, or cloud resource is configured.
 ## Open
 Open this repository in Android Studio and allow Gradle sync to complete. GitHub Actions builds both debug and release APKs. A successful run publishes a direct `T2S.apk` download on the repository's Releases page.
 
