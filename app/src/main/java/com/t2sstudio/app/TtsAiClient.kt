@@ -5,10 +5,27 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.util.Locale
 
-data class OnlineTtsVoice(val id: String, val name: String, val language: String, val gender: String, val model: String? = null, val previewUrl: String? = null)
+data class OnlineTtsVoice(
+    val id: String,
+    val name: String,
+    val language: String,
+    val gender: String,
+    val model: String? = null,
+    val previewUrl: String? = null,
+    val licence: String = "",
+    val attribution: String = "",
+    val nonCommercial: Boolean = false
+)
 
+/**
+ * Free, keyless India API Piper endpoint.
+ * The provider currently allows model calls without a key until 15 Dec 2026.
+ * It returns audio bytes directly; no paid account or billing setup is used.
+ */
 object TtsAiClient {
+    private const val BASE = "https://api.dharun.dev/v1"
 
     private fun isAudioBytes(bytes: ByteArray): Boolean {
         if (bytes.size < 4) return false
@@ -17,23 +34,50 @@ object TtsAiClient {
             head.startsWith("fLaC") || ((bytes[0].toInt() and 0xFF) == 0xFF && (bytes[1].toInt() and 0xE0) == 0xE0)
     }
 
-    private const val BASE = "https://api.tts.ai/v1"
+    private fun validateAudio(file: File, format: String) {
+        require(file.exists() && file.length() > 1024L) { "TTS service returned an empty or incomplete audio file." }
+        val header = file.inputStream().use { input -> ByteArray(12).also { input.read(it) } }
+        val valid = when (format.lowercase(Locale.ROOT)) {
+            "mp3" -> header.size >= 3 && (String(header, 0, 3, Charsets.US_ASCII) == "ID3" ||
+                ((header[0].toInt() and 0xFF) == 0xFF && (header[1].toInt() and 0xE0) == 0xE0))
+            "wav" -> header.size >= 12 && String(header, 0, 4, Charsets.US_ASCII) == "RIFF" &&
+                String(header, 8, 4, Charsets.US_ASCII) == "WAVE"
+            "ogg" -> header.size >= 4 && String(header, 0, 4, Charsets.US_ASCII) == "OggS"
+            else -> isAudioBytes(header)
+        }
+        require(valid) { "TTS service returned audio that does not match the requested $format format." }
+    }
 
     fun listVoices(language: String): List<OnlineTtsVoice> {
-        error("Online voice catalogues are disabled in T2S free-only mode.")
-        val encoded = URLEncoder.encode(language, "UTF-8")
-        val connection = URL(BASE + "/voices/?language=" + encoded).openConnection() as HttpURLConnection
+        val connection = URL("$BASE/tts/voices").openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "GET"
             connection.connectTimeout = 10_000
-            connection.readTimeout = 15_000
-            if (connection.responseCode !in 200..299) error("Voice catalogue unavailable")
+            connection.readTimeout = 20_000
+            connection.setRequestProperty("Accept", "application/json")
+            val code = connection.responseCode
+            if (code !in 200..299) {
+                val detail = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                error(if (code == 401) "Free online TTS now requires a free India API key. No paid billing is required." else detail.ifBlank { "Voice catalogue unavailable (HTTP $code)." })
+            }
             val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-            val voices = json.optJSONArray("voices") ?: return emptyList()
+            val voices = json.optJSONArray("data") ?: return emptyList()
             return (0 until voices.length()).mapNotNull { index ->
                 val item = voices.optJSONObject(index) ?: return@mapNotNull null
                 val id = item.optString("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                OnlineTtsVoice(id, item.optString("name", id), item.optString("language", language), item.optString("gender", "unknown"), item.optString("model").takeIf { it.isNotBlank() }, item.optString("preview_url").takeIf { it.startsWith("https://") })
+                val locale = item.optString("language")
+                if (!locale.substringBefore('-').equals(language, ignoreCase = true)) return@mapNotNull null
+                val nonCommercial = item.optBoolean("non_commercial", false)
+                if (nonCommercial) return@mapNotNull null
+                OnlineTtsVoice(
+                    id = id,
+                    name = item.optString("name").ifBlank { item.optString("speaker", id) },
+                    language = locale,
+                    gender = item.optString("gender", "Voice"),
+                    licence = item.optString("licence"),
+                    attribution = item.optString("attribution"),
+                    nonCommercial = false
+                )
             }
         } finally {
             connection.disconnect()
@@ -41,152 +85,70 @@ object TtsAiClient {
     }
 
     fun downloadPreview(previewUrl: String, output: File) {
-        error("Online voice previews are disabled in T2S free-only mode.")
-        val initial = URL(previewUrl)
-        require(initial.protocol == "https") {
-            "Voice preview URL must use secure HTTPS"
+        error("This free provider generates previews directly; external preview URLs are not used.")
+    }
+
+    fun generate(
+        text: String,
+        language: String,
+        voice: String,
+        speed: Float,
+        output: File,
+        apiKey: String = "",
+        model: String? = null,
+        format: String = "mp3",
+        userVoiceId: String? = null
+    ) {
+        require(text.isNotBlank()) { "Enter text to generate speech." }
+        require(text.length <= 3000) { "Free online TTS supports up to 3,000 characters per request." }
+        require(userVoiceId.isNullOrBlank()) { "Cloud-cloned voices are not supported by this free provider. Use a public voice or your saved local sample." }
+        require(voice.isNotBlank()) { "Choose an online voice first." }
+        val safeFormat = when (format.lowercase(Locale.ROOT)) {
+            "mp3" -> "mp3"
+            "wav" -> "wav"
+            "ogg" -> "ogg"
+            else -> "mp3"
         }
-        val connection = initial.openConnection() as HttpURLConnection
+        val payload = JSONObject().apply {
+            put("text", text)
+            put("voice", voice)
+            put("format", safeFormat)
+            put("speed", speed.coerceIn(0.5f, 2f).toDouble())
+        }.toString()
+        val connection = URL("$BASE/tts").openConnection() as HttpURLConnection
         try {
-            connection.instanceFollowRedirects = true
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 15000
-            connection.readTimeout = 30000
-            connection.setRequestProperty("Accept", "audio/mpeg,audio/wav,audio/*;q=0.9,*/*;q=0.1")
-            connection.setRequestProperty("User-Agent", "T2S-Studio-Android")
+            connection.requestMethod = "POST"
+            connection.connectTimeout = 15_000
+            connection.readTimeout = 90_000
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            connection.setRequestProperty("Accept", when (safeFormat) {
+                "mp3" -> "audio/mpeg"
+                "wav" -> "audio/wav"
+                else -> "audio/ogg"
+            })
+            // This provider's documented no-key allowance is active until 15 Dec 2026.
+            // Do not send the unrelated legacy TTS.ai key or any billing credentials.
+            connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
             val code = connection.responseCode
-            if (code !in 200..299) error("Voice preview download failed (HTTP $code)")
-            val finalUrl = URL(connection.url.toString())
-            require(finalUrl.protocol == "https") {
-                "Voice preview redirected to an insecure URL"
+            if (code !in 200..299) {
+                val detail = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                error(when (code) {
+                    401 -> "Free online TTS requires a free India API key from 15 Dec 2026. No paid billing is required."
+                    429 -> "Free online TTS rate limit reached. Please wait and try again."
+                    else -> detail.ifBlank { "Online TTS failed (HTTP $code)." }
+                })
             }
+            val bytes = connection.inputStream.use { it.readBytes() }
+            require(bytes.size > 1024 && isAudioBytes(bytes)) { "Online TTS returned an invalid audio response." }
             output.parentFile?.mkdirs()
-            connection.inputStream.use { input -> output.outputStream().use { out -> input.copyTo(out) } }
-            if (!output.exists() || output.length() < 1024) error("Voice preview audio is empty or incomplete")
-            val header = output.inputStream().use { input -> ByteArray(12).also { input.read(it) } }
-            val isWav = header.size >= 12 && String(header, 0, 4, Charsets.US_ASCII) == "RIFF" && String(header, 8, 4, Charsets.US_ASCII) == "WAVE"
-            val isMp3 = header.size >= 3 && (String(header, 0, 3, Charsets.US_ASCII) == "ID3" ||
-                ((header[0].toInt() and 0xFF) == 0xFF && (header[1].toInt() and 0xE0) == 0xE0))
-            val isOgg = header.size >= 4 && String(header, 0, 4, Charsets.US_ASCII) == "OggS"
-            val isFlac = header.size >= 4 && String(header, 0, 4, Charsets.US_ASCII) == "fLaC"
-            if (!isWav && !isMp3 && !isOgg && !isFlac) error("Voice preview URL did not return a supported audio file")
+            output.writeBytes(bytes)
+            validateAudio(output, safeFormat)
         } catch (error: Exception) {
             output.delete()
             throw error
         } finally {
             connection.disconnect()
-        }
-    }
-
-    fun generate(text: String, language: String, voice: String, speed: Float, output: File, apiKey: String = "", model: String? = null, format: String = "wav", userVoiceId: String? = null) {
-        error("Cloud TTS is disabled in T2S free-only mode. No premium model or paid API request was made.")
-        require(text.length <= 500) { "Online free requests are limited to 500 characters." }
-        val payload = JSONObject().apply {
-            put("text", text)
-            put("language", language)
-            // Saved cloned profiles must use user_voice_id. Sending their public_id
-            // as "voice" silently selects/falls back to a catalogue voice on the API.
-            if (!userVoiceId.isNullOrBlank()) {
-                put("user_voice_id", userVoiceId)
-            } else {
-                put("voice", voice)
-            }
-            put("format", when (format.lowercase()) { "mp3" -> "mp3"; "flac" -> "flac"; "ogg" -> "ogg"; else -> "wav" })
-            put("speed", speed.toDouble())
-            if (!model.isNullOrBlank()) put("model", model)
-        }.toString()
-        val submit = URL(BASE + "/tts/").openConnection() as HttpURLConnection
-        val uuid: String
-        try {
-            submit.requestMethod = "POST"
-            submit.connectTimeout = 15_000
-            submit.readTimeout = 120_000
-            submit.doOutput = true
-            submit.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-            submit.setRequestProperty("Accept", "audio/mpeg,audio/wav,audio/*;q=0.9,application/json")
-            if (apiKey.isNotBlank()) submit.setRequestProperty("Authorization", "Bearer $apiKey")
-            submit.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
-            val code = submit.responseCode
-            if (code !in 200..299) {
-                val message = submit.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                error(message.ifBlank { "Online TTS request failed ($code)" })
-            }
-            val contentType = submit.contentType.orEmpty().lowercase()
-            val bytes = submit.inputStream.use { it.readBytes() }
-            require(bytes.isNotEmpty()) { "Online TTS returned an empty response" }
-            if (contentType.startsWith("audio/") || isAudioBytes(bytes)) {
-                output.parentFile?.mkdirs()
-                output.writeBytes(bytes)
-                if (output.length() < 44) error("Online TTS audio was incomplete")
-                return
-            }
-            val responseText = bytes.toString(Charsets.UTF_8)
-            val responseJson = runCatching { JSONObject(responseText) }.getOrElse {
-                error("Online TTS returned an unexpected response: " + responseText.take(240))
-            }
-            uuid = responseJson.optString("uuid").takeIf { it.isNotBlank() }
-                ?: responseJson.optString("job_id").takeIf { it.isNotBlank() }
-                ?: error(responseJson.optString("error").ifBlank { "Online TTS returned neither audio nor a job ID" })
-        } finally {
-            submit.disconnect()
-        }
-
-        var resultUrl: String? = null
-        for (attempt in 0 until 60) {
-            Thread.sleep(1_500)
-            val poll = URL(BASE + "/speech/results/?uuid=" + URLEncoder.encode(uuid, "UTF-8"))
-                .openConnection() as HttpURLConnection
-            try {
-                poll.requestMethod = "GET"
-                poll.connectTimeout = 10_000
-                poll.readTimeout = 15_000
-                if (poll.responseCode !in 200..299) {
-                    val message = poll.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                    error(message.ifBlank { "Could not check online speech status (HTTP ${poll.responseCode})" })
-                }
-                val result = JSONObject(poll.inputStream.bufferedReader().use { it.readText() })
-                when (result.optString("status").lowercase()) {
-                    "completed", "success", "succeeded" -> {
-                        resultUrl = result.optString("result_url").takeIf { it.isNotBlank() }
-                        if (resultUrl != null) break
-                        error("Online speech completed but returned no audio URL")
-                    }
-                    "failed", "error" -> error(result.optString("error").ifBlank { "Online speech generation failed" })
-                }
-            } finally {
-                poll.disconnect()
-            }
-        }
-        val downloadUrl = resultUrl ?: error("Online speech generation timed out")
-        val parsedDownloadUrl = URL(downloadUrl)
-        // TTS.ai returns a signed result_url that may point to its object-storage/CDN
-        // host rather than api.tts.ai. Trust the HTTPS URL supplied by the authenticated
-        // result response, but reject cleartext URLs, user-info and missing hosts.
-        require(parsedDownloadUrl.protocol.equals("https", ignoreCase = true) &&
-            parsedDownloadUrl.host.isNotBlank() && parsedDownloadUrl.userInfo == null) {
-            "TTS service returned an invalid or insecure audio URL"
-        }
-        val download = parsedDownloadUrl.openConnection() as HttpURLConnection
-        try {
-            download.instanceFollowRedirects = true
-            download.connectTimeout = 15_000
-            download.readTimeout = 60_000
-            if (download.responseCode !in 200..299) error("Could not download online speech audio (HTTP ${download.responseCode})")
-            val finalDownloadUrl = URL(download.url.toString())
-            require(finalDownloadUrl.protocol.equals("https", ignoreCase = true) &&
-                finalDownloadUrl.host.isNotBlank() && finalDownloadUrl.userInfo == null) {
-                "Audio download redirected to an invalid or insecure URL"
-            }
-            output.parentFile?.mkdirs()
-            download.inputStream.use { input -> output.outputStream().use { out -> input.copyTo(out) } }
-            if (!output.exists() || output.length() < 44) error("Online speech audio was empty")
-            val header = output.inputStream().use { input -> ByteArray(12).also { input.read(it) } }
-            if (!isAudioBytes(header)) error("Online speech download did not contain a supported audio file")
-        } catch (error: Exception) {
-            output.delete()
-            throw error
-        } finally {
-            download.disconnect()
         }
     }
 }
