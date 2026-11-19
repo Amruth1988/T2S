@@ -4,7 +4,7 @@ Native Android Text-to-Speech application built with Kotlin and Jetpack Compose.
 
 ## Current features
 - Orange & White Material 3 design
-- Home, Projects, Create, Recent and Profile navigation
+- Create, Projects, Recent, My Voices and Profile navigation
 - Create and locally persist project names between app launches
 - Free online Piper speech generation for English, Hindi and Telugu, with MP3, WAV and OGG output
 - Optional free India API key stored encrypted with Android Keystore for online TTS authentication
