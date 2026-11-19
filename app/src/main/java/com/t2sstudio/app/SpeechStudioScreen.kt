@@ -470,7 +470,16 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 ) {
                     if (filteredInstalled.isNotEmpty()) {
                         DropdownMenuItem(
-                            text = { Text(if (showingSuggestions) "SUGGESTED INSTALLED VOICES" else "INSTALLED VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                            text = {
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                                ) {
+                                    Text(if (showingSuggestions) "SUGGESTED INSTALLED VOICES" else "INSTALLED VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    Text("${filteredInstalled.size}", color = Color(0xFF58677F), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            },
                             onClick = {},
                             enabled = false
                         )
@@ -552,7 +561,16 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                     }
                     if (filteredOnline.isNotEmpty()) {
                         DropdownMenuItem(
-                            text = { Text(if (showingSuggestions) "SUGGESTED ONLINE VOICES" else "ONLINE VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                            text = {
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                                ) {
+                                    Text(if (showingSuggestions) "SUGGESTED ONLINE VOICES" else "ONLINE VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    Text("${filteredOnline.size}", color = Color(0xFF58677F), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            },
                             onClick = {},
                             enabled = false
                         )
