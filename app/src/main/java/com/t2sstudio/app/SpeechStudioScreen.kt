@@ -921,15 +921,31 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                 }
             },
             enabled = !isGenerating && inputText.isNotBlank(),
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(15.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground)
+            modifier = Modifier.fillMaxWidth().height(58.dp),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+            elevation = ButtonDefaults.buttonElevation(
+                defaultElevation = 5.dp,
+                pressedElevation = 1.dp,
+                disabledElevation = 0.dp
+            ),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = T2SOrange,
+                contentColor = T2SBackground,
+                disabledContainerColor = T2SOrange.copy(alpha = 0.55f),
+                disabledContentColor = T2SBackground.copy(alpha = 0.8f)
+            )
         ) {
             if (isGenerating) {
-                CircularProgressIndicator(modifier = Modifier.height(20.dp), color = T2SBackground, strokeWidth = 2.dp)
+                CircularProgressIndicator(
+                    modifier = Modifier.height(20.dp),
+                    color = T2SBackground,
+                    strokeWidth = 2.dp
+                )
                 Spacer(Modifier.width(10.dp))
+                Text("✨ Creating your audio…", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            } else {
+                Text("🎙️  Generate Speech  ✨", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
             }
-            Text(if (isGenerating) "Generating…" else "Generate Speech", fontWeight = FontWeight.Bold)
         }
 
         generatedFile?.let { file ->
