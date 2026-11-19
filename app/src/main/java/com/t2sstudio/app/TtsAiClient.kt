@@ -31,13 +31,13 @@ object TtsAiClient {
         }
     }
 
-    fun generate(text: String, language: String, voice: String, speed: Float, output: File, apiKey: String = "", model: String? = null) {
+    fun generate(text: String, language: String, voice: String, speed: Float, output: File, apiKey: String = "", model: String? = null, format: String = "wav") {
         require(text.length <= 500) { "Online free requests are limited to 500 characters." }
         val payload = JSONObject().apply {
             put("text", text)
             put("language", language)
             put("voice", voice)
-            put("format", "wav")
+            put("format", if (format.equals("mp3", true)) "mp3" else "wav")
             put("speed", speed.toDouble())
             if (!model.isNullOrBlank()) put("model", model)
         }.toString()
