@@ -218,7 +218,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
         activePreviewKey = null
     }
 
-    fun previewOnlineVoice(voiceId: String, model: String? = null, personal: Boolean = false, previewKey: String = voiceId, previewUrl: String? = null, localSamplePath: String? = null) {
+    fun previewOnlineVoice(voiceId: String, model: String? = null, personal: Boolean = false, previewKey: String = voiceId, previewUrl: String? = null, localSamplePath: String? = null, languageOverride: String? = null) {
         if (isPreviewing && activePreviewKey == previewKey) { stopVoicePreview(); statusMessage = "Preview stopped."; return }
         stopVoicePreview()
         val localSample = localSamplePath?.let { File(it) }?.takeIf { it.exists() && it.length() > 1024L }
@@ -226,15 +226,15 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
             statusMessage = "No preview audio is available for this saved voice. Re-record and save it in My Voices to keep a local sample preview."
             return
         }
-        val languageCode = when (selectedLanguage) { "English" -> "en"; "Hindi" -> "hi"; "Telugu" -> "te"; else -> "en" }
+        val languageCode = languageOverride ?: when (selectedLanguage) { "English" -> "en"; "Hindi" -> "hi"; "Telugu" -> "te"; else -> "en" }
         isPreviewing = true
         activePreviewKey = previewKey
         statusMessage = if (localSample != null) "Preparing your saved recording…" else if (!previewUrl.isNullOrBlank()) "Downloading voice sample…" else "Generating preview…"
         coroutineScope.launch {
             val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.mp3")
-            val sample = when (selectedLanguage) {
-                "Hindi" -> "नमस्ते। यह आवाज़ का नमूना है।"
-                "Telugu" -> "నమస్కారం. ఇది మీ వాయిస్ ప్రివ్యూ నమూనా."
+            val sample = when (languageCode) {
+                "hi" -> "नमस्ते। यह आवाज़ का नमूना है।"
+                "te" -> "నమస్కారం. ఇది మీ వాయిస్ ప్రివ్యూ నమూనా."
                 else -> "Hello. This is a sample of the selected voice."
             }
             val result = runCatching {
@@ -948,7 +948,7 @@ fun SpeechStudioScreen(onAudioGenerated: (AudioRecord) -> Unit) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
                                     Text("Personal voice", color = T2SSecondaryText, fontSize = 11.sp)
                                 }
-                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, voice.model, personal = true, previewKey = "personal:${voice.id}", previewUrl = voice.previewUrl, localSamplePath = voice.localSamplePath) }) {
+                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, voice.model, personal = true, previewKey = "personal:${voice.id}", previewUrl = voice.previewUrl, localSamplePath = voice.localSamplePath, languageOverride = voice.language) }) {
                                     Text(if (activePreviewKey == "personal:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = T2SOrange)
                                 }
                             }
