@@ -6,7 +6,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-data class OnlineTtsVoice(val id: String, val name: String, val language: String, val gender: String)
+data class OnlineTtsVoice(val id: String, val name: String, val language: String, val gender: String, val previewUrl: String? = null)
 
 object TtsAiClient {
     private const val BASE = "https://api.tts.ai/v1"
@@ -24,7 +24,7 @@ object TtsAiClient {
             return (0 until voices.length()).mapNotNull { index ->
                 val item = voices.optJSONObject(index) ?: return@mapNotNull null
                 val id = item.optString("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                OnlineTtsVoice(id, item.optString("name", id), item.optString("language", language), item.optString("gender", "unknown"))
+                OnlineTtsVoice(id, item.optString("name", id), item.optString("language", language), item.optString("gender", "unknown"), item.optString("preview_url").takeIf { it.startsWith("https://api.tts.ai/") })
             }
         } finally {
             connection.disconnect()
