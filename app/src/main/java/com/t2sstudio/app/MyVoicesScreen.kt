@@ -262,21 +262,16 @@ fun MyVoicesScreen() {
                                 val audioFile = File(context.cacheDir, "saved_voice_preview_${voice.id.hashCode()}.mp3")
                                 val result = runCatching {
                                     withContext(Dispatchers.IO) {
-                                        val previewUrl = voice.previewUrl
-                                        if (!previewUrl.isNullOrBlank()) {
-                                            TtsAiClient.downloadPreview(previewUrl, audioFile)
-                                        } else {
-                                            TtsAiClient.generate(
-                                                text = "Hello. This is a preview of my saved voice.",
-                                                language = "en",
-                                                voice = voice.id,
-                                                speed = 1f,
-                                                output = audioFile,
-                                                apiKey = apiKey.trim(),
-                                                model = voice.model,
-                                                format = "mp3"
-                                            )
-                                        }
+                                        TtsAiClient.generate(
+                                            text = "Hello. This is a preview of my saved voice.",
+                                            language = "en",
+                                            voice = voice.id,
+                                            speed = 1f,
+                                            output = audioFile,
+                                            apiKey = apiKey.trim(),
+                                            model = voice.model,
+                                            format = "mp3"
+                                        )
                                     }
                                 }
                                 if (result.isSuccess) {
