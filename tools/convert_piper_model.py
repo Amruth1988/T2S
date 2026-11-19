@@ -35,7 +35,7 @@ def convert(model_path: Path) -> Path:
     with tokens_path.open("w", encoding="utf-8", newline="\n") as output:
         for symbol, ids in phoneme_map.items():
             # Piper's newline entry is not a valid Sherpa token.
-            if symbol == "\\n":
+            if symbol == "\n":
                 continue
             if not isinstance(ids, list) or not ids:
                 raise ValueError(f"Invalid token ID entry for {symbol!r}.")
