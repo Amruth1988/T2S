@@ -63,6 +63,7 @@ fun MyVoicesScreen() {
     var message by remember { mutableStateOf("Add a clear recording of your own voice to create a reusable voice profile.") }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> hasMicPermission = granted; message = if (granted) "Microphone ready. Tap Start recording." else "Microphone permission is required." }
     var busy by remember { mutableStateOf(false) }
+    var consentConfirmed by remember { mutableStateOf(false) }
     val voices = remember { mutableStateListOf<SavedUserVoice>() }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         pickedUri = uri
@@ -124,8 +125,8 @@ fun MyVoicesScreen() {
                                 val activeRecorder = recorder
                                 val elapsedMs = android.os.SystemClock.elapsedRealtime() - recordingStartedAt
                                 try {
-                                    if (elapsedMs < 2500L) {
-                                        message = "Please record for at least 3 seconds before stopping."
+                                    if (elapsedMs < 5000L) {
+                                        message = "Please record for at least 5 seconds before stopping. 10–30 seconds is recommended."
                                         return@Button
                                     }
                                     activeRecorder?.stop()
@@ -155,10 +156,15 @@ fun MyVoicesScreen() {
                 }
                 OutlinedTextField(value = pickedLabel, onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth(), label = { Text("Reference recording") })
                 TextButton(onClick = { picker.launch("audio/*") }, enabled = !recording) { Text("Or upload an audio file") }
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    androidx.compose.material3.Checkbox(checked = consentConfirmed, onCheckedChange = { consentConfirmed = it }, enabled = !busy)
+                    Text("I confirm this is my voice, or I have permission to clone it.", color = T2SSecondaryText, fontSize = 12.sp)
+                }
                 Button(
                     onClick = {
                         val uri = pickedUri
                         if (apiKey.isBlank()) message = "Personal voices are not configured in this build. Add the TTS_API_KEY GitHub Actions secret and rebuild."
+                        else if (!consentConfirmed) message = "Please confirm you have the right to clone this voice."
                         else if (voiceName.isBlank()) message = "Enter a name for this voice."
                         else if (uri == null) message = "Choose a voice recording first."
                         else {
@@ -171,7 +177,7 @@ fun MyVoicesScreen() {
                                 busy = false
                             }
                         }
-                    }, enabled = !busy
+                    }, enabled = !busy && consentConfirmed
                 ) { Text("Create and save voice") }
             }
         }
