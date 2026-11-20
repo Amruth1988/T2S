@@ -115,10 +115,12 @@ private fun T2SApp() {
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            modifier = Modifier.size(42.dp).background(Color.White.copy(alpha = 0.18f)),
+                            modifier = Modifier.size(42.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color.White),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("T2S", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                            Text("T2S", color = T2SOrange, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
                         }
                         Spacer(Modifier.width(11.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
