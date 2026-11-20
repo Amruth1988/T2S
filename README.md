@@ -26,16 +26,16 @@ Native Android Text-to-Speech application built with Kotlin and Jetpack Compose.
 
 Speech Studio includes an app-managed Sherpa-ONNX Piper runtime for converted Telugu voice packs. To use it:
 
-1. Open the **Actions** tab in this repository and download the `t2s-telugu-piper-validation` artifact from a successful **Validate Telugu Piper voice packs** run.
+1. Open the **Actions** tab in this repository and download the `t2s-telugu-piper-import-packs` artifact from a successful **Validate Telugu Piper voice packs** run.
 2. Keep the downloaded artifact ZIP intact.
 3. In T2S Studio, open **Create**, select **Telugu**, and choose **Import converted voice ZIP**.
 4. Select an installed voice pack, preview it, then generate Telugu WAV audio. Synthesis runs on-device; no online TTS service is used for this Telugu path.
 
-The validation artifact contains converted Venkatesh, Padmavathi and Maya packs plus sample WAV files. Models are not bundled in the APK. Their individual dataset licences and attribution terms differ; the upstream Piper repository licence does not replace those terms. Do not redistribute model weights until the exact model card and dataset licence have been reviewed.
+The import artifact contains only Venkatesh and Padmavathi, with each pack's original model card, attribution notice and CC BY 4.0 legal text alongside the converted model. Maya is synthesis-tested in CI but deliberately excluded from import artifacts and the app importer because its model card points to the IIT Madras IndicTTS licence and the exact derivative-model redistribution terms have not been cleared. Models are not bundled in the APK. See docs/TELUGU_VOICE_MODEL_PROVENANCE.md before redistributing any voice pack.
 
 The Android Sherpa-ONNX/Piper synthesis path is implemented and connected to Speech Studio. Successful Python validation and an Android build do not replace real-device playback, Telugu-speaker intelligibility review, or licence review. Those remain release gates.
 
-**Purohit / Vedic recitation:** three Purohit presets are available as speed-and-pitch profiles for an installed male Telugu Android voice. They are not a dedicated priest-recitation model and do not guarantee authentic Vedic modulation. DhVaani-0.5 MNN is being evaluated as an Android-local zero-shot TTS option; it requires a clean 3–10 second reference recording and its exact transcript. Use only a voice sample whose speaker has explicitly consented to this use. It is not selectable in T2S until the model/runtime, licensing, Android integration and real-device audio quality are verified. See `docs/TELUGU_VOICE_CANDIDATE_EVALUATION_2026-11-20.md`.
+**Purohit / Vedic recitation:** three Purohit presets are available as speed-and-pitch profiles for an installed male Telugu Android voice. They are not a dedicated priest-recitation model and do not guarantee authentic Vedic modulation. DhVaani-0.5 MNN is being evaluated as an Android-local zero-shot TTS option; it requires a clean 3–10 second reference recording and its exact transcript. Use only a voice sample whose speaker has explicitly consented to this use. It is not selectable in T2S until the model/runtime, licensing, Android integration and real-device audio quality are verified. See `docs/TELUGU_VOICE_CANDIDATE_EVALUATION_2026-11-20.md`. DhVaani-0.5 currently has a CC BY-NC 4.0 model-card licence and is not approved for commercial T2S distribution.
 
 ## Android configuration
 - Package: `com.t2sstudio.app`
