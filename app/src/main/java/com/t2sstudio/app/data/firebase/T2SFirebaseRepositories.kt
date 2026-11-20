@@ -89,7 +89,9 @@ class T2SAuthRepository(
         firestore.collection("users").document(user.uid)
             .set(profile + ("createdAt" to Date(user.metadata.creationTimestamp)), SetOptions.merge())
             .addOnSuccessListener { onComplete(Result.success(user)) }
-            .addOnFailureListener { onComplete(Result.failure(it)) }
+            // Authentication must remain successful even if the optional profile
+            // metadata write is temporarily blocked by rules or connectivity.
+            .addOnFailureListener { onComplete(Result.success(user)) }
     }
 }
 
