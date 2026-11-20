@@ -105,9 +105,9 @@ private data class PurohitPreset(
 )
 
 private val purohitPresets = listOf(
-    PurohitPreset("Purohit 1", "Deep, steady traditional recitation • Male", 0.84f, 0.86f),
-    PurohitPreset("Purohit 2", "Slow, devotional verse delivery • Male", 0.72f, 0.90f),
-    PurohitPreset("Purohit 3", "Clear, formal temple-style delivery • Male", 0.96f, 0.88f)
+    PurohitPreset("Purohit 1", "Deep, steady traditional recitation", 0.84f, 0.86f),
+    PurohitPreset("Purohit 2", "Slow, devotional verse delivery", 0.72f, 0.90f),
+    PurohitPreset("Purohit 3", "Clear, formal temple-style delivery", 0.96f, 0.88f)
 )
 
 private fun voiceGender(name: String): String? {
@@ -587,7 +587,7 @@ fun SpeechStudioScreen(
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp).padding(top = 10.dp, bottom = 14.dp),
+            .padding(horizontal = 16.dp).padding(top = 10.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (projects.isNotEmpty()) {
@@ -1216,7 +1216,7 @@ fun SpeechStudioScreen(
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Purohit-style voice presets", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
                     Text(
-                        "All three Purohit presets use the Venkatesh male Telugu voice model, with preset-specific recitation speed and pitch. Android system voices and female voice packs are never used. This is not a separately trained priest-recitation model.",
+                        "Choose a male Telugu voice profile for Purohit-style delivery. Each preset adjusts speed and pitch; it is not a separately trained priest-recitation model.",
                         fontSize = 11.sp,
                         color = T2SSecondaryText
                     )
@@ -1290,7 +1290,7 @@ fun SpeechStudioScreen(
                             },
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(13.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (selected) Color(0xFFFFE3CC) else Color.White
+                                containerColor = if (selected) Color(0xFFFFEBDD) else Color(0xFFFFFCF8)
                             ),
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
@@ -1333,7 +1333,7 @@ fun SpeechStudioScreen(
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
                         ) {
-                            Text(if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) "■ Stop" else "▶ Preview")
+                            Text(if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) "■ Stop" else "▶ Play")
                         }
                         androidx.compose.material3.OutlinedButton(
                             onClick = {
