@@ -42,7 +42,7 @@ import com.t2sstudio.app.ui.theme.T2SText
 import kotlinx.coroutines.launch
 
 @Composable
-fun AccountScreen() {
+fun LoginScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val activity = context as? Activity
     val auth = remember { T2SAuthRepository() }
@@ -124,7 +124,8 @@ fun AccountScreen() {
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Your T2S account", color = T2SText, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Back") }
+        Text("T2S Login", color = T2SText, fontSize = 26.sp, fontWeight = FontWeight.Bold)
         Text(
             "Sign in to sync your project and script metadata across devices. Audio files and original voice recordings stay on this device.",
             color = T2SSecondaryText, fontSize = 13.sp, lineHeight = 19.sp
