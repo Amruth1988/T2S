@@ -298,7 +298,7 @@ fun MyVoicesScreen() {
                                     pickedUri = null
                                     pickedLabel = "No audio selected"
                                     consentConfirmed = false
-                                    message = "${saved.name} saved on this device. This stores your sample; AI voice cloning is not yet active."
+                                    message = "${saved.name} saved on this device. Connect your private cloning server to generate Telugu or English speech in this voice."
                                 }.onFailure { message = "Could not save voice profile: ${it.message}" }
                                 busy = false
                             }
