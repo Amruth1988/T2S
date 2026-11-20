@@ -596,11 +596,17 @@ fun SpeechStudioScreen(
                         color = Color(0xFF101B35)
                     ),
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("${inputText.length} characters", fontSize = 11.sp, color = T2SSecondaryText)
+                    OutlinedButton(
+                        onClick = {
+                            runCatching {
+                                val draft = onSaveDraft(inputText, selectedLanguage, selectedProject?.id.orEmpty(), selectedProject?.name ?: "Unassigned")
+                                statusMessage = "Draft saved: ${draft.title}"
+                            }.onFailure { statusMessage = it.localizedMessage ?: "Could not save draft." }
+                        },
+                        enabled = inputText.isNotBlank() && !isGenerating
+                    ) { Text("Save draft") }
                 }
             }
         }
