@@ -1248,7 +1248,8 @@ fun SpeechStudioScreen(
                                                     language = selectedLanguage,
                                                     createdAt = System.currentTimeMillis(),
                                                     projectId = selectedProject?.id.orEmpty(),
-                                                    projectName = selectedProject?.name ?: "Unassigned"
+                                                    projectName = selectedProject?.name ?: "Unassigned",
+                                                    scriptContent = textToSpeak
                                                 )
                                             )
                                             statusMessage = if (outputFormat == "MP3") "MP3 generation was unavailable; Android fallback saved as WAV." else "Android speech audio is ready and saved in T2S Studio."
