@@ -1169,7 +1169,7 @@ fun SpeechStudioScreen(
                                 generatedFile = output
                                 onAudioGenerated(AudioRecord(id = java.util.UUID.randomUUID().toString(), filePath = output.absolutePath, textPreview = textToSpeak.take(180), language = "Telugu", createdAt = System.currentTimeMillis(), projectId = selectedProject?.id.orEmpty(), projectName = selectedProject?.name ?: "Unassigned", scriptContent = textToSpeak))
                                 statusMessage = "Offline Telugu WAV is ready."
-                                if (autoPlayAfterGeneration) playGeneratedFile(output)
+                                if (autoPlayAfterGeneration || isPurohitMode) playGeneratedFile(output)
                             }.onFailure { output.delete(); isGenerating = false; statusMessage = "Offline Telugu generation failed: " + (it.message ?: "engine error") }
                         }
                     }
@@ -1243,12 +1243,17 @@ fun SpeechStudioScreen(
                             } else {
                                 val preset = selectedPurohitPreset.takeIf { isPurohitMode }
                                 val presetVoice = if (preset != null) {
-                                    selectedPurohitVoice?.takeIf { it.locale.language == "te" }
-                                        ?: engine.voices.orEmpty().firstOrNull { it.locale.language == "te" }
+                                    // A Purohit preset is never allowed to fall back to an arbitrary
+                                    // Telugu voice: Android voice names do not reliably encode gender.
+                                    selectedPurohitVoice?.takeIf {
+                                        it.locale.language == "te" && genderForVoice(it) == "Male"
+                                    } ?: engine.voices.orEmpty().firstOrNull {
+                                        it.locale.language == "te" && genderForVoice(it) == "Male"
+                                    }
                                 } else null
                                 if (preset != null && presetVoice == null) {
                                     isGenerating = false
-                                    statusMessage = "Cannot generate ${preset.name}: no Telugu system voice is installed. Install Telugu speech data in Android speech settings, or import a converted Telugu offline voice pack."
+                                    statusMessage = "Cannot generate ${preset.name}: no Telugu voice is confirmed Male. In the installed Telugu voice list, audition a voice and set Gender to Male, then select the Purohit preset again. Android cannot create a genuine male voice by changing pitch."
                                 } else {
                                 val languageResult = engine.setLanguage(language.locale)
                                 if (languageResult == TextToSpeech.LANG_MISSING_DATA ||
@@ -1284,7 +1289,7 @@ fun SpeechStudioScreen(
                                                 )
                                             )
                                             statusMessage = if (outputFormat == "MP3") "MP3 generation was unavailable; Android fallback saved as WAV." else "Android speech audio is ready and saved in T2S Studio."
-                                            if (autoPlayAfterGeneration) playGeneratedFile(fallbackOutput)
+                                            if (autoPlayAfterGeneration || isPurohitMode) playGeneratedFile(fallbackOutput)
                                         }
                                         @Deprecated("Deprecated in Java")
                                         override fun onError(utteranceId: String?) {
