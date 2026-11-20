@@ -605,7 +605,7 @@ fun SpeechStudioScreen(
             modifier = Modifier.fillMaxWidth().padding(14.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
           ) {
-            Column(modifier = Modifier.weight(1.15f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(modifier = Modifier.weight(0.82f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Language", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 var languageMenuExpanded by remember { mutableStateOf(false) }
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -688,7 +688,7 @@ fun SpeechStudioScreen(
                     }
                 }
             }
-            Column(modifier = Modifier.weight(0.95f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(modifier = Modifier.weight(1.18f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Gender", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("All", "Male", "Female").forEach { gender ->
@@ -718,7 +718,7 @@ fun SpeechStudioScreen(
                                     gender == "All" || voice.gender.equals(gender, ignoreCase = true)
                                 }
                             },
-                            label = { Text(gender, fontSize = 10.sp, maxLines = 1) }
+                            label = { Text(gender, fontSize = 10.sp, maxLines = 1, softWrap = false) }
                         )
                     }
                 }
