@@ -1145,7 +1145,7 @@ fun SpeechStudioScreen(
                                     )
                                 }
                             }
-                            onlineSuccess = onlineResult.isSuccess
+                            onlineSuccess = onlineResult.isSuccess && output.isFile && output.length() > 0L
                             if (!onlineSuccess) {
                                 statusMessage = "Online unavailable (" +
                                     (onlineResult.exceptionOrNull()?.message ?: "service error") +
@@ -1166,7 +1166,9 @@ fun SpeechStudioScreen(
                                     filePath = output.absolutePath,
                                     textPreview = textToSpeak.take(180),
                                     language = selectedLanguage,
-                                    createdAt = System.currentTimeMillis()
+                                    createdAt = System.currentTimeMillis(),
+                                    projectId = selectedProject?.id.orEmpty(),
+                                    projectName = selectedProject?.name ?: "Unassigned"
                                 )
                             )
                             statusMessage = "Online speech audio is ready and saved in T2S Studio."
@@ -1204,6 +1206,12 @@ fun SpeechStudioScreen(
                                     engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                                         override fun onStart(utteranceId: String?) { }
                                         override fun onDone(utteranceId: String?) {
+                                            if (!fallbackOutput.isFile || fallbackOutput.length() <= 0L) {
+                                                fallbackOutput.delete()
+                                                isGenerating = false
+                                                statusMessage = "Android speech engine finished without producing a valid audio file."
+                                                return
+                                            }
                                             isGenerating = false
                                             generatedFile = fallbackOutput
                                             onAudioGenerated(
@@ -1212,7 +1220,9 @@ fun SpeechStudioScreen(
                                                     filePath = fallbackOutput.absolutePath,
                                                     textPreview = textToSpeak.take(180),
                                                     language = selectedLanguage,
-                                                    createdAt = System.currentTimeMillis()
+                                                    createdAt = System.currentTimeMillis(),
+                                                    projectId = selectedProject?.id.orEmpty(),
+                                                    projectName = selectedProject?.name ?: "Unassigned"
                                                 )
                                             )
                                             statusMessage = if (outputFormat == "MP3") "MP3 generation was unavailable; Android fallback saved as WAV." else "Android speech audio is ready and saved in T2S Studio."
@@ -1220,10 +1230,12 @@ fun SpeechStudioScreen(
                                         }
                                         @Deprecated("Deprecated in Java")
                                         override fun onError(utteranceId: String?) {
+                                            fallbackOutput.delete()
                                             isGenerating = false
                                             statusMessage = "Could not generate audio with either speech provider."
                                         }
                                         override fun onError(utteranceId: String?, errorCode: Int) {
+                                            fallbackOutput.delete()
                                             isGenerating = false
                                             statusMessage = "Android speech generation failed (code " + errorCode + ")."
                                         }
