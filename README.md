@@ -20,7 +20,17 @@ Native Android Text-to-Speech application built with Kotlin and Jetpack Compose.
 - Persist generated-audio history locally on the device
 - Saved Audio library with playback, download, share and delete actions
 - Recent tab displays saved speech recordings, with missing audio files automatically excluded
-- Save and manage local voice recordings; these are sample recordings, not AI voice clones
+- Save and manage local voice recordings; optional self-hosted Volt-TTS service can generate new Telugu and English speech from a consented reference recording
+
+## Optional AI voice cloning (Telugu priority)
+
+T2S now includes an optional self-hosted voice-cloning integration. The Android app retains its offline Android TTS and Telugu Piper paths; when a saved My Voice profile is selected, it can send that reference recording and the requested text to your configured private Volt-TTS server and receive generated WAV audio. Telugu and English are supported by the integration, with Telugu as the primary target.
+
+The server implementation and deployment guide are in `voice-clone-server/`. It uses the Apache-2.0 Volt-TTS preview model, which supports cloning from a short 5–15 second reference clip and needs an NVIDIA CUDA GPU with about 8 GB VRAM. This is not an included hosted service: you must run your own compatible GPU host and configure its URL in **My → AI voice cloning server**. No paid TTS API, paid cloud resource, or Firebase billing is configured.
+
+The app sends the selected reference recording only when you request cloned speech. Use only recordings from a speaker who explicitly consents to voice cloning. Keep the service on a private network or behind HTTPS and access controls; do not expose the unauthenticated preview endpoint publicly. The current integration returns WAV output. Native-device TTS and imported Telugu offline packs remain independent of this server.
+
+Model quality and Android playback must be tested with real Telugu and English samples before release. Volt-TTS is a preview model; voice similarity and pronunciation can vary by speaker and text.
 
 ## Telugu offline voice packs
 
