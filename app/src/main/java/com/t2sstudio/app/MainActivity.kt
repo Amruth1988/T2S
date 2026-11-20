@@ -159,7 +159,20 @@ private fun T2SApp() {
                         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.dp)) {
                                 Text("Studi", fontWeight = FontWeight.Bold, fontSize = 19.sp, color = Color.White)
-                                Icon(Icons.Filled.Mic, contentDescription = "Microphone", tint = Color.White, modifier = Modifier.size(19.dp))
+                                Box(
+                                    modifier = Modifier.padding(start = 3.dp)
+                                        .size(23.dp)
+                                        .clip(RoundedCornerShape(7.dp))
+                                        .background(T2SOrangeDark),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Mic,
+                                        contentDescription = "Microphone",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
                             }
                             Text("Text to Speech", fontSize = 10.sp, color = Color.White.copy(alpha = 0.92f), lineHeight = 11.sp)
                         }
