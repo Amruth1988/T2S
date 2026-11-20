@@ -232,11 +232,27 @@ fun SpeechStudioScreen(
         else -> voiceGender(voice.name)
     }
 
-    fun saveVoiceGender(voice: Voice, gender: String) {
-        voiceGenderOverrides[installedVoiceKey(voice)] = gender
+    fun saveGenderOverride(key: String, displayName: String, gender: String) {
+        voiceGenderOverrides[key] = gender
         context.getSharedPreferences("t2s_voice_gender_overrides", android.content.Context.MODE_PRIVATE)
-            .edit().putStringSet("overrides", voiceGenderOverrides.map { (key, value) -> key + "=" + value }.toSet()).apply()
-        statusMessage = voice.name + " marked as " + gender + "."
+            .edit().putStringSet("overrides", voiceGenderOverrides.map { (entryKey, value) -> entryKey + "=" + value }.toSet()).apply()
+        statusMessage = displayName + " marked as " + gender + "."
+    }
+
+    fun saveVoiceGender(voice: Voice, gender: String) =
+        saveGenderOverride(installedVoiceKey(voice), voice.name, gender)
+
+    fun onlineVoiceGender(voice: OnlineTtsVoice): String? {
+        return when (voiceGenderOverrides["online|"+voice.id]) {
+            "Male" -> "Male"
+            "Female" -> "Female"
+            "Unknown" -> null
+            else -> when (voice.gender.trim().lowercase(Locale.ROOT)) {
+                "male", "masculine", "m", "man" -> "Male"
+                "female", "feminine", "f", "woman" -> "Female"
+                else -> voiceGender(voice.name)
+            }
+        }
     }
 
     fun refreshVoices(engine: TextToSpeech, locale: Locale) {
@@ -814,7 +830,7 @@ fun SpeechStudioScreen(
                                     gender == "All" || genderForVoice(voice) == gender
                                 }
                                 selectedOnlineVoice = onlineVoices.firstOrNull { voice ->
-                                    gender == "All" || voice.gender.equals(gender, ignoreCase = true)
+                                    gender == "All" || onlineVoiceGender(voice) == gender
                                 }
                             },
                             label = { Text(gender, fontSize = 12.sp, maxLines = 1, softWrap = false) }
@@ -849,9 +865,7 @@ fun SpeechStudioScreen(
                 allInstalledForLanguage
             } else genderMatches
             val onlineGenderMatches = onlineVoices.filter { voice ->
-                selectedGender == "All" || voice.gender.equals(selectedGender, true) ||
-                    (selectedGender == "Male" && voice.gender.equals("masculine", true)) ||
-                    (selectedGender == "Female" && voice.gender.equals("feminine", true))
+                selectedGender == "All" || onlineVoiceGender(voice) == selectedGender
             }
             // Some online catalogues omit gender or use different metadata labels.
             // Fall back to all voices for this language only when no exact gender match exists.
@@ -1097,6 +1111,25 @@ fun SpeechStudioScreen(
                                 }) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
                                     Text("Free online • " + voice.language + " • " + voice.licence, color = Color(0xFF58677F), fontSize = 10.sp, maxLines = 2)
+                                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                        TextButton(onClick = { genderMenuVoiceKey = "online|" + voice.id }) {
+                                            Text("Gender: " + (onlineVoiceGender(voice) ?: "Not set") + " ▾", fontSize = 11.sp)
+                                        }
+                                        DropdownMenu(
+                                            expanded = genderMenuVoiceKey == "online|" + voice.id,
+                                            onDismissRequest = { genderMenuVoiceKey = null }
+                                        ) {
+                                            listOf("Male", "Female", "Unknown").forEach { genderOption ->
+                                                DropdownMenuItem(
+                                                    text = { Text(genderOption) },
+                                                    onClick = {
+                                                        saveGenderOverride("online|" + voice.id, voice.name, genderOption)
+                                                        genderMenuVoiceKey = null
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                                 TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.id}") }) {
                                     Text(if (activePreviewKey == "online:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = Color(0xFFF47721), fontWeight = FontWeight.Bold)
