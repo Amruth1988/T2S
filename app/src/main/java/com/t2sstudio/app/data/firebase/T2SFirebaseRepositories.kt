@@ -87,7 +87,7 @@ class T2SAuthRepository(
             "lastSignInAt" to FieldValue.serverTimestamp()
         )
         firestore.collection("users").document(user.uid)
-            .set(profile + ("createdAt" to Date(user.metadata.creationTimestamp)), SetOptions.merge())
+            .set(profile + ("createdAt" to Date(user.metadata?.creationTimestamp ?: System.currentTimeMillis())), SetOptions.merge())
             .addOnSuccessListener { onComplete(Result.success(user)) }
             // Authentication must remain successful even if the optional profile
             // metadata write is temporarily blocked by rules or connectivity.
