@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Description
@@ -130,7 +131,10 @@ private fun T2SApp() {
                         }
                         Spacer(Modifier.width(11.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                            Text("T2S Studio", fontWeight = FontWeight.Bold, fontSize = 19.sp, color = Color.White)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("T2S Studio", fontWeight = FontWeight.Bold, fontSize = 19.sp, color = Color.White)
+                                Icon(Icons.Filled.Mic, contentDescription = "Microphone", tint = Color.White, modifier = Modifier.size(19.dp))
+                            }
                             Text("Text to Speech", fontSize = 10.sp, color = Color.White.copy(alpha = 0.92f), lineHeight = 11.sp)
                         }
                     }
