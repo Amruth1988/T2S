@@ -692,11 +692,11 @@ fun SpeechStudioScreen(
             shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(containerColor = T2SBackground)
         ) {
-          Row(
+          Column(
             modifier = Modifier.fillMaxWidth().padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
           ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Language", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 var languageMenuExpanded by remember { mutableStateOf(false) }
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -782,7 +782,7 @@ fun SpeechStudioScreen(
                     }
                 }
             }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Gender", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("All", "Male", "Female").forEach { gender ->
@@ -812,7 +812,7 @@ fun SpeechStudioScreen(
                                     gender == "All" || voice.gender.equals(gender, ignoreCase = true)
                                 }
                             },
-                            label = { Text(gender, fontSize = 10.sp, maxLines = 1, softWrap = false) }
+                            label = { Text(gender, fontSize = 12.sp, maxLines = 1, softWrap = false) }
                         )
                     }
                 }
