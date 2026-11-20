@@ -33,7 +33,7 @@ Check `GET /health`. The first generation downloads and loads Volt-TTS and can t
 - `ref_text`: optional exact transcript of the reference recording
 - `speed`: reserved for app compatibility; current Volt-TTS inference wrapper uses model defaults
 
-Returns WAV audio. Reference audio is held in memory for inference and is not written to server disk by this wrapper. Production deployments should add authentication, rate limits, TLS and user-specific access controls.
+Returns WAV audio. WAV, MP3, M4A, and FLAC reference uploads are normalized to mono 24 kHz WAV before inference. Temporary files are removed automatically after each request; the original recording is not retained. Production deployments should add authentication, rate limits, TLS and user-specific access controls.
 
 ## Model and licence
 
