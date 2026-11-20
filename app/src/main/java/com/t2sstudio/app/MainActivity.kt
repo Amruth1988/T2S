@@ -106,6 +106,7 @@ private fun T2SApp() {
         mutableStateListOf<T2SProject>().apply { addAll(ProjectStore.load(context)) }
     }
     var selectedProjectId by remember { mutableStateOf(projects.firstOrNull()?.id) }
+    var pendingScriptText by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         containerColor = T2SBackground,
@@ -180,7 +181,9 @@ private fun T2SApp() {
                                 language = record.language
                             ) { /* Speech generation and local history do not depend on cloud sync. */ }
                         }
-                    }
+                    },
+                    initialScriptText = pendingScriptText,
+                    onInitialScriptTextConsumed = { pendingScriptText = null }
                 )
                 1 -> ProjectsScreen(
                     projects = projects,
@@ -246,6 +249,10 @@ private fun T2SApp() {
                                 /* Removing a local recording never depends on cloud availability. */
                             }
                         }
+                    },
+                    onEditScript = { record ->
+                        pendingScriptText = record.scriptContent.ifBlank { record.textPreview }
+                        selectedDestination = 0
                     }
                 )
                 3 -> MyVoicesScreen()
