@@ -6,6 +6,7 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import java.util.Date
 
 /**
  * Firebase Authentication entry points for email/password and Google credentials.
@@ -86,7 +87,7 @@ class T2SAuthRepository(
             "lastSignInAt" to FieldValue.serverTimestamp()
         )
         firestore.collection("users").document(user.uid)
-            .set(profile + ("createdAt" to FieldValue.serverTimestamp()), SetOptions.merge())
+            .set(profile + ("createdAt" to Date(user.metadata.creationTimestamp)), SetOptions.merge())
             .addOnSuccessListener { onComplete(Result.success(user)) }
             .addOnFailureListener { onComplete(Result.failure(it)) }
     }
