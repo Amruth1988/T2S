@@ -159,42 +159,35 @@ fun LoginScreen(onBack: () -> Unit) {
             }
 
             Column(
-                modifier = Modifier.fillMaxWidth().background(
-                    androidx.compose.ui.graphics.Brush.linearGradient(
-                        listOf(androidx.compose.ui.graphics.Color(0xFFFF9D32), androidx.compose.ui.graphics.Color(0xFFE96D12))
-                    ), androidx.compose.foundation.shape.RoundedCornerShape(30.dp)
-                ).padding(horizontal = 24.dp, vertical = 25.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp),
                 horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(9.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Row(
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_t2s_mark),
-                        contentDescription = "T2S Studio logo",
-                        modifier = Modifier.size(64.dp)
-                    )
-                    Text(
-                        "T2S STUDIO",
-                        color = androidx.compose.ui.graphics.Color.White,
-                        fontSize = 21.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.1.sp
-                    )
-                }
-                Text("Your voice. Your stories.", color = androidx.compose.ui.graphics.Color.White,
-                    fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
-                Text("Create, speak and keep your studio in sync.",
-                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.92f),
-                    fontSize = 13.sp, lineHeight = 19.sp, textAlign = TextAlign.Center)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_t2s_mark),
+                    contentDescription = "T2S Studio logo",
+                    modifier = Modifier.size(76.dp)
+                )
+                Text(
+                    "T2S STUDIO",
+                    color = T2SText,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.3.sp,
+                    textAlign = TextAlign.Center
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     listOf("WRITE", "CREATE", "SPEAK").forEach { word ->
-                        Text(word, color = androidx.compose.ui.graphics.Color.White, fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold, letterSpacing = 1.sp,
-                            modifier = Modifier.background(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.18f),
-                                androidx.compose.foundation.shape.RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 6.dp))
+                        Text(
+                            word,
+                            color = T2SOrange,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            modifier = Modifier
+                                .background(T2SOrange.copy(alpha = 0.10f), androidx.compose.foundation.shape.RoundedCornerShape(50))
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        )
                     }
                 }
             }
