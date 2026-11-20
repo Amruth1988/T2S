@@ -61,6 +61,8 @@ fun MyVoicesScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var voiceName by remember { mutableStateOf("My Voice") }
+    var cloneServerUrl by remember { mutableStateOf(VoiceCloneServerSettings.get(context)) }
+    var checkingCloneServer by remember { mutableStateOf(false) }
     var cloneLanguage by remember { mutableStateOf("en") }
     var pickedUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var pickedLabel by remember { mutableStateOf("No audio selected") }
@@ -98,6 +100,45 @@ fun MyVoicesScreen() {
         ExternalMediaCatalogueCard()
         Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
         Text("Save and manage reusable voice recordings on this device. Local profiles remain available after reopening the app.", color = T2SSecondaryText, fontSize = 14.sp)
+        Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("AI voice cloning server", fontWeight = FontWeight.SemiBold, color = T2SText)
+                Text("Optional self-hosted Volt-TTS server for genuine Telugu and English voice cloning. Your saved recording is sent only when you generate cloned speech.", color = T2SSecondaryText, fontSize = 12.sp)
+                OutlinedTextField(
+                    value = cloneServerUrl,
+                    onValueChange = { cloneServerUrl = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Server URL") },
+                    placeholder = { Text("https://your-private-server:8080") }
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            runCatching { VoiceCloneServerSettings.save(context, cloneServerUrl) }
+                                .onSuccess { message = "Voice-cloning server URL saved." }
+                                .onFailure { message = it.message ?: "Invalid server URL." }
+                        },
+                        enabled = !checkingCloneServer
+                    ) { Text("Save URL") }
+                    TextButton(
+                        onClick = {
+                            checkingCloneServer = true
+                            scope.launch {
+                                val result = runCatching { withContext(Dispatchers.IO) { VoiceCloneClient.checkServer(cloneServerUrl) } }
+                                message = result.getOrElse { "Server check failed: " + (it.message ?: "connection error") }
+                                checkingCloneServer = false
+                            }
+                        },
+                        enabled = !checkingCloneServer && cloneServerUrl.isNotBlank()
+                    ) {
+                        if (checkingCloneServer) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        else Text("Test connection")
+                    }
+                }
+                Text("The service requires your own NVIDIA GPU host (about 8 GB VRAM). No paid TTS API or cloud account is configured by T2S.", color = T2SSecondaryText, fontSize = 11.sp)
+            }
+        }
         Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("Add a voice", fontWeight = FontWeight.SemiBold, color = T2SText)
