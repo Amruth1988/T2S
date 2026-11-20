@@ -531,39 +531,6 @@ fun SpeechStudioScreen(
             }
         }
 
-        if (selectedLanguage == "Telugu") {
-            Card(Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = T2SBackground)) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Telugu offline voice packs", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
-                    Text("Import converted model ZIP. Raw Piper downloads are not ready for offline playback.", fontSize = 12.sp, color = T2SSecondaryText)
-                    Button(onClick = { importTeluguPackLauncher.launch(arrayOf("application/zip", "application/octet-stream")) }, enabled = !importingTeluguPacks) {
-                        if (importingTeluguPacks) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp) else Text("Import converted voice ZIP")
-                    }
-                    if (convertedTeluguPacks.isEmpty()) Text("No converted Telugu voices installed.", color = T2SSecondaryText, fontSize = 12.sp)
-                    convertedTeluguPacks.forEach { pack ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(pack.displayName, color = T2SText, fontWeight = FontWeight.SemiBold)
-                                Text(if (pack.group == TeluguVoiceGroup.MALE) "Male" else "Female", color = T2SSecondaryText, fontSize = 11.sp)
-                            }
-                            FilterChip(selected = selectedTeluguPackId == pack.id, onClick = { selectedTeluguPackId = pack.id }, label = { Text(if (selectedTeluguPackId == pack.id) "Selected" else "Select") })
-                        }
-                        TextButton(onClick = {
-                            val preview = File(context.cacheDir, "telugu_preview_" + pack.id + ".wav")
-                            stopVoicePreview()
-                            isPreviewing = true
-                            statusMessage = "Generating offline Telugu preview…"
-                            coroutineScope.launch {
-                                val result = runCatching { withContext(Dispatchers.IO) { TeluguOfflineTtsEngine(context, pack.model, pack.tokens).use { it.synthesizeToWav("నమస్కారం. ఇది తెలుగు స్వర పరీక్ష.", preview, speechRate) } } }
-                                result.onSuccess { isPreviewing = false; playGeneratedFile(preview); statusMessage = "Playing offline Telugu preview: " + pack.displayName }
-                                result.onFailure { isPreviewing = false; statusMessage = "Telugu preview failed: " + (it.message ?: "engine error") }
-                            }
-                        }) { Text("▶ Preview voice") }
-                    }
-                    Text("Purohit voices are not listed until a genuine priest-recitation model is verified.", color = T2SSecondaryText, fontSize = 11.sp)
-                }
-            }
-        }
 
         Card(
             modifier = Modifier.fillMaxWidth(),
