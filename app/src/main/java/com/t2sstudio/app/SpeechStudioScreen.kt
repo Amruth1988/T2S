@@ -1133,7 +1133,7 @@ fun SpeechStudioScreen(
                             result.onSuccess {
                                 isGenerating = false
                                 generatedFile = output
-                                onAudioGenerated(AudioRecord(id = java.util.UUID.randomUUID().toString(), filePath = output.absolutePath, textPreview = textToSpeak.take(180), language = "Telugu", createdAt = System.currentTimeMillis(), projectId = selectedProject?.id.orEmpty(), projectName = selectedProject?.name ?: "Unassigned"))
+                                onAudioGenerated(AudioRecord(id = java.util.UUID.randomUUID().toString(), filePath = output.absolutePath, textPreview = textToSpeak.take(180), language = "Telugu", createdAt = System.currentTimeMillis(), projectId = selectedProject?.id.orEmpty(), projectName = selectedProject?.name ?: "Unassigned", scriptContent = textToSpeak))
                                 statusMessage = "Offline Telugu WAV is ready."
                                 if (autoPlayAfterGeneration) playGeneratedFile(output)
                             }.onFailure { output.delete(); isGenerating = false; statusMessage = "Offline Telugu generation failed: " + (it.message ?: "engine error") }
@@ -1193,7 +1193,8 @@ fun SpeechStudioScreen(
                                     language = selectedLanguage,
                                     createdAt = System.currentTimeMillis(),
                                     projectId = selectedProject?.id.orEmpty(),
-                                    projectName = selectedProject?.name ?: "Unassigned"
+                                    projectName = selectedProject?.name ?: "Unassigned",
+                                    scriptContent = textToSpeak
                                 )
                             )
                             statusMessage = "Online speech audio is ready and saved in T2S Studio."
