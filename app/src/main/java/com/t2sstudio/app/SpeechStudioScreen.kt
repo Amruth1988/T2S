@@ -1081,7 +1081,7 @@ fun SpeechStudioScreen(
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Purohit-style voice presets", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
                     Text(
-                        "All three Purohit presets use the dedicated Venkatesh Telugu model classified as Male. Android system voices and female voice packs are never used for Purohit preview or generation.",
+                        "All three Purohit presets use the Venkatesh male Telugu voice model, with preset-specific recitation speed and pitch. Android system voices and female voice packs are never used. This is not a separately trained priest-recitation model.",
                         fontSize = 11.sp,
                         color = T2SSecondaryText
                     )
@@ -1114,6 +1114,7 @@ fun SpeechStudioScreen(
                         val selected = isPurohitMode && selectedPurohitPreset?.name == preset.name
                         Card(
                             modifier = Modifier.fillMaxWidth().clickable {
+                                stopVoicePreview()
                                 selectedPurohitPreset = preset
                                 isPurohitMode = true
                                 val malePack = convertedTeluguPacks.firstOrNull {
