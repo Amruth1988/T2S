@@ -609,15 +609,6 @@ fun SpeechStudioScreen(
                         },
                         enabled = inputText.isNotBlank() && !isGenerating
                     ) { Text("Save draft") }
-                    OutlinedButton(
-                        onClick = {
-                            runCatching {
-                                val draft = onSaveDraft(inputText, selectedLanguage, selectedProject?.id.orEmpty(), selectedProject?.name ?: "Unassigned")
-                                statusMessage = "Draft saved: ${draft.title}"
-                            }.onFailure { statusMessage = it.localizedMessage ?: "Could not save draft." }
-                        },
-                        enabled = inputText.isNotBlank() && !isGenerating
-                    ) { Text("Save draft") }
                 }
             }
         }
