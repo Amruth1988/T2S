@@ -127,11 +127,20 @@ fun SpeechStudioScreen(
     projects: List<T2SProject>,
     selectedProjectId: String?,
     onSelectedProjectIdChange: (String?) -> Unit,
-    onAudioGenerated: (AudioRecord) -> Unit
+    onAudioGenerated: (AudioRecord) -> Unit,
+    initialScriptText: String?,
+    onInitialScriptTextConsumed: () -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
+    LaunchedEffect(initialScriptText) {
+        if (initialScriptText != null) {
+            inputText = initialScriptText
+            statusMessage = "Saved script loaded. Edit it and generate new speech when ready."
+            onInitialScriptTextConsumed()
+        }
+    }
     var selectedLanguage by remember { mutableStateOf("English") }
     var selectedGender by remember { mutableStateOf("All") }
     val voiceGenderOverrides = remember { mutableStateMapOf<String, String>().apply {
