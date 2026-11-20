@@ -136,6 +136,16 @@ fun SpeechStudioScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
+    var isRegisteredUser by remember { mutableStateOf(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) }
+    val inputCharacterLimit = if (isRegisteredUser) 5000 else 2000
+    DisposableEffect(Unit) {
+        val firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        val listener = com.google.firebase.auth.FirebaseAuth.AuthStateListener { authState ->
+            isRegisteredUser = authState.currentUser != null
+        }
+        firebaseAuth.addAuthStateListener(listener)
+        onDispose { firebaseAuth.removeAuthStateListener(listener) }
+    }
     var selectedLanguage by remember { mutableStateOf("English") }
     var selectedGender by remember { mutableStateOf("All") }
     val voiceGenderOverrides = remember { mutableStateMapOf<String, String>().apply {
@@ -154,8 +164,12 @@ fun SpeechStudioScreen(
     var statusMessage by remember { mutableStateOf("Enter text to create your first voice recording.") }
     LaunchedEffect(initialScriptText) {
         if (initialScriptText != null) {
-            inputText = initialScriptText
-            statusMessage = "Saved script loaded. Edit it and generate new speech when ready."
+            inputText = initialScriptText.take(inputCharacterLimit)
+            statusMessage = if (initialScriptText.length > inputCharacterLimit) {
+                "This input is limited to $inputCharacterLimit characters. The loaded script was shortened to fit."
+            } else {
+                "Saved script loaded. Edit it and generate new speech when ready."
+            }
             onInitialScriptTextConsumed()
         }
     }
@@ -577,7 +591,13 @@ fun SpeechStudioScreen(
                 }
                 OutlinedTextField(
                     value = inputText,
-                    onValueChange = { inputText = it; generatedFile = null },
+                    onValueChange = { newText ->
+                        inputText = newText.take(inputCharacterLimit)
+                        generatedFile = null
+                        if (newText.length > inputCharacterLimit) {
+                            statusMessage = "Input limit reached: $inputCharacterLimit characters."
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth().height(190.dp),
                     placeholder = {
                         Text(
@@ -603,7 +623,7 @@ fun SpeechStudioScreen(
                     ),
                 )
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("${inputText.length} characters", fontSize = 11.sp, color = T2SSecondaryText)
+                    Text("${inputText.length} / $inputCharacterLimit characters", fontSize = 11.sp, color = if (inputText.length >= inputCharacterLimit) T2SOrange else T2SSecondaryText)
                     OutlinedButton(
                         onClick = {
                             runCatching {
