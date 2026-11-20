@@ -371,4 +371,3 @@ fun LoginScreen(onBack: () -> Unit) {
         }
     }
 }
-}
