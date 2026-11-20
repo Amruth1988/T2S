@@ -4,6 +4,12 @@ import android.content.Context
 import android.net.Uri
 import java.util.zip.ZipInputStream
 import java.io.File
+import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.MessageDigest
+import android.os.Handler
+import android.os.Looper
 
 enum class TeluguVoiceGroup { MALE, FEMALE, PUROHIT }
 
@@ -40,7 +46,10 @@ object TeluguVoicePacks {
      * Imports the converted voice folders from the CI validation ZIP selected by the user.
      * Only the expected model and tokens files are extracted; ZIP paths are never trusted.
      */
-    fun importConvertedArchive(context: Context, uri: Uri): List<InstalledConvertedVoice> {
+    fun importConvertedArchive(context: Context, uri: Uri): List<InstalledConvertedVoice> =
+        importConvertedStream(context) { context.contentResolver.openInputStream(uri) }
+
+    private fun importConvertedStream(context: Context, openInput: () -> InputStream?): List<InstalledConvertedVoice> {
         val root = File(context.filesDir, "voice_models/telugu_converted")
         check(root.exists() || root.mkdirs()) { "Could not create converted voice storage." }
         val stagingRoot = File(root, ".import-${System.currentTimeMillis()}")
@@ -50,7 +59,7 @@ object TeluguVoicePacks {
         var totalExpandedBytes = 0L
         var entryCount = 0
         try {
-            context.contentResolver.openInputStream(uri)?.use { raw ->
+            openInput()?.use { raw ->
                 ZipInputStream(raw.buffered()).use { zip ->
                     var entry = zip.nextEntry
                     while (entry != null) {
@@ -164,6 +173,58 @@ object TeluguVoicePacks {
         }
     }
 
+    /** Downloads, SHA-256 verifies, and installs the attributed Venkatesh pack. */
+    fun downloadAndInstallVenkatesh(context: Context, onProgress: (Int) -> Unit): InstalledConvertedVoice {
+        val base = "https://github.com/Amruth1988/T2S/releases/download/telugu-voice-packs-v1/"
+        val archiveName = "t2s-telugu-venkatesh-v1.zip"
+        val archive = File(context.cacheDir, archiveName + ".download")
+        val mainHandler = Handler(Looper.getMainLooper())
+        fun report(value: Int) { mainHandler.post { onProgress(value.coerceIn(0, 100)) } }
+        try {
+            val checksumConnection = (URL(base + archiveName + ".sha256").openConnection() as HttpURLConnection).apply {
+                connectTimeout = 20000; readTimeout = 20000; setRequestProperty("User-Agent", "T2S-Studio-Android")
+            }
+            val checksumText = try {
+                check(checksumConnection.responseCode == HttpURLConnection.HTTP_OK) { "Voice-pack checksum is not available yet. Please try again later." }
+                checksumConnection.inputStream.bufferedReader().use { it.readText().trim() }
+            } finally { checksumConnection.disconnect() }
+            val expectedHash = checksumText.substringBefore(Regex("\\\\s").find(checksumText)?.value ?: " ").lowercase()
+            check(expectedHash.matches(Regex("[a-f0-9]{64}"))) { "Voice-pack checksum file is invalid." }
+            val connection = (URL(base + archiveName).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 30000; readTimeout = 60000; instanceFollowRedirects = true
+                setRequestProperty("User-Agent", "T2S-Studio-Android")
+            }
+            try {
+                check(connection.responseCode == HttpURLConnection.HTTP_OK) { "Telugu voice pack download failed (HTTP ${connection.responseCode})." }
+                val total = connection.contentLengthLong
+                var downloaded = 0L
+                connection.inputStream.buffered().use { input ->
+                    archive.outputStream().buffered().use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        while (true) {
+                            val count = input.read(buffer); if (count < 0) break
+                            downloaded += count
+                            check(downloaded <= 500L * 1024 * 1024) { "Voice pack exceeds the 500 MB download limit." }
+                            output.write(buffer, 0, count)
+                            if (total > 0L) report((downloaded * 90L / total).toInt())
+                        }
+                    }
+                }
+            } finally { connection.disconnect() }
+            val digest = MessageDigest.getInstance("SHA-256")
+            archive.inputStream().buffered().use { input ->
+                val buffer = ByteArray(64 * 1024)
+                while (true) { val count = input.read(buffer); if (count < 0) break; digest.update(buffer, 0, count) }
+            }
+            val actualHash = digest.digest().joinToString("") { "%02x".format(it) }
+            check(actualHash == expectedHash) { "Voice-pack verification failed. The downloaded file was not installed." }
+            report(95)
+            val installed = importConvertedStream(context) { archive.inputStream() }
+            report(100)
+            return installed.firstOrNull { it.id == "venkatesh" }
+                ?: error("The downloaded pack did not contain the Venkatesh male voice.")
+        } finally { archive.delete() }
+    }
     private fun ZipInputStream.drainEntryBounded(maxBytes: Long): Long {
         var readBytes = 0L
         val buffer = ByteArray(64 * 1024)
