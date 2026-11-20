@@ -175,7 +175,7 @@ object TeluguVoicePacks {
 
     /** Downloads, SHA-256 verifies, and installs the attributed Venkatesh pack. */
     fun downloadAndInstallVenkatesh(context: Context, onProgress: (Int) -> Unit): InstalledConvertedVoice {
-        val base = "https://github.com/Amruth1988/T2S/releases/download/telugu-voice-packs-v1/"
+        val base = "https://github.com/Amruth1988/T2S-VoicePacks/releases/download/telugu-voice-packs-v1/"
         val archiveName = "t2s-telugu-venkatesh-v1.zip"
         val archive = File(context.cacheDir, archiveName + ".download")
         val mainHandler = Handler(Looper.getMainLooper())
