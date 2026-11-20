@@ -116,7 +116,7 @@ fun ScriptDraftsScreen(
                                 "${draft.language} • ${draft.projectName} • ${SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(draft.updatedAt))}",
                                 color = T2SSecondaryText, fontSize = 11.sp
                             )
-                            Text(draft.content.take(180).replace('\\n', ' '), color = T2SSecondaryText,
+                            Text(draft.content.take(180).replace('\n', ' '), color = T2SSecondaryText,
                                 fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Spacer(Modifier.weight(1f))
