@@ -127,224 +127,248 @@ fun LoginScreen(onBack: () -> Unit) {
     }
 
     androidx.compose.foundation.layout.Box(
-        modifier = Modifier.fillMaxSize().background(T2SBackground)
+        modifier = Modifier.fillMaxSize().background(
+            androidx.compose.ui.graphics.Brush.verticalGradient(
+                listOf(androidx.compose.ui.graphics.Color(0xFFFFE7C6), T2SBackground, androidx.compose.ui.graphics.Color(0xFFFFF8F0))
+            )
+        )
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 18.dp),
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // Compact, premium brand hero. Keep clear of the system status bar.
-            androidx.compose.foundation.layout.Box(
-                modifier = Modifier.fillMaxWidth().height(224.dp)
-                    .background(
-                        androidx.compose.ui.graphics.Brush.verticalGradient(
-                            listOf(androidx.compose.ui.graphics.Color(0xFFFFE9C8), androidx.compose.ui.graphics.Color(0xFFFFF4E8))
-                        )
-                    ),
-                contentAlignment = androidx.compose.ui.Alignment.Center
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
             ) {
-                Column(
-                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(7.dp),
-                    modifier = Modifier.padding(top = 10.dp)
+                androidx.compose.material3.TextButton(onClick = onBack) {
+                    Text("‹  Back", color = T2SText, fontWeight = FontWeight.SemiBold)
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier.background(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.82f),
+                        androidx.compose.foundation.shape.RoundedCornerShape(50))
+                        .border(1.dp, T2SOrange.copy(alpha = 0.18f), androidx.compose.foundation.shape.RoundedCornerShape(50))
+                        .padding(horizontal = 13.dp, vertical = 7.dp)
                 ) {
-                    androidx.compose.foundation.layout.Box(
-                        modifier = Modifier.size(76.dp)
-                            .background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.RoundedCornerShape(23.dp))
-                            .border(2.dp, T2SOrange, androidx.compose.foundation.shape.RoundedCornerShape(23.dp)),
-                        contentAlignment = androidx.compose.ui.Alignment.Center
-                    ) {
-                        Text("T2S", color = T2SOrange, fontSize = 29.sp, fontWeight = FontWeight.ExtraBold)
-                    }
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Text("Studi", color = T2SText, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
-                        Text("🎙", fontSize = 28.sp)
-                    }
-                    Text("TEXT  •  CREATE  •  SPEAK", color = T2SSecondaryText,
-                        fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.8.sp)
+                    Text("T2S STUDIO", color = T2SOrange, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp)
                 }
             }
 
             Column(
-                modifier = Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color.White,
-                    androidx.compose.foundation.shape.RoundedCornerShape(topStart = 38.dp, topEnd = 38.dp))
-                    .padding(horizontal = 24.dp, vertical = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                modifier = Modifier.fillMaxWidth().background(
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(androidx.compose.ui.graphics.Color(0xFFFF9D32), androidx.compose.ui.graphics.Color(0xFFE96D12))
+                    ), androidx.compose.foundation.shape.RoundedCornerShape(30.dp)
+                ).padding(horizontal = 24.dp, vertical = 25.dp),
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
-                Text("Welcome to T2S Studio", color = T2SText, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-                Text("Sign in to sync your projects, scripts and settings across devices.",
-                    color = T2SSecondaryText, fontSize = 14.sp, lineHeight = 20.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-
-                if (user != null) {
-                    Text("Signed in", color = T2SOrange, fontWeight = FontWeight.Bold)
-                    Text(syncStatus, color = T2SSecondaryText, fontSize = 13.sp)
-                    Text(user?.email ?: user?.displayName ?: "T2S account", color = T2SText, fontSize = 16.sp)
-                    Button(onClick = {
-                        busy = true
-                        scope.launch {
-                            runCatching {
-                                CredentialManager.create(context).clearCredentialState(
-                                    androidx.credentials.ClearCredentialStateRequest()
-                                )
-                            }
-                            auth.signOut()
-                            user = null
-                            password = ""
-                            busy = false
-                            status = "Signed out. Your local projects remain on this device."
-                        }
-                    }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(54.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = T2SOrange)) { Text("Sign out", fontSize = 17.sp) }
-                } else {
-                    Row(modifier = Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFFF1EFED), androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(4.dp)) {
-                        Button(onClick = { isRegister = false; status = "" }, modifier = Modifier.weight(1f).height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = if (!isRegister) T2SOrange else androidx.compose.ui.graphics.Color.Transparent,
-                                contentColor = if (!isRegister) androidx.compose.ui.graphics.Color.White else T2SText),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) { Text("Sign In", fontWeight = FontWeight.SemiBold) }
-                        Button(onClick = { isRegister = true; status = "" }, modifier = Modifier.weight(1f).height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = if (isRegister) T2SOrange else androidx.compose.ui.graphics.Color.Transparent,
-                                contentColor = if (isRegister) androidx.compose.ui.graphics.Color.White else T2SText),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) { Text("Create Account", fontWeight = FontWeight.SemiBold) }
-                    }
-                    OutlinedTextField(value = email, onValueChange = { email = it }, modifier = Modifier.fillMaxWidth(),
-                        singleLine = true, label = { Text("Email address") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
-                    OutlinedTextField(value = password, onValueChange = { password = it }, modifier = Modifier.fillMaxWidth(),
-                        singleLine = true, label = { Text("Password") },
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Text("Your account stays securely signed in", color = T2SSecondaryText, fontSize = 12.sp)
-                        androidx.compose.material3.TextButton(onClick = {
-                            if (email.isBlank()) status = "Enter your email address first to receive a password reset link."
-                            else { busy = true; auth.sendPasswordReset(email) { result ->
-                                busy = false
-                                status = result.fold({ "Password reset email sent. Check your inbox." }, { it.localizedMessage ?: "Could not send the reset email." })
-                            } }
-                        }, enabled = !busy) { Text("Forgot password?", color = T2SOrange, fontSize = 13.sp) }
-                    }
-                    Button(onClick = {
-                        if (email.isBlank() || password.length < 6) status = "Enter a valid email and a password with at least 6 characters."
-                        else {
-                            busy = true
-                            val callback: (Result<com.google.firebase.auth.FirebaseUser>) -> Unit = { result ->
-                                busy = false
-                                result.onSuccess { user = it; status = "Account ready. Metadata sync can now use this account." }
-                                    .onFailure { status = it.localizedMessage ?: "Authentication failed." }
-                            }
-                            if (isRegister) auth.registerWithEmail(email, password, callback) else auth.signInWithEmail(email, password, callback)
-                        }
-                    }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(58.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = T2SOrange),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(30.dp)) {
-                        Text(if (busy) "Please wait…" else if (isRegister) "Create Account" else "➜  Sign In", fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f), color = T2SBorder)
-                        Text("OR", color = T2SSecondaryText, fontSize = 13.sp)
-                        androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f), color = T2SBorder)
-                    }
-                    OutlinedButton(onClick = {
-                        val webClientIdId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
-                        if (activity == null || webClientIdId == 0) status = "Google sign-in needs the Web OAuth client ID configured in Firebase Console."
-                        else {
-                            busy = true
-                            scope.launch {
-                                try {
-                                    val clientId = context.getString(webClientIdId)
-                                    val credentialManager = CredentialManager.create(context)
-                                    // Do not force the stale authorised-account reauthentication path.
-                                    // Request an explicit account chooser first, then clear stale
-                                    // Credential Manager state and retry Google's dedicated sign-in.
-                                    val freshAccountOption = GetGoogleIdOption.Builder()
-                                        .setFilterByAuthorizedAccounts(false)
-                                        .setServerClientId(clientId)
-                                        .setAutoSelectEnabled(false)
-                                        .build()
-                                    val credential = try {
-                                        credentialManager.getCredential(
-                                            activity,
-                                            GetCredentialRequest.Builder()
-                                                .addCredentialOption(freshAccountOption)
-                                                .build()
-                                        ).credential
-                                    } catch (firstError: androidx.credentials.exceptions.GetCredentialException) {
-                                        try {
-                                            credentialManager.clearCredentialState(
-                                                androidx.credentials.ClearCredentialStateRequest()
-                                            )
-                                        } catch (_: Exception) {
-                                            // Clearing is best-effort; continue with explicit Google sign-in.
-                                        }
-                                        val signInOption = com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption.Builder(clientId)
-                                            .build()
-                                        try {
-                                            credentialManager.getCredential(
-                                                activity,
-                                                GetCredentialRequest.Builder()
-                                                    .addCredentialOption(signInOption)
-                                                    .build()
-                                            ).credential
-                                        } catch (secondError: Exception) {
-                                            throw IllegalStateException(
-                                                "Google account selection failed. Please update Google Play services and try again. Details: ${secondError.localizedMessage ?: firstError.localizedMessage ?: "No credential returned."}",
-                                                secondError
-                                            )
-                                        }
-                                    }
-                                    if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                                        val token = GoogleIdTokenCredential.createFrom(credential.data)
-                                        auth.signInWithGoogleCredential(GoogleAuthProvider.getCredential(token.idToken, null)) { result ->
-                                            busy = false
-                                            result.onSuccess { user = it; status = "Google account connected." }
-                                                .onFailure { status = it.localizedMessage ?: "Google sign-in failed." }
-                                        }
-                                    } else { busy = false; status = "Google did not return a supported sign-in credential." }
-                                } catch (error: Exception) { busy = false; status = error.localizedMessage ?: "Google sign-in was cancelled or unavailable." }
-                            }
-                        }
-                    }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(54.dp),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(30.dp)) {
-                        Text("🌐   Continue with Google", color = T2SText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-
-                if (status.isNotBlank()) Text(status, color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 17.sp)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier.size(70.dp).background(androidx.compose.ui.graphics.Color.White,
+                        androidx.compose.foundation.shape.RoundedCornerShape(23.dp)),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
                 ) {
-                    listOf("☁" to "Sync", "▣" to "Projects", "⚙" to "Settings").forEach { (symbol, label) ->
-                        Column(
-                            modifier = Modifier.weight(1f)
-                                .background(androidx.compose.ui.graphics.Color(0xFFFFF4E8), androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
-                                .padding(vertical = 10.dp),
-                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            Text(symbol, color = T2SOrange, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            Text(label, color = T2SSecondaryText, fontSize = 10.sp)
-                        }
-                    }
+                    Text("🎙", fontSize = 34.sp)
                 }
-                Column(modifier = Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFFFFF4E8),
-                    androidx.compose.foundation.shape.RoundedCornerShape(22.dp)).padding(16.dp),
-                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                    Text("You can also use T2S Studio without an account (offline mode).",
-                        color = T2SText, fontSize = 12.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                    androidx.compose.material3.TextButton(onClick = onBack) {
-                        Text("Continue as Guest  ❯", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text("Your voice. Your stories.", color = androidx.compose.ui.graphics.Color.White,
+                    fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
+                Text("Create, speak and keep your studio in sync.",
+                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.92f),
+                    fontSize = 13.sp, lineHeight = 19.sp, textAlign = TextAlign.Center)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("WRITE", "CREATE", "SPEAK").forEach { word ->
+                        Text(word, color = androidx.compose.ui.graphics.Color.White, fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold, letterSpacing = 1.sp,
+                            modifier = Modifier.background(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.18f),
+                                androidx.compose.foundation.shape.RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 6.dp))
                     }
-                }
-                androidx.compose.material3.TextButton(onClick = { showApiSettings = true }) {
-                    Text("Online TTS API settings", color = T2SSecondaryText, fontSize = 12.sp)
                 }
             }
+
+            androidx.compose.material3.Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
+                elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(22.dp),
+                    verticalArrangement = Arrangement.spacedBy(15.dp),
+                    horizontalAlignment = androidx.compose.ui.Alignment.Start
+                ) {
+                    if (user != null) {
+                        Text("You're connected", color = T2SText, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+                        Text(user?.email ?: user?.displayName ?: "T2S account", color = T2SSecondaryText, fontSize = 14.sp)
+                        Text(syncStatus, color = T2SSecondaryText, fontSize = 13.sp, lineHeight = 19.sp)
+                        Button(onClick = {
+                            busy = true
+                            scope.launch {
+                                runCatching {
+                                    CredentialManager.create(context).clearCredentialState(
+                                        androidx.credentials.ClearCredentialStateRequest()
+                                    )
+                                }
+                                auth.signOut()
+                                user = null
+                                password = ""
+                                busy = false
+                                status = "Signed out. Your local projects remain on this device."
+                            }
+                        }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(54.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = T2SOrange),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)) {
+                            Text(if (busy) "Please wait…" else "Sign out", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Text(if (isRegister) "Create your account" else "Welcome back",
+                            color = T2SText, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(if (isRegister) "Join T2S Studio and keep your work together." else "Sign in to sync your projects, scripts and settings.",
+                            color = T2SSecondaryText, fontSize = 13.sp, lineHeight = 19.sp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFFFFF2E5),
+                                androidx.compose.foundation.shape.RoundedCornerShape(15.dp)).padding(4.dp)
+                        ) {
+                            listOf(false to "Sign In", true to "Create Account").forEach { (register, label) ->
+                                androidx.compose.foundation.layout.Box(
+                                    modifier = Modifier.weight(1f).background(
+                                        if (isRegister == register) T2SOrange else androidx.compose.ui.graphics.Color.Transparent,
+                                        androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                                    ).then(Modifier)
+                                ) {
+                                    androidx.compose.material3.TextButton(
+                                        onClick = { isRegister = register; status = "" },
+                                        modifier = Modifier.fillMaxWidth().height(44.dp)
+                                    ) {
+                                        Text(label, color = if (isRegister == register) androidx.compose.ui.graphics.Color.White else T2SText,
+                                            fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                }
+                            }
+                        }
+                        OutlinedTextField(value = email, onValueChange = { email = it }, modifier = Modifier.fillMaxWidth(),
+                            singleLine = true, label = { Text("Email address") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(15.dp))
+                        OutlinedTextField(value = password, onValueChange = { password = it }, modifier = Modifier.fillMaxWidth(),
+                            singleLine = true, label = { Text("Password") },
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(15.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            androidx.compose.material3.TextButton(onClick = {
+                                if (email.isBlank()) status = "Enter your email address first to receive a password reset link."
+                                else { busy = true; auth.sendPasswordReset(email) { result ->
+                                    busy = false
+                                    status = result.fold({ "Password reset email sent. Check your inbox." }, { it.localizedMessage ?: "Could not send the reset email." })
+                                } }
+                            }, enabled = !busy) { Text("Forgot password?", color = T2SOrange, fontWeight = FontWeight.SemiBold) }
+                        }
+                        Button(onClick = {
+                            if (email.isBlank() || password.length < 6) status = "Enter a valid email and a password with at least 6 characters."
+                            else {
+                                busy = true
+                                val callback: (Result<com.google.firebase.auth.FirebaseUser>) -> Unit = { result ->
+                                    busy = false
+                                    result.onSuccess { user = it; status = "Account ready. Metadata sync can now use this account." }
+                                        .onFailure { status = it.localizedMessage ?: "Authentication failed." }
+                                }
+                                if (isRegister) auth.registerWithEmail(email, password, callback) else auth.signInWithEmail(email, password, callback)
+                            }
+                        }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(54.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = T2SOrange),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)) {
+                            Text(if (busy) "Please wait…" else if (isRegister) "Create Account  →" else "Sign In  →",
+                                fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f), color = T2SBorder)
+                            Text("OR CONTINUE WITH", color = T2SSecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                            androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f), color = T2SBorder)
+                        }
+                        OutlinedButton(onClick = {
+                            val webClientIdId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+                            if (activity == null || webClientIdId == 0) status = "Google sign-in needs the Web OAuth client ID configured in Firebase Console."
+                            else {
+                                busy = true
+                                scope.launch {
+                                    try {
+                                        val clientId = context.getString(webClientIdId)
+                                        val credentialManager = CredentialManager.create(context)
+                                        val freshAccountOption = GetGoogleIdOption.Builder()
+                                            .setFilterByAuthorizedAccounts(false)
+                                            .setServerClientId(clientId)
+                                            .setAutoSelectEnabled(false)
+                                            .build()
+                                        val credential = try {
+                                            credentialManager.getCredential(activity,
+                                                GetCredentialRequest.Builder().addCredentialOption(freshAccountOption).build()).credential
+                                        } catch (firstError: androidx.credentials.exceptions.GetCredentialException) {
+                                            try { credentialManager.clearCredentialState(androidx.credentials.ClearCredentialStateRequest()) }
+                                            catch (_: Exception) { }
+                                            val signInOption = com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption.Builder(clientId).build()
+                                            try {
+                                                credentialManager.getCredential(activity,
+                                                    GetCredentialRequest.Builder().addCredentialOption(signInOption).build()).credential
+                                            } catch (secondError: Exception) {
+                                                throw IllegalStateException("Google account selection failed. Please update Google Play services and try again. Details: ${secondError.localizedMessage ?: firstError.localizedMessage ?: "No credential returned."}", secondError)
+                                            }
+                                        }
+                                        if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                                            val token = GoogleIdTokenCredential.createFrom(credential.data)
+                                            auth.signInWithGoogleCredential(GoogleAuthProvider.getCredential(token.idToken, null)) { result ->
+                                                busy = false
+                                                result.onSuccess { user = it; status = "Google account connected." }
+                                                    .onFailure { status = it.localizedMessage ?: "Google sign-in failed." }
+                                            }
+                                        } else { busy = false; status = "Google did not return a supported sign-in credential." }
+                                    } catch (error: Exception) { busy = false; status = error.localizedMessage ?: "Google sign-in was cancelled or unavailable." }
+                                }
+                            }
+                        }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(52.dp),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(15.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = T2SText)) {
+                            Text("🌐   Continue with Google", color = T2SText, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    if (status.isNotBlank()) {
+                        Text(status, color = if (status.contains("failed", true) || status.contains("could not", true))
+                            androidx.compose.ui.graphics.Color(0xFFB42318) else T2SSecondaryText,
+                            fontSize = 12.sp, lineHeight = 18.sp)
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.78f),
+                    androidx.compose.foundation.shape.RoundedCornerShape(22.dp))
+                    .border(1.dp, T2SOrange.copy(alpha = 0.12f), androidx.compose.foundation.shape.RoundedCornerShape(22.dp))
+                    .padding(18.dp),
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("Your studio, wherever you go", color = T2SText, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    listOf("☁ Sync" to "Projects", "✍ Create" to "Scripts", "🎧 Listen" to "Audio stays local").forEach { (top, bottom) ->
+                        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                            Text(top, color = T2SOrange, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(bottom, color = T2SSecondaryText, fontSize = 10.sp)
+                        }
+                    }
+                }
+                Text("Sign in to sync metadata. Your audio remains on this device.",
+                    color = T2SSecondaryText, fontSize = 11.sp, textAlign = TextAlign.Center)
+                androidx.compose.material3.TextButton(onClick = onBack) {
+                    Text("Continue as Guest  →", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+            }
+            androidx.compose.material3.TextButton(onClick = { showApiSettings = true }) {
+                Text("Online TTS API settings", color = T2SSecondaryText, fontSize = 12.sp)
+            }
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
+}
 }
