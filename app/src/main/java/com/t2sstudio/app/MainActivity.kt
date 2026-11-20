@@ -133,7 +133,7 @@ private fun T2SApp() {
                 actions = {
                     Box(
                         modifier = Modifier.padding(end = 16.dp).size(40.dp).clip(CircleShape).background(T2SCream)
-                            .clickable { selectedDestination = 4 },
+                            .clickable { selectedDestination = 5 },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Filled.AccountCircle, contentDescription = "Profile", tint = T2SOrange, modifier = Modifier.size(27.dp))
