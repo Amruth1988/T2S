@@ -51,6 +51,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
@@ -199,6 +200,8 @@ fun SpeechStudioScreen(
     val convertedTeluguPacks = remember { mutableStateListOf<TeluguVoicePacks.InstalledConvertedVoice>().apply { addAll(TeluguVoicePacks.installedConverted(context)) } }
     var selectedTeluguPackId by remember { mutableStateOf(convertedTeluguPacks.firstOrNull()?.id) }
     var importingTeluguPacks by remember { mutableStateOf(false) }
+    var downloadingTeluguPack by remember { mutableStateOf(false) }
+    var teluguDownloadProgress by remember { mutableFloatStateOf(0f) }
     val importTeluguPackLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             importingTeluguPacks = true
@@ -1145,24 +1148,51 @@ fun SpeechStudioScreen(
                     }
                     Text(
                         configuredMalePurohitPack?.let { "Male Telugu model ready • " + it.displayName }
-                            ?: "Male Telugu model not installed • Import Venkatesh below",
+                            ?: if (downloadingTeluguPack) "Downloading Venkatesh male Telugu voice • " + teluguDownloadProgress.toInt() + "%"
+                            else "Male Telugu model not installed • Download once to use Purohit voices",
                         color = if (configuredMalePurohitPack != null) T2SOrange else Color(0xFFB45309),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
                     )
+                    if (downloadingTeluguPack) {
+                        LinearProgressIndicator(
+                            progress = { teluguDownloadProgress / 100f },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = T2SOrange
+                        )
+                    }
                     OutlinedButton(
                         onClick = {
-                            importTeluguPackLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
+                            if (!downloadingTeluguPack && configuredMalePurohitPack == null) {
+                                downloadingTeluguPack = true
+                                teluguDownloadProgress = 0f
+                                coroutineScope.launch {
+                                    val result = runCatching {
+                                        withContext(Dispatchers.IO) {
+                                            TeluguVoicePacks.downloadAndInstallVenkatesh(context) { teluguDownloadProgress = it.toFloat() }
+                                        }
+                                    }
+                                    result.onSuccess { installed ->
+                                        convertedTeluguPacks.clear()
+                                        convertedTeluguPacks.addAll(TeluguVoicePacks.installedConverted(context))
+                                        selectedTeluguPackId = installed.id
+                                        statusMessage = "Venkatesh male Telugu voice installed and ready for offline use."
+                                    }.onFailure {
+                                        statusMessage = "Telugu voice download failed: " + (it.message ?: "Please try again.")
+                                    }
+                                    downloadingTeluguPack = false
+                                }
+                            }
                         },
-                        enabled = !importingTeluguPacks,
+                        enabled = configuredMalePurohitPack != null || !downloadingTeluguPack,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        if (importingTeluguPacks) {
+                        if (downloadingTeluguPack) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
-                            Text("Importing Telugu voice pack…")
+                            Text("Downloading Telugu voice…")
                         } else {
-                            Text(if (configuredMalePurohitPack == null) "Import male Telugu voice pack" else "Import / update Telugu voice packs")
+                            Text(if (configuredMalePurohitPack == null) "Download male Telugu voice pack" else "Male Telugu voice installed")
                         }
                     }
                     purohitPresets.forEach { preset ->
