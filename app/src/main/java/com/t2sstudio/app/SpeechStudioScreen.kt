@@ -1008,10 +1008,18 @@ fun SpeechStudioScreen(
                         filteredInstalled.forEach { voice ->
                             DropdownMenuItem(
                                 text = {
-                                    Column {
-                                        Text(installedVoiceDisplayName(voice, filteredInstalled.indexOf(voice) + 1), color = Color(0xFF101B35), fontWeight = FontWeight.Bold, maxLines = 1)
-                                        if (isPlaying && activePreviewKey == "installed:${voice.name}") {
-                                            VoicePlaybackWaveform()
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FB)),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDCE3EF))
+                                    ) {
+                                        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
+                                            Text(installedVoiceDisplayName(voice, filteredInstalled.indexOf(voice) + 1), color = Color(0xFF101B35), fontWeight = FontWeight.Bold, maxLines = 1)
+                                            if (isPlaying && activePreviewKey == "installed:${voice.name}") {
+                                                VoicePlaybackWaveform()
+                                            }
                                         }
                                     }
                                 },
@@ -1149,7 +1157,7 @@ fun SpeechStudioScreen(
                                     }
                                 }
                                 TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.id}") }) {
-                                    Text(if (activePreviewKey == "online:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = Color(0xFFF47721), fontWeight = FontWeight.Bold)
+                                    Text(if (activePreviewKey == "online:${voice.id}" && isPreviewing) "■ Stop" else "▶ Play", color = Color(0xFFF47721), fontWeight = FontWeight.Bold)
                                 }
                               }
                             }
@@ -1162,19 +1170,25 @@ fun SpeechStudioScreen(
                             enabled = false
                         )
                         filteredPersonal.forEach { voice ->
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).background(if (selectedSavedVoice?.id == voice.id) T2SCream else Color.Transparent, RoundedCornerShape(10.dp)).clickable {
-                                isPurohitMode = false
-                                selectedSavedVoice = voice
-                                selectedVoice = null
-                                selectedOnlineVoice = null
-                                voiceSearch = voice.name
-                                statusMessage = "${voice.name} selected. This is a saved recording sample, not a trained voice model; text-to-speech generation in this exact voice is not available yet."
-                            }.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(voice.name + if (selectedSavedVoice?.id == voice.id) " ✓" else "", color = T2SText, fontWeight = FontWeight.SemiBold)
-                                }
-                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "personal:${voice.id}", localSamplePath = voice.localSamplePath, languageOverride = voice.language) }) {
-                                    Text(if (activePreviewKey == "personal:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = T2SOrange)
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(containerColor = if (selectedSavedVoice?.id == voice.id) Color(0xFFFFEBDD) else Color(0xFFF5F7FB)),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (selectedSavedVoice?.id == voice.id) T2SOrange else Color(0xFFDCE3EF))
+                            ) {
+                                Row(Modifier.fillMaxWidth().clickable {
+                                    isPurohitMode = false
+                                    selectedSavedVoice = voice
+                                    selectedVoice = null
+                                    selectedOnlineVoice = null
+                                    voiceSearch = voice.name
+                                    statusMessage = "${voice.name} selected. This is a saved recording sample, not a trained voice model; text-to-speech generation in this exact voice is not available yet."
+                                }.padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                    Text(voice.name + if (selectedSavedVoice?.id == voice.id) " ✓" else "", modifier = Modifier.weight(1f), color = T2SText, fontWeight = FontWeight.SemiBold)
+                                    TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "personal:${voice.id}", localSamplePath = voice.localSamplePath, languageOverride = voice.language) }) {
+                                        Text(if (activePreviewKey == "personal:${voice.id}" && isPreviewing) "■ Stop" else "▶ Play", color = T2SOrange, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }
