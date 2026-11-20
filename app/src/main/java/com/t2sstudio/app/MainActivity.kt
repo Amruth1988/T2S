@@ -412,15 +412,15 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
 
                 val glyphs = listOf("A", "త", "♪", "మ")
                 glyphs.forEachIndexed { index, glyph ->
-                    val phase = ((progress * 2.2f + index * 0.23f) % 1f)
-                    val x = (maxWidth * (0.18f + phase * 0.64f))
-                    val y = (maxHeight * (0.30f + (index % 2) * 0.40f))
+                    val drift = (progress * 18f)
+                    val x = (-66f + index * 43f + if (index % 2 == 0) drift else -drift)
+                    val y = if (index % 2 == 0) -48f else 48f
                     Text(
                         glyph,
-                        color = orange.copy(alpha = if (progress > 0.92f) 0.15f else 0.72f),
-                        fontSize = 17.sp,
+                        color = orange.copy(alpha = if (progress > 0.92f) 0.12f else 0.68f),
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.offset(x = x - maxWidth * 0.5f, y = y - maxHeight * 0.5f)
+                        modifier = Modifier.offset(x = x.dp, y = y.dp)
                     )
                 }
             }
