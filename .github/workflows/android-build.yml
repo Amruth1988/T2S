@@ -54,17 +54,9 @@ jobs:
       - name: Build Debug and Release APKs
         run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease
 
-      - name: Upload debug APK for pull-request testing
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: T2S-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
-          retention-days: 14
-
+      # GitHub Actions artifacts are always ZIP files. Publish APKs as
+      # individual GitHub Release assets so Android users can download .apk directly.
       - name: Prepare ABI-specific APK downloads
-        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           mkdir -p dist
@@ -74,8 +66,7 @@ jobs:
             cp "$apk" "dist/T2S-${abi}.apk"
           done
 
-      - name: Publish T2S.apk as a direct download
-        if: github.event_name != 'pull_request'
+      - name: Publish T2S APK files as direct downloads
         uses: softprops/action-gh-release@v2
         with:
           tag_name: t2s-build-${{ github.run_number }}
@@ -88,7 +79,7 @@ jobs:
           make_latest: false
 
       - name: Add direct APK link to build summary
-        if: success() && github.event_name != 'pull_request'
+        if: success()
         env:
           GH_REPOSITORY: ${{ github.repository }}
           GH_RUN_NUMBER: ${{ github.run_number }}
