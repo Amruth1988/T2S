@@ -313,7 +313,8 @@ private fun T2SApp() {
                 4 -> ScriptDraftsScreen(
                     drafts = scriptDrafts,
                     onOpen = { draft -> pendingScriptText = draft.content; selectedProjectId = draft.projectId.takeIf { it.isNotBlank() }; selectedDestination = 0 },
-                    onDelete = { draft -> scriptDrafts.removeAll { it.id == draft.id }; ScriptDraftStore.save(context, scriptDrafts) }
+                    onDelete = { draft -> scriptDrafts.removeAll { it.id == draft.id }; ScriptDraftStore.save(context, scriptDrafts) },
+                    onCreateDraft = { selectedDestination = 0 }
                 )
                 5 -> ProfileScreen(onOpenLogin = { showLoginPage = true })
             }
