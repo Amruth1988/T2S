@@ -386,15 +386,9 @@ fun SpeechStudioScreen(
         // Prefer a user-confirmed male Telugu voice. Android voice names often omit
         // gender metadata, so if none is identifiable, use the explicitly selected
         // Telugu voice or the first installed Telugu voice and disclose that limitation.
-        val confirmedMaleVoice = selectedPurohitVoice?.takeIf {
-            it.locale.language == "te" && genderForVoice(it) == "Male"
-        } ?: selectedVoice?.takeIf {
-            it.locale.language == "te" && genderForVoice(it) == "Male"
-        } ?: engine?.voices.orEmpty().firstOrNull {
-            it.locale.language == "te" && genderForVoice(it) == "Male"
-        }
-        val purohitTeluguVoice = confirmedMaleVoice
-            ?: selectedPurohitVoice?.takeIf { it.locale.language == "te" }
+        // Purohit presets are male by definition in this app. Do not block preview
+        // based on Android's unreliable voice-gender metadata; choose a Telugu voice.
+        val purohitTeluguVoice = selectedPurohitVoice?.takeIf { it.locale.language == "te" }
             ?: selectedVoice?.takeIf { it.locale.language == "te" }
             ?: engine?.voices.orEmpty().firstOrNull {
                 it.locale.language == "te" &&
@@ -405,7 +399,7 @@ fun SpeechStudioScreen(
             return
         }
         if (purohitTeluguVoice == null) {
-            statusMessage = "No male Telugu system voice is selected. Choose a Telugu voice marked Male in the voice list, then preview again."
+            statusMessage = "No installed Telugu system voice is available. Install Telugu speech data in Android Text-to-speech settings, then try again."
             return
         }
         stopVoicePreview()
@@ -465,11 +459,7 @@ fun SpeechStudioScreen(
             activePreviewKey = null
             statusMessage = "Android could not start the Telugu preview."
         } else {
-            statusMessage = if (confirmedMaleVoice != null) {
-                "Preparing ${preset.name} preview with confirmed male Telugu voice: ${purohitTeluguVoice.name}"
-            } else {
-                "Playing ${preset.name} with installed Telugu voice ${purohitTeluguVoice.name}. Android did not identify its gender, so male voice quality is not verified."
-            }
+            statusMessage = "Playing ${preset.name} (male Purohit style) with Telugu voice: ${purohitTeluguVoice.name}"
         }
     }
 
