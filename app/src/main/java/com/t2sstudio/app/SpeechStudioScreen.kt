@@ -862,7 +862,7 @@ fun SpeechStudioScreen(
                         if (term.isNotBlank()) {
                             val installedMatch = installedPool.any { v -> "${v.name} ${v.locale.displayName} ${v.locale.toLanguageTag()}".lowercase(Locale.ROOT).contains(term) }
                             val onlineMatch = onlinePool.any { v -> "${v.name} ${v.language}".lowercase(Locale.ROOT).contains(term) }
-                            val personalMatch = myVoices.any { v -> v.name.lowercase(Locale.ROOT).contains(term) && (selectedGender == "All" || v.gender.equals(selectedGender, true)) }
+                            val personalMatch = myVoices.any { v -> v.name.lowercase(Locale.ROOT).contains(term) }
                             voiceLibraryTab = when {
                                 installedMatch -> "Installed"
                                 onlineMatch -> "Online"
