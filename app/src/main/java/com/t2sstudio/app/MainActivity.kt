@@ -113,10 +113,6 @@ private fun T2SApp() {
     var showLoginPage by remember {
         mutableStateOf(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser == null)
     }
-    if (showLoginPage) {
-        LoginScreen(onBack = { showLoginPage = false })
-        return
-    }
     val audioRecords = remember {
         mutableStateListOf<AudioRecord>().apply { addAll(AudioHistoryStore.load(context)) }
     }
@@ -195,7 +191,7 @@ private fun T2SApp() {
                 destinations.forEachIndexed { index, destination ->
                     NavigationBarItem(
                         selected = selectedDestination == index,
-                        onClick = { selectedDestination = index },
+                        onClick = { selectedDestination = index; showLoginPage = false },
                         icon = { Icon(destination.icon, contentDescription = destination.label) },
                         label = { Text(destination.label, fontSize = 10.sp, maxLines = 1) },
                         colors = NavigationBarItemDefaults.colors(
@@ -211,7 +207,9 @@ private fun T2SApp() {
         }
     ) { innerPadding ->
         Box(Modifier.fillMaxSize().padding(innerPadding)) {
-            when (selectedDestination) {
+            if (showLoginPage) {
+                LoginScreen(onBack = { showLoginPage = false })
+            } else when (selectedDestination) {
                 0 -> SpeechStudioScreen(
                     projects = projects,
                     selectedProjectId = selectedProjectId,
