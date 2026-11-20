@@ -1010,7 +1010,6 @@ fun SpeechStudioScreen(
                                 text = {
                                     Column {
                                         Text(installedVoiceDisplayName(voice, filteredInstalled.indexOf(voice) + 1), color = Color(0xFF101B35), fontWeight = FontWeight.Bold, maxLines = 1)
-                                        Text(voice.name + " • " + voice.locale.toLanguageTag(), color = Color(0xFF58677F), fontSize = 11.sp, maxLines = 1)
                                         if (isPlaying && activePreviewKey == "installed:${voice.name}") {
                                             VoicePlaybackWaveform()
                                         }
@@ -1114,7 +1113,6 @@ fun SpeechStudioScreen(
                                     statusMessage = voice.name + " selected. Voice licence: " + voice.licence + ". " + voice.attribution
                                 }) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
-                                    Text("Free online • " + voice.language + " • " + voice.licence, color = Color(0xFF58677F), fontSize = 10.sp, maxLines = 2)
                                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                                         TextButton(onClick = { genderMenuVoiceKey = "online|" + voice.id }) {
                                             Text("Gender: " + (onlineVoiceGender(voice) ?: "Not set") + " ▾", fontSize = 11.sp)
@@ -1174,7 +1172,6 @@ fun SpeechStudioScreen(
                             }.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(voice.name + if (selectedSavedVoice?.id == voice.id) " ✓" else "", color = T2SText, fontWeight = FontWeight.SemiBold)
-                                    Text("Saved sample • " + voice.language.uppercase() + " • select to use", color = T2SSecondaryText, fontSize = 11.sp)
                                 }
                                 TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "personal:${voice.id}", localSamplePath = voice.localSamplePath, languageOverride = voice.language) }) {
                                     Text(if (activePreviewKey == "personal:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = T2SOrange)
