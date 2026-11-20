@@ -18,12 +18,9 @@ val signingKeyPassword = providers.gradleProperty("T2S_KEY_PASSWORD")
     .orElse(providers.environmentVariable("T2S_KEY_PASSWORD"))
     .orNull
 
-if (listOf(signingStoreFile, signingStorePassword, signingKeyAlias, signingKeyPassword).any { it.isNullOrBlank() }) {
-    throw GradleException(
-        "Shared T2S signing credentials are required. Set T2S_KEYSTORE_FILE, " +
-            "T2S_KEYSTORE_PASSWORD, T2S_KEY_ALIAS and T2S_KEY_PASSWORD."
-    )
-}
+val hasSharedSigning = listOf(
+    signingStoreFile, signingStorePassword, signingKeyAlias, signingKeyPassword
+).all { !it.isNullOrBlank() }
 
 android {
     namespace = "com.t2sstudio.app"
@@ -37,21 +34,23 @@ android {
         versionName = "1.0"
     }
 
-    signingConfigs {
-        create("shared") {
-            storeFile = file(signingStoreFile!!)
-            storePassword = signingStorePassword
-            keyAlias = signingKeyAlias
-            keyPassword = signingKeyPassword
+    if (hasSharedSigning) {
+        signingConfigs {
+            create("shared") {
+                storeFile = file(signingStoreFile!!)
+                storePassword = signingStorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
         }
     }
 
     buildTypes {
         getByName("debug") {
-            signingConfig = signingConfigs.getByName("shared")
+            if (hasSharedSigning) signingConfig = signingConfigs.getByName("shared")
         }
         getByName("release") {
-            signingConfig = signingConfigs.getByName("shared")
+            if (hasSharedSigning) signingConfig = signingConfigs.getByName("shared")
         }
     }
 
