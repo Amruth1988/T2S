@@ -66,6 +66,16 @@ fun AccountScreen() {
                 createdAt = project.createdAt
             ) { /* Local data remains authoritative if sync is unavailable. */ }
         }
+        AudioHistoryStore.load(context).forEach { recording ->
+            syncRepository.saveScriptMetadata(
+                uid = uid,
+                scriptId = recording.id,
+                projectId = recording.projectId.takeIf { it.isNotBlank() },
+                title = recording.textPreview.ifBlank { "Untitled script" },
+                content = recording.scriptContent.take(180_000),
+                language = recording.language
+            ) { /* Audio files and local history remain on this device. */ }
+        }
     }
 
     if (showApiSettings) {
