@@ -104,6 +104,11 @@ private fun T2SApp() {
     }
     val context = androidx.compose.ui.platform.LocalContext.current
     var selectedDestination by remember { mutableIntStateOf(0) }
+    var showLoginPage by remember { mutableStateOf(false) }
+    if (showLoginPage) {
+        LoginScreen(onBack = { showLoginPage = false })
+        return
+    }
     val audioRecords = remember {
         mutableStateListOf<AudioRecord>().apply { addAll(AudioHistoryStore.load(context)) }
     }
@@ -142,7 +147,7 @@ private fun T2SApp() {
                 actions = {
                     Box(
                         modifier = Modifier.padding(end = 16.dp).size(40.dp).clip(CircleShape).background(T2SCream)
-                            .clickable { selectedDestination = 5 },
+                            .clickable { showLoginPage = true },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Filled.AccountCircle, contentDescription = "Profile", tint = T2SOrange, modifier = Modifier.size(27.dp))
@@ -276,7 +281,7 @@ private fun T2SApp() {
                     onOpen = { draft -> pendingScriptText = draft.content; selectedProjectId = draft.projectId.takeIf { it.isNotBlank() }; selectedDestination = 0 },
                     onDelete = { draft -> scriptDrafts.removeAll { it.id == draft.id }; ScriptDraftStore.save(context, scriptDrafts) }
                 )
-                5 -> AccountScreen()
+                5 -> ProfileScreen(onOpenLogin = { showLoginPage = true })
             }
         }
     }
