@@ -398,8 +398,7 @@ fun SpeechStudioScreen(
             ?: selectedVoice?.takeIf { it.locale.language == "te" }
             ?: engine?.voices.orEmpty().firstOrNull {
                 it.locale.language == "te" &&
-                    !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) &&
-                    !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_AVAILABLE)
+                    !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
             }
         if (engine == null || !engineReady) {
             statusMessage = "Android speech engine is still starting. Try the preview again."
