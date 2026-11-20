@@ -188,7 +188,7 @@ object TeluguVoicePacks {
                 check(checksumConnection.responseCode == HttpURLConnection.HTTP_OK) { "Voice-pack checksum is not available yet. Please try again later." }
                 checksumConnection.inputStream.bufferedReader().use { it.readText().trim() }
             } finally { checksumConnection.disconnect() }
-            val expectedHash = checksumText.substringBefore(Regex("\\\\s").find(checksumText)?.value ?: " ").lowercase()
+            val expectedHash = checksumText.substringBefore(Regex("\\s").find(checksumText)?.value ?: " ").lowercase()
             check(expectedHash.matches(Regex("[a-f0-9]{64}"))) { "Voice-pack checksum file is invalid." }
             val connection = (URL(base + archiveName).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 30000; readTimeout = 60000; instanceFollowRedirects = true
