@@ -110,12 +110,12 @@ class T2SFirestoreRepository(
         createdAt: Long? = null,
         onComplete: (Result<Unit>) -> Unit
     ) {
-        val data = mapOf(
+        val data = mutableMapOf<String, Any>(
             "name" to name.trim(),
-            "createdAt" to createdAt?.let { Date(it) },
             "updatedAt" to FieldValue.serverTimestamp(),
             "isArchived" to false
-        ).filterValues { it != null }
+        )
+        createdAt?.let { data["createdAt"] = Date(it) }
         userCollection(uid, "projects").document(projectId)
             .set(data, SetOptions.merge())
             .addOnSuccessListener { onComplete(Result.success(Unit)) }
