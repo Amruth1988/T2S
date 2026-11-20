@@ -1213,8 +1213,15 @@ fun SpeechStudioScreen(
                                     selectedSavedVoice = voice
                                     selectedVoice = null
                                     selectedOnlineVoice = null
+                                    val savedLanguage = when (voice.language.lowercase()) {
+                                        "te", "telugu" -> "Telugu"
+                                        "en", "english" -> "English"
+                                        "hi", "hindi" -> "Hindi"
+                                        else -> selectedLanguage
+                                    }
+                                    selectedLanguage = savedLanguage
                                     voiceSearch = voice.name
-                                    statusMessage = "${voice.name} selected. This is a saved recording sample, not a trained voice model; text-to-speech generation in this exact voice is not available yet."
+                                    statusMessage = "${voice.name} selected • ${voice.gender} • ${savedLanguage}. The saved sample will be used as the voice-cloning reference."
                                 }.padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                                     Text(voice.name + if (selectedSavedVoice?.id == voice.id) " ✓" else "", modifier = Modifier.weight(1f), color = T2SText, fontWeight = FontWeight.SemiBold)
                                     TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "personal:${voice.id}", localSamplePath = voice.localSamplePath, languageOverride = voice.language) }) {
@@ -1497,8 +1504,16 @@ fun SpeechStudioScreen(
                         else -> ""
                     }
                     val serverUrl = VoiceCloneServerSettings.get(context)
+                    val savedLanguage = when (savedVoice?.language?.lowercase()) {
+                        "te", "telugu" -> "Telugu"
+                        "en", "english" -> "English"
+                        "hi", "hindi" -> "Hindi"
+                        else -> selectedLanguage
+                    }
                     if (cloneLanguage.isBlank()) {
                         statusMessage = "AI voice cloning currently supports Telugu and English."
+                    } else if (savedLanguage != selectedLanguage) {
+                        statusMessage = "This saved voice is marked ${savedLanguage}. Select ${savedLanguage} to generate with this sample."
                     } else if (reference == null || !reference.isFile) {
                         statusMessage = "Saved voice recording is missing. Please add the voice again in My Voices."
                     } else if (serverUrl.isBlank()) {
