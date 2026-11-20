@@ -330,17 +330,16 @@ fun SpeechStudioScreen(
 
     fun previewPurohitPreset(preset: PurohitPreset) {
         val engine = ttsEngine
-        val maleTeluguVoice = selectedPurohitVoice?.takeIf {
-            it.locale.language == "te" && voiceGender(it.name) == "Male"
-        } ?: engine?.voices.orEmpty().firstOrNull {
-            it.locale.language == "te" && voiceGender(it.name) == "Male"
-        }
+        // Prefer an explicitly male voice, but accept Telugu voices with unknown gender metadata.
+        val maleTeluguVoice = selectedPurohitVoice?.takeIf { it.locale.language == "te" }
+            ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" && voiceGender(it.name) == "Male" }
+            ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" }
         if (engine == null || !engineReady) {
             statusMessage = "Android speech engine is still starting. Try the preview again."
             return
         }
         if (maleTeluguVoice == null) {
-            statusMessage = "No explicitly male Telugu system voice is installed. Install a Telugu male voice in Android speech settings, then retry."
+            statusMessage = "No Telugu system voice is installed. Install Telugu speech data in Android speech settings, then retry."
             return
         }
         stopVoicePreview()
@@ -729,7 +728,7 @@ fun SpeechStudioScreen(
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Purohit-style voice presets", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
                     Text(
-                        "These presets adjust speed and pitch on your installed male Telugu Android voice. They are usable previews, not a dedicated or verified priest-recitation model.",
+                        "These presets adjust speed and pitch on an installed Telugu Android voice. Android may not identify the voice gender. They are previews, not a dedicated or verified priest-recitation model.",
                         fontSize = 11.sp,
                         color = T2SSecondaryText
                     )
@@ -740,13 +739,11 @@ fun SpeechStudioScreen(
                                 selectedPurohitPreset = preset
                                 isPurohitMode = true
                                 val engine = ttsEngine
-                                selectedPurohitVoice = selectedPurohitVoice?.takeIf {
-                                    it.locale.language == "te" && voiceGender(it.name) == "Male"
-                                } ?: availableVoices.firstOrNull {
-                                    it.locale.language == "te" && voiceGender(it.name) == "Male"
-                                } ?: engine?.voices.orEmpty().firstOrNull {
-                                    it.locale.language == "te" && voiceGender(it.name) == "Male"
-                                }
+                                selectedPurohitVoice = selectedPurohitVoice?.takeIf { it.locale.language == "te" }
+                                    ?: availableVoices.firstOrNull { it.locale.language == "te" && voiceGender(it.name) == "Male" }
+                                    ?: availableVoices.firstOrNull { it.locale.language == "te" }
+                                    ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" && voiceGender(it.name) == "Male" }
+                                    ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" }
                                 engine?.let {
                                     it.setLanguage(Locale("te", "IN"))
                                     selectedPurohitVoice?.let { voice -> it.voice = voice }
@@ -786,7 +783,7 @@ fun SpeechStudioScreen(
                                 if (preset == null) statusMessage = "Select Purohit 1, 2 or 3 first."
                                 else previewPurohitPreset(preset)
                             },
-                            enabled = isPurohitMode && selectedPurohitPreset != null && selectedPurohitVoice?.let { it.locale.language == "te" && voiceGender(it.name) == "Male" } == true && engineReady,
+                            enabled = isPurohitMode && selectedPurohitPreset != null && selectedPurohitVoice?.locale?.language == "te" && engineReady,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
                         ) {
