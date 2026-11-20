@@ -165,7 +165,7 @@ fun MyVoicesScreen() {
                                         message = "No usable audio was saved. Please record again in a quiet place."
                                     }
                                 } catch (error: Exception) {
-                                    message = "Could not finish recording: " + (error.localizedMessage ?: error.javaClass.simpleName) + ". Please record again for at least 3 seconds."
+                                    message = "Could not finish recording: " + (error.localizedMessage ?: error.javaClass.simpleName) + ". Please record again for at least 5 seconds."
                                 } finally {
                                     runCatching { activeRecorder?.reset() }
                                     runCatching { activeRecorder?.release() }

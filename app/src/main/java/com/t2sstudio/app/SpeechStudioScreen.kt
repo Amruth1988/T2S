@@ -145,7 +145,6 @@ fun SpeechStudioScreen(
     var outputFormat by remember { mutableStateOf("WAV") }
     var autoPlayAfterGeneration by remember { mutableStateOf(false) }
     var voiceSearch by remember { mutableStateOf("") }
-    var voiceSearchExpanded by remember { mutableStateOf(false) }
     var projectMenuExpanded by remember { mutableStateOf(false) }
     val selectedProject = projects.firstOrNull { it.id == selectedProjectId }
     var selectedVoice by remember { mutableStateOf<Voice?>(null) }
@@ -157,7 +156,6 @@ fun SpeechStudioScreen(
     var selectedOnlineVoice by remember { mutableStateOf<OnlineTtsVoice?>(null) }
     var onlineCatalogueStatus by remember { mutableStateOf("Checking online voices…") }
     val myVoices = remember { mutableStateListOf<SavedUserVoice>() }
-    var selectedMyVoice by remember { mutableStateOf<SavedUserVoice?>(null) }
     val convertedTeluguPacks = remember { mutableStateListOf<TeluguVoicePacks.InstalledConvertedVoice>().apply { addAll(TeluguVoicePacks.installedConverted(context)) } }
     var selectedTeluguPackId by remember { mutableStateOf(convertedTeluguPacks.firstOrNull()?.id) }
     var importingTeluguPacks by remember { mutableStateOf(false) }
@@ -844,8 +842,7 @@ fun SpeechStudioScreen(
                     value = voiceSearch,
                     onValueChange = {
                         voiceSearch = it
-                        voiceSearchExpanded = it.isNotBlank()
-                    },
+                                },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
@@ -904,8 +901,7 @@ fun SpeechStudioScreen(
                                     selectedOnlineVoice = null
                                     selectedMyVoice = null
                                     voiceSearch = voice.name
-                                    voiceSearchExpanded = false
-                                    ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
+                                                ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
                                     statusMessage = "${voice.name} selected."
                                 },
                                 trailingIcon = {
@@ -994,7 +990,6 @@ fun SpeechStudioScreen(
                                     selectedVoice = null
                                     selectedMyVoice = null
                                     voiceSearch = voice.name
-                                    voiceSearchExpanded = false
                                     statusMessage = voice.name + " selected. Voice licence: " + voice.licence + ". " + voice.attribution
                                 }) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
@@ -1035,7 +1030,7 @@ fun SpeechStudioScreen(
                     }
                     if (filteredInstalled.isEmpty() && filteredOnline.isEmpty() && filteredPersonal.isEmpty()) {
                         DropdownMenuItem(
-                            text = { Text(if (onlineCatalogueStatus.startsWith("Loading")) "Loading voices…" else "No voices are installed or available for this language yet. Try another language.", color = T2SSecondaryText) },
+                            text = { Text(if (onlineCatalogueStatus.startsWith("Loading")) "Loading voices…" else if (selectedGender != "All") "No $selectedGender voices match this language. Choose All or another gender." else "No voices are installed or available for this language yet. Try another language.", color = T2SSecondaryText) },
                             onClick = {},
                             enabled = false
                         )
@@ -1151,7 +1146,7 @@ fun SpeechStudioScreen(
                         val chosenOnlineVoice = selectedOnlineVoice
                         val chosenMyVoice = selectedMyVoice
                         val voiceId = chosenOnlineVoice?.id
-                        if (onlineLanguage != null && voiceId != null && chosenMyVoice == null && textToSpeak.length <= 3000) {
+                        if (onlineLanguage != null && voiceId != null && textToSpeak.length <= 3000) {
                             val onlineResult = runCatching {
                                 withContext(Dispatchers.IO) {
                                     TtsAiClient.generate(

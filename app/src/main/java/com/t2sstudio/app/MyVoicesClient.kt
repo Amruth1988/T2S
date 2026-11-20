@@ -44,19 +44,25 @@ object MyVoicesClient {
             else -> "audio"
         }
         val sample = File(sampleDir, "$id.$extension")
-        context.contentResolver.openInputStream(audioUri)?.use { input ->
-            sample.outputStream().use { output -> input.copyTo(output) }
-        } ?: error("Could not read the selected recording.")
-        if (sample.length() < 1024L) {
-            sample.delete()
-            error("The recording is empty or too short.")
-        }
-        if (sample.length() > 20L * 1024 * 1024) {
-            sample.delete()
-            error("Voice recording must be 20 MB or smaller.")
-        }
-        val voice = SavedUserVoice(id, cleanName, sample.absolutePath, language)
         try {
+            context.contentResolver.openInputStream(audioUri)?.use { input ->
+                sample.outputStream().buffered().use { output ->
+                    val buffer = ByteArray(16 * 1024)
+                    var copied = 0L
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        copied += count
+                        require(copied <= 20L * 1024 * 1024) {
+                            "Voice recording must be 20 MB or smaller."
+                        }
+                        output.write(buffer, 0, count)
+                    }
+                }
+            } ?: error("Could not read the selected recording.")
+            require(sample.length() >= 1024L) { "The recording is empty or too short." }
+
+            val voice = SavedUserVoice(id, cleanName, sample.absolutePath, language)
             val profiles = JSONArray()
             list(context).filterNot { it.id == id }.forEach { existing ->
                 profiles.put(JSONObject().apply {
@@ -69,11 +75,11 @@ object MyVoicesClient {
                 put("localSamplePath", voice.localSamplePath)
             })
             localProfilesFile(context).writeText(profiles.toString())
+            return voice
         } catch (error: Exception) {
             sample.delete()
             throw error
         }
-        return voice
     }
 
     fun deleteLocal(context: Context, id: String) {
