@@ -51,6 +51,12 @@ android {
         }
         getByName("release") {
             if (hasSharedSigning) signingConfig = signingConfigs.getByName("shared")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 
