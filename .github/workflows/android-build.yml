@@ -54,6 +54,15 @@ jobs:
       - name: Build Debug and Release APKs
         run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease
 
+      - name: Upload debug APK for pull-request testing
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: T2S-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Prepare ABI-specific APK downloads
         if: github.event_name != 'pull_request'
         run: |
