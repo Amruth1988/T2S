@@ -151,7 +151,13 @@ private fun T2SApp() {
     }
 
     if (showLoginPage) {
-        LoginScreen(onBack = { showLoginPage = false })
+        LoginScreen(
+            onBack = { showLoginPage = false },
+            onSignedIn = {
+                showLoginPage = false
+                showAccountPage = false
+            }
+        )
         return
     }
     if (showAccountPage) {
