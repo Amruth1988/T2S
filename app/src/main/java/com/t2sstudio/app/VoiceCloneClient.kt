@@ -23,6 +23,9 @@ object VoiceCloneServerSettings {
                 "Server URL must start with https:// or http://."
             }
             require(parsed.host.isNotBlank()) { "Enter a valid server URL." }
+            require(parsed.protocol == "https" || parsed.host == "localhost" || parsed.host == "127.0.0.1") {
+                "Use HTTPS for a remote server. Plain HTTP is allowed only for localhost."
+            }
         }
         check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putString(ENDPOINT, clean).commit()) { "Could not save the voice-cloning server URL." }
@@ -54,6 +57,10 @@ object VoiceCloneClient {
         val base = serverUrl.trim().trimEnd('/')
         require(base.startsWith("https://") || base.startsWith("http://")) {
             "Configure your self-hosted voice-cloning server in My Voices first."
+        }
+        val parsedBase = URL(base)
+        require(parsedBase.protocol == "https" || parsedBase.host == "localhost" || parsedBase.host == "127.0.0.1") {
+            "Use HTTPS for a remote server. Plain HTTP is allowed only for localhost."
         }
 
         val boundary = "T2SVoiceClone" + System.currentTimeMillis().toString()
@@ -118,6 +125,10 @@ object VoiceCloneClient {
     fun checkServer(serverUrl: String): String {
         val base = serverUrl.trim().trimEnd('/')
         require(base.startsWith("https://") || base.startsWith("http://")) { "Enter a server URL first." }
+        val parsedBase = URL(base)
+        require(parsedBase.protocol == "https" || parsedBase.host == "localhost" || parsedBase.host == "127.0.0.1") {
+            "Use HTTPS for a remote server. Plain HTTP is allowed only for localhost."
+        }
         val connection = URL("$base/tts/ping").openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "GET"
