@@ -182,8 +182,21 @@ fun LoginScreen(onBack: () -> Unit) {
                     Text("Signed in", color = T2SOrange, fontWeight = FontWeight.Bold)
                     Text(syncStatus, color = T2SSecondaryText, fontSize = 13.sp)
                     Text(user?.email ?: user?.displayName ?: "T2S account", color = T2SText, fontSize = 16.sp)
-                    Button(onClick = { auth.signOut(); user = null; password = ""; status = "Signed out. Your local projects remain on this device." },
-                        modifier = Modifier.fillMaxWidth().height(54.dp),
+                    Button(onClick = {
+                        busy = true
+                        scope.launch {
+                            runCatching {
+                                CredentialManager.create(context).clearCredentialState(
+                                    androidx.credentials.ClearCredentialStateRequest()
+                                )
+                            }
+                            auth.signOut()
+                            user = null
+                            password = ""
+                            busy = false
+                            status = "Signed out. Your local projects remain on this device."
+                        }
+                    }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(54.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = T2SOrange)) { Text("Sign out", fontSize = 17.sp) }
                 } else {
                     Row(modifier = Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFFF1EFED), androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(4.dp)) {
@@ -250,10 +263,28 @@ fun LoginScreen(onBack: () -> Unit) {
                                     val googleOption = GetGoogleIdOption.Builder().setFilterByAuthorizedAccounts(true)
                                         .setServerClientId(clientId).setAutoSelectEnabled(false).build()
                                     val credential = try {
-                                        credentialManager.getCredential(activity, GetCredentialRequest.Builder().addCredentialOption(googleOption).build()).credential
-                                    } catch (_: androidx.credentials.exceptions.NoCredentialException) {
-                                        val signInOption = com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption.Builder(clientId).build()
-                                        credentialManager.getCredential(activity, GetCredentialRequest.Builder().addCredentialOption(signInOption).build()).credential
+                                        credentialManager.getCredential(
+                                            activity,
+                                            GetCredentialRequest.Builder().addCredentialOption(googleOption).build()
+                                        ).credential
+                                    } catch (_: androidx.credentials.exceptions.GetCredentialException) {
+                                        val retryOption = GetGoogleIdOption.Builder()
+                                            .setFilterByAuthorizedAccounts(false)
+                                            .setServerClientId(clientId)
+                                            .setAutoSelectEnabled(false)
+                                            .build()
+                                        try {
+                                            credentialManager.getCredential(
+                                                activity,
+                                                GetCredentialRequest.Builder().addCredentialOption(retryOption).build()
+                                            ).credential
+                                        } catch (_: androidx.credentials.exceptions.GetCredentialException) {
+                                            val signInOption = com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption.Builder(clientId).build()
+                                            credentialManager.getCredential(
+                                                activity,
+                                                GetCredentialRequest.Builder().addCredentialOption(signInOption).build()
+                                            ).credential
+                                        }
                                     }
                                     if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                                         val token = GoogleIdTokenCredential.createFrom(credential.data)
