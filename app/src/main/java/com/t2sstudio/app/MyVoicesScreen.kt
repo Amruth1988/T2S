@@ -219,7 +219,7 @@ fun MyVoicesScreen() {
                 }
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     androidx.compose.material3.Checkbox(checked = consentConfirmed, onCheckedChange = { consentConfirmed = it }, enabled = !busy)
-                    Text("I confirm this is my voice, or I have permission to save and use this recording.", color = T2SSecondaryText, fontSize = 12.sp)
+                    Text("I confirm this is my voice, or I have permission to save and use this recording.", color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 14.sp)
                 }
                 Button(
                     onClick = {
