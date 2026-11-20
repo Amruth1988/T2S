@@ -123,6 +123,11 @@ private fun T2SApp() {
     var pendingScriptText by remember { mutableStateOf<String?>(null) }
     val scriptDrafts = remember { mutableStateListOf<T2SScriptDraft>().apply { addAll(ScriptDraftStore.load(context)) } }
 
+    if (showLoginPage) {
+        LoginScreen(onBack = { showLoginPage = false })
+        return
+    }
+
     Scaffold(
         containerColor = T2SBackground,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -207,9 +212,7 @@ private fun T2SApp() {
         }
     ) { innerPadding ->
         Box(Modifier.fillMaxSize().padding(innerPadding)) {
-            if (showLoginPage) {
-                LoginScreen(onBack = { showLoginPage = false })
-            } else when (selectedDestination) {
+            when (selectedDestination) {
                 0 -> SpeechStudioScreen(
                     projects = projects,
                     selectedProjectId = selectedProjectId,
