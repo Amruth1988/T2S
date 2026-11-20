@@ -69,8 +69,13 @@ fun LoginScreen(onBack: () -> Unit) {
 
     androidx.compose.runtime.DisposableEffect(auth) {
         val listener = com.google.firebase.auth.FirebaseAuth.AuthStateListener { firebaseAuth ->
-            user = firebaseAuth.currentUser
-            email = firebaseAuth.currentUser?.email.orEmpty()
+            val signedInUser = firebaseAuth.currentUser
+            user = signedInUser
+            email = signedInUser?.email.orEmpty()
+            if (signedInUser != null) {
+                busy = false
+                status = ""
+            }
         }
         val firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
         firebaseAuth.addAuthStateListener(listener)
@@ -364,8 +369,12 @@ fun LoginScreen(onBack: () -> Unit) {
                                             val token = GoogleIdTokenCredential.createFrom(credential.data)
                                             auth.signInWithGoogleCredential(GoogleAuthProvider.getCredential(token.idToken, null)) { result ->
                                                 busy = false
-                                                result.onSuccess { user = it; status = "Google account connected." }
-                                                    .onFailure { status = it.localizedMessage ?: "Google sign-in failed." }
+                                                result.onSuccess {
+                                                    user = it
+                                                    status = ""
+                                                }.onFailure {
+                                                    status = it.localizedMessage ?: "Google sign-in failed."
+                                                }
                                             }
                                         } else { busy = false; status = "Google did not return a supported sign-in credential." }
                                     } catch (error: Exception) { busy = false; status = error.localizedMessage ?: "Google sign-in was cancelled or unavailable." }
