@@ -40,6 +40,7 @@ jobs:
             model="te_IN-$voice-medium.onnx"
             curl -fL --retry 3 "$base/$voice/medium/$model" -o "$dir/$model"
             curl -fL --retry 3 "$base/$voice/medium/$model.json" -o "$dir/$model.json"
+            curl -fL --retry 3 "$base/$voice/medium/MODEL_CARD" -o "$dir/MODEL_CARD"
             python tools/convert_piper_model.py "$dir/$model"
             python tools/validate_piper_synthesis.py \
               --model "$dir/$model" \
@@ -49,10 +50,39 @@ jobs:
             test -s "$dir/test.wav"
           done
 
-      - name: Upload converted models and audio verification samples
+      - name: Prepare attributed import packs for CC BY 4.0 voices only
+        run: |
+          set -euo pipefail
+          for voice in venkatesh padmavathi; do
+            dir="build/telugu-voices/$voice"
+            cat > "$dir/ATTRIBUTION.md" <<EOF
+          # $voice Telugu voice attribution
+
+          Voice model: rhasspy/piper-voices, te/te_IN/$voice/medium
+          Model card: https://huggingface.co/rhasspy/piper-voices/blob/main/te/te_IN/$voice/medium/MODEL_CARD
+          Trainer: PravalX (https://github.com/PravalX)
+          Training dataset: AI4Bharat IndicVoices-R (https://huggingface.co/datasets/ai4bharat/indicvoices_r)
+          Dataset/model-card licence: Creative Commons Attribution 4.0 International (CC BY 4.0)
+          Licence text: LICENSE-CC-BY-4.0.txt
+          Dataset citation: Ashwin Sankar et al., "IndicVoices-R: Unlocking a Massive Multilingual Multi-speaker Speech Corpus for Scaling Indian TTS", NeurIPS 2024.
+          Upstream Piper model repository: https://huggingface.co/rhasspy/piper-voices
+          EOF
+            curl -fL --retry 3 https://creativecommons.org/licenses/by/4.0/legalcode.txt -o "$dir/LICENSE-CC-BY-4.0.txt"
+            test -s "$dir/ATTRIBUTION.md"
+            test -s "$dir/LICENSE-CC-BY-4.0.txt"
+          done
+          # Maya is synthesis-tested above, but IITM IndicTTS terms have
+          # not been cleared for redistribution. Keep its weights out of artifacts.
+          rm -rf build/telugu-voices/maya
+          test -s build/telugu-voices/venkatesh/ATTRIBUTION.md
+          test -s build/telugu-voices/padmavathi/ATTRIBUTION.md
+
+      - name: Upload attributed Telugu import packs and synthesis samples
         uses: actions/upload-artifact@v4
         with:
-          name: t2s-telugu-piper-validation
-          path: build/telugu-voices/
+          name: t2s-telugu-piper-import-packs
+          path: |
+            build/telugu-voices/venkatesh/
+            build/telugu-voices/padmavathi/
           if-no-files-found: error
           retention-days: 7
