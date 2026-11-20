@@ -105,7 +105,8 @@ data class AudioRecord(
     val language: String,
     val createdAt: Long,
     val projectId: String = "",
-    val projectName: String = "Unassigned"
+    val projectName: String = "Unassigned",
+    val scriptContent: String = ""
 )
 
 object AudioHistoryStore {
@@ -126,7 +127,8 @@ object AudioHistoryStore {
                     language = item.optString("language"),
                     createdAt = item.optLong("createdAt"),
                     projectId = item.optString("projectId", ""),
-                    projectName = item.optString("projectName", "Unassigned")
+                    projectName = item.optString("projectName", "Unassigned"),
+                    scriptContent = item.optString("scriptContent", item.optString("textPreview", ""))
                 )
             }.filter { it.id.isNotBlank() && it.filePath.isNotBlank() }
                 .filter { File(it.filePath).exists() }
@@ -145,6 +147,7 @@ object AudioHistoryStore {
                 put("createdAt", record.createdAt)
                 put("projectId", record.projectId)
                 put("projectName", record.projectName)
+                put("scriptContent", record.scriptContent)
             })
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
