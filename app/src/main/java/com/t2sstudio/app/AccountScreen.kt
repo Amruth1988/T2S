@@ -163,24 +163,35 @@ fun LoginScreen(onBack: () -> Unit) {
                 horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                androidx.compose.foundation.layout.Box(
-                    modifier = Modifier.size(52.dp)
-                        .background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.RoundedCornerShape(12.dp)),
-                    contentAlignment = androidx.compose.ui.Alignment.Center
+                Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(11.dp)
                 ) {
-                    Text(
-                        "T2S",
-                        color = com.t2sstudio.app.ui.theme.T2SOrangeDark,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 21.sp,
-                        letterSpacing = (-1.1).sp,
-                        style = androidx.compose.ui.text.TextStyle(
-                            shadow = androidx.compose.ui.graphics.Shadow(
-                                color = T2SOrange.copy(alpha = 0.42f),
-                                offset = androidx.compose.ui.geometry.Offset(1.2f, 2.0f),
-                                blurRadius = 2.8f
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier.size(42.dp)
+                            .background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.RoundedCornerShape(10.dp)),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        Text(
+                            "T2S",
+                            color = com.t2sstudio.app.ui.theme.T2SOrangeDark,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 17.sp,
+                            letterSpacing = (-1.1).sp,
+                            style = androidx.compose.ui.text.TextStyle(
+                                shadow = androidx.compose.ui.graphics.Shadow(
+                                    color = T2SOrange.copy(alpha = 0.42f),
+                                    offset = androidx.compose.ui.geometry.Offset(1.2f, 2.0f),
+                                    blurRadius = 2.8f
+                                )
                             )
                         )
+                    }
+                    Text(
+                        "Studi",
+                        color = T2SText,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
