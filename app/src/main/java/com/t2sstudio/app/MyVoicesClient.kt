@@ -7,7 +7,7 @@ import org.json.JSONArray
 import java.io.File
 import java.util.UUID
 
-data class SavedUserVoice(val id: String, val name: String, val localSamplePath: String? = null, val language: String = "en")
+data class SavedUserVoice(val id: String, val name: String, val localSamplePath: String? = null, val language: String = "en", val gender: String = "Unknown")
 
 object MyVoicesClient {
     private fun localProfilesFile(context: Context) = File(context.filesDir, "voice_profiles.json")
@@ -25,12 +25,13 @@ object MyVoicesClient {
                 id = id,
                 name = item.optString("name", "My Voice"),
                 localSamplePath = sample.absolutePath,
-                language = item.optString("language", "en").ifBlank { "en" }
+                language = item.optString("language", "en").ifBlank { "en" },
+                gender = item.optString("gender", "Unknown").ifBlank { "Unknown" }
             )
         }
     }
 
-    fun createLocal(context: Context, name: String, audioUri: Uri, language: String): SavedUserVoice {
+    fun createLocal(context: Context, name: String, audioUri: Uri, language: String, gender: String): SavedUserVoice {
         val cleanName = name.trim()
         require(cleanName.isNotEmpty()) { "Enter a name for this voice profile." }
         val sampleDir = File(context.filesDir, "voice_samples").apply { mkdirs() }
@@ -62,16 +63,17 @@ object MyVoicesClient {
             } ?: error("Could not read the selected recording.")
             require(sample.length() >= 1024L) { "The recording is empty or too short." }
 
-            val voice = SavedUserVoice(id, cleanName, sample.absolutePath, language)
+            val cleanGender = gender.trim().also { require(it == "Male" || it == "Female" || it == "Other") { "Select a valid voice gender." } }
+            val voice = SavedUserVoice(id, cleanName, sample.absolutePath, language, cleanGender)
             val profiles = JSONArray()
             list(context).filterNot { it.id == id }.forEach { existing ->
                 profiles.put(JSONObject().apply {
-                    put("id", existing.id); put("name", existing.name); put("language", existing.language)
+                    put("id", existing.id); put("name", existing.name); put("language", existing.language); put("gender", existing.gender)
                     put("localSamplePath", existing.localSamplePath)
                 })
             }
             profiles.put(JSONObject().apply {
-                put("id", voice.id); put("name", voice.name); put("language", voice.language)
+                put("id", voice.id); put("name", voice.name); put("language", voice.language); put("gender", voice.gender)
                 put("localSamplePath", voice.localSamplePath)
             })
             localProfilesFile(context).writeText(profiles.toString())
