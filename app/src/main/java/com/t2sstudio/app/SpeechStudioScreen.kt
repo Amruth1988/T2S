@@ -383,23 +383,25 @@ fun SpeechStudioScreen(
 
     fun previewPurohitPreset(preset: PurohitPreset) {
         val engine = ttsEngine
-        // Prefer a user-confirmed male Telugu voice. Android voice names often omit
-        // gender metadata, so if none is identifiable, use the explicitly selected
-        // Telugu voice or the first installed Telugu voice and disclose that limitation.
-        // Purohit presets are male by definition in this app. Do not block preview
-        // based on Android's unreliable voice-gender metadata; choose a Telugu voice.
-        val purohitTeluguVoice = selectedPurohitVoice?.takeIf { it.locale.language == "te" }
-            ?: selectedVoice?.takeIf { it.locale.language == "te" }
-            ?: engine?.voices.orEmpty().firstOrNull {
-                it.locale.language == "te" &&
-                    !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
-            }
         if (engine == null || !engineReady) {
             statusMessage = "Android speech engine is still starting. Try the preview again."
             return
         }
+        // Never preview a Purohit preset with an arbitrary Telugu voice. The old
+        // fallback selected the first installed voice even when it was female.
+        // A preset is allowed only with a voice explicitly identified/confirmed Male.
+        val purohitTeluguVoice = selectedPurohitVoice?.takeIf {
+            it.locale.language == "te" && genderForVoice(it) == "Male" &&
+                !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
+        } ?: availableVoices.firstOrNull {
+            it.locale.language == "te" && genderForVoice(it) == "Male" &&
+                !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
+        } ?: engine.voices.orEmpty().firstOrNull {
+            it.locale.language == "te" && genderForVoice(it) == "Male" &&
+                !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
+        }
         if (purohitTeluguVoice == null) {
-            statusMessage = "No installed Telugu system voice is available. Install Telugu speech data in Android Text-to-speech settings, then try again."
+            statusMessage = "Cannot preview ${preset.name}: no Telugu voice is confirmed Male. In the installed Telugu voice list, audition a voice and set its Gender to Male, then select the Purohit preset again. A lower pitch alone cannot turn a female voice into a male voice."
             return
         }
         stopVoicePreview()
