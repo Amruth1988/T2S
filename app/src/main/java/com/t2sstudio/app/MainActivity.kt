@@ -68,6 +68,8 @@ import androidx.compose.ui.unit.sp
 import com.t2sstudio.app.ui.theme.T2SBackground
 import com.t2sstudio.app.ui.theme.T2SCream
 import com.t2sstudio.app.ui.theme.T2SOrange
+import com.t2sstudio.app.ui.theme.T2SOrangeDark
+import com.t2sstudio.app.ui.theme.T2SBorder
 import com.t2sstudio.app.ui.theme.T2SSecondaryText
 import com.t2sstudio.app.ui.theme.T2SText
 import com.t2sstudio.app.ui.theme.T2SStudioTheme
