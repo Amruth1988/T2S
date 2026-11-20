@@ -93,7 +93,7 @@ private val destinations = listOf(
     Destination("Create", Icons.Filled.Add),
     Destination("Projects", Icons.Filled.Folder),
     Destination("Recent", Icons.Filled.AccessTime),
-    Destination("My Voices", Icons.Filled.RecordVoiceOver),
+    Destination("My", Icons.Filled.RecordVoiceOver),
     Destination("Drafts", Icons.Filled.Description),
     Destination("Profile", Icons.Filled.Person)
 )
