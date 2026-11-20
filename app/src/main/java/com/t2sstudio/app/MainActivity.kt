@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -64,6 +66,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.t2sstudio.app.ui.theme.T2SBackground
@@ -132,7 +136,21 @@ private fun T2SApp() {
                                 .background(Color.White),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("T2S", color = T2SOrange, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                            Text(
+                                "T2S",
+                                color = T2SOrangeDark,
+                                fontFamily = FontFamily.SansSerif,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 17.sp,
+                                letterSpacing = (-1.1).sp,
+                                style = TextStyle(
+                                    shadow = Shadow(
+                                        color = T2SOrange.copy(alpha = 0.42f),
+                                        offset = Offset(1.2f, 2.0f),
+                                        blurRadius = 2.8f
+                                    )
+                                )
+                            )
                         }
                         Spacer(Modifier.width(11.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
