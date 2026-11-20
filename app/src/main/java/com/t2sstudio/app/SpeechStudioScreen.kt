@@ -1069,7 +1069,7 @@ fun SpeechStudioScreen(
                                 if (preset == null) statusMessage = "Select Purohit 1, 2 or 3 first."
                                 else previewPurohitPreset(preset)
                             },
-                            enabled = isPurohitMode && selectedPurohitPreset != null && selectedPurohitVoice?.locale?.language == "te" && engineReady,
+                            enabled = isPurohitMode && selectedPurohitPreset != null && engineReady,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
                         ) {
