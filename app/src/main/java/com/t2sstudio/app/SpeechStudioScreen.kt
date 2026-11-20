@@ -266,7 +266,7 @@ fun SpeechStudioScreen(
                 .sortedBy { it.name.lowercase(Locale.ROOT) }
             availableVoices.clear()
             availableVoices.addAll(matching)
-            selectedVoice = matching.firstOrNull { selectedGender == "All" || genderForVoice(it) == selectedGender }
+            selectedVoice = matching.firstOrNull()
         }.onFailure {
             availableVoices.clear()
             selectedVoice = null
@@ -829,9 +829,7 @@ fun SpeechStudioScreen(
                             ),
                             onClick = {
                                 selectedGender = gender
-                                selectedVoice = availableVoices.firstOrNull { voice ->
-                                    gender == "All" || genderForVoice(voice) == gender
-                                }
+                                selectedVoice = availableVoices.firstOrNull()
                                 selectedOnlineVoice = onlineVoices.firstOrNull { voice ->
                                     gender == "All" || onlineVoiceGender(voice) == gender
                                 }
@@ -917,9 +915,7 @@ fun SpeechStudioScreen(
                                     voiceLibraryTab = "Installed"
                                     selectedSavedVoice = null
                                     selectedOnlineVoice = null
-                                    selectedVoice = availableVoices.firstOrNull { voice ->
-                                        selectedGender == "All" || genderForVoice(voice) == selectedGender
-                                    }
+                                    selectedVoice = availableVoices.firstOrNull()
                                     selectedVoice?.let { voice ->
                                         ttsEngine?.let { engine ->
                                             engine.stop()
