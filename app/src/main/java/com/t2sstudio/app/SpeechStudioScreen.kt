@@ -1081,19 +1081,34 @@ fun SpeechStudioScreen(
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Purohit-style voice presets", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
                     Text(
-                        "Purohit 1, 2 and 3 all use the same installed Telugu voice marked Male, with different recitation speed and pitch styles. Each preview is rendered to audio first, then played through the media player.",
+                        "All three Purohit presets use the dedicated Venkatesh Telugu model classified as Male. Android system voices and female voice packs are never used for Purohit preview or generation.",
                         fontSize = 11.sp,
                         color = T2SSecondaryText
                     )
-                    val configuredMalePurohitVoice = selectedPurohitVoice?.takeIf {
-                        it.locale.language == "te" && genderForVoice(it) == "Male" &&
-                            !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
-                    } ?: availableVoices.firstOrNull {
-                        it.locale.language == "te" && genderForVoice(it) == "Male" &&
-                            !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
-                    } ?: ttsEngine?.voices.orEmpty().firstOrNull {
-                        it.locale.language == "te" && genderForVoice(it) == "Male" &&
-                            !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
+                    val configuredMalePurohitPack = convertedTeluguPacks.firstOrNull {
+                        it.group == TeluguVoiceGroup.MALE
+                    }
+                    Text(
+                        configuredMalePurohitPack?.let { "Male Telugu model ready • " + it.displayName }
+                            ?: "Male Telugu model not installed • Import Venkatesh below",
+                        color = if (configuredMalePurohitPack != null) T2SOrange else Color(0xFFB45309),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            importTeluguPackLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
+                        },
+                        enabled = !importingTeluguPacks,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (importingTeluguPacks) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Importing Telugu voice pack…")
+                        } else {
+                            Text(if (configuredMalePurohitPack == null) "Import male Telugu voice pack" else "Import / update Telugu voice packs")
+                        }
                     }
                     purohitPresets.forEach { preset ->
                         val selected = isPurohitMode && selectedPurohitPreset?.name == preset.name
@@ -1101,22 +1116,13 @@ fun SpeechStudioScreen(
                             modifier = Modifier.fillMaxWidth().clickable {
                                 selectedPurohitPreset = preset
                                 isPurohitMode = true
-                                val engine = ttsEngine
-                                selectedPurohitVoice = selectedPurohitVoice?.takeIf {
-                                    it.locale.language == "te" && genderForVoice(it) == "Male"
-                                } ?: availableVoices.firstOrNull {
-                                    it.locale.language == "te" && genderForVoice(it) == "Male"
-                                } ?: engine?.voices.orEmpty().firstOrNull {
-                                    it.locale.language == "te" && genderForVoice(it) == "Male"
+                                val malePack = convertedTeluguPacks.firstOrNull {
+                                    it.group == TeluguVoiceGroup.MALE
                                 }
-                                engine?.let {
-                                    it.setLanguage(Locale("te", "IN"))
-                                    selectedPurohitVoice?.let { voice -> it.voice = voice }
-                                }
-                                statusMessage = if (selectedPurohitVoice == null) {
-                                    "${preset.name} selected. No male Telugu voice was detected; choose or mark a Telugu voice as Male in the voice list."
+                                statusMessage = if (malePack == null) {
+                                    preset.name + " selected. Import the Venkatesh (Male) Telugu voice pack to preview and generate Purohit speech."
                                 } else {
-                                    "${preset.name} selected with male Telugu voice ${selectedPurohitVoice?.name}."
+                                    preset.name + " selected with " + malePack.displayName + " (Male Telugu model)."
                                 }
                             },
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(13.dp),
@@ -1137,13 +1143,12 @@ fun SpeechStudioScreen(
                                     Text(preset.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                     Text(preset.description, color = T2SSecondaryText, fontSize = 11.sp)
                                     Text(
-                                        configuredMalePurohitVoice?.let { "Male Telugu voice • ${it.name}" }
-                                            ?: "Male Telugu voice • Not configured",
-                                        color = if (configuredMalePurohitVoice != null) T2SOrange else Color(0xFFB45309),
+                                        configuredMalePurohitPack?.let { "Male model • " + it.displayName }
+                                            ?: "Male model • Not installed",
+                                        color = if (configuredMalePurohitPack != null) T2SOrange else Color(0xFFB45309),
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.SemiBold
-                                    )
-                                }
+                                    )                                }
                                 if (selected) Text("SELECTED", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 9.sp)
                             }
                         }
@@ -1155,7 +1160,7 @@ fun SpeechStudioScreen(
                                 if (preset == null) statusMessage = "Select Purohit 1, 2 or 3 first."
                                 else previewPurohitPreset(preset)
                             },
-                            enabled = isPurohitMode && selectedPurohitPreset != null && engineReady,
+                            enabled = isPurohitMode && selectedPurohitPreset != null && configuredMalePurohitPack != null && !importingTeluguPacks,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
                         ) {
@@ -1235,6 +1240,61 @@ fun SpeechStudioScreen(
                 val language = languages.first { it.label == selectedLanguage }
                 if (textToSpeak.isBlank()) {
                     statusMessage = "Please enter some text first."
+                } else if (isPurohitMode) {
+                    val preset = selectedPurohitPreset
+                    val malePack = convertedTeluguPacks.firstOrNull { it.group == TeluguVoiceGroup.MALE }
+                    if (selectedLanguage != "Telugu") {
+                        statusMessage = "Purohit presets are available only for Telugu."
+                    } else if (preset == null) {
+                        statusMessage = "Select Purohit 1, 2 or 3 first."
+                    } else if (malePack == null) {
+                        statusMessage = "Purohit generation needs the Venkatesh (Male) Telugu voice pack. Import it in the Purohit section first."
+                    } else {
+                        val directory = File(
+                            context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
+                            "T2SStudio"
+                        ).apply { mkdirs() }
+                        val output = File(directory, "purohit_speech_" + System.currentTimeMillis() + ".wav")
+                        isGenerating = true
+                        generatedFile = null
+                        stopVoicePreview()
+                        statusMessage = "Generating " + preset.name + " with " + malePack.displayName + " (Male Telugu model)…"
+                        coroutineScope.launch {
+                            val result = runCatching {
+                                withContext(Dispatchers.IO) {
+                                    TeluguOfflineTtsEngine(context, malePack.model, malePack.tokens).use { offlineEngine ->
+                                        offlineEngine.synthesizeToWav(
+                                            textToSpeak,
+                                            output,
+                                            (speechRate * preset.speedMultiplier).coerceIn(0.5f, 2f)
+                                        )
+                                    }
+                                }
+                            }
+                            result.onSuccess {
+                                isGenerating = false
+                                generatedFile = output
+                                onAudioGenerated(
+                                    AudioRecord(
+                                        id = java.util.UUID.randomUUID().toString(),
+                                        filePath = output.absolutePath,
+                                        textPreview = textToSpeak.take(180),
+                                        language = "Telugu",
+                                        createdAt = System.currentTimeMillis(),
+                                        projectId = selectedProject?.id.orEmpty(),
+                                        projectName = selectedProject?.name ?: "Unassigned",
+                                        scriptContent = textToSpeak
+                                    )
+                                )
+                                statusMessage = "Purohit audio ready • " + malePack.displayName + " (Male Telugu model)."
+                                playGeneratedFile(output)
+                            }.onFailure {
+                                output.delete()
+                                isGenerating = false
+                                statusMessage = "Purohit generation failed: " + (it.message ?: "male voice model error")
+                            }
+                        }
+                    }
                 } else if (selectedSavedVoice != null) {
                     val savedVoice = selectedSavedVoice
                     val reference = savedVoice?.localSamplePath?.let(::File)
