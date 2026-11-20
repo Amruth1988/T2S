@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
@@ -67,6 +68,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -631,13 +633,27 @@ fun SpeechStudioScreen(
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium
                         )
-                        Text(
-                            if (languageMenuExpanded) "⌃" else "⌄",
-                            color = T2SOrange,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Medium,
-                            lineHeight = 22.sp
-                        )
+                        Canvas(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .graphicsLayer { rotationZ = if (languageMenuExpanded) 180f else 0f }
+                        ) {
+                            val stroke = 2.2.dp.toPx()
+                            drawLine(
+                                color = T2SOrange,
+                                start = androidx.compose.ui.geometry.Offset(size.width * 0.22f, size.height * 0.38f),
+                                end = androidx.compose.ui.geometry.Offset(size.width * 0.5f, size.height * 0.64f),
+                                strokeWidth = stroke,
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                            drawLine(
+                                color = T2SOrange,
+                                start = androidx.compose.ui.geometry.Offset(size.width * 0.5f, size.height * 0.64f),
+                                end = androidx.compose.ui.geometry.Offset(size.width * 0.78f, size.height * 0.38f),
+                                strokeWidth = stroke,
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                        }
                     }
                     DropdownMenu(
                         expanded = languageMenuExpanded,
