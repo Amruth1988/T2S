@@ -52,29 +52,63 @@ fun AccountScreen() {
     var isRegister by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
+    var syncStatus by remember { mutableStateOf("Sign in to sync metadata. Audio remains local.") }
     var showApiSettings by remember { mutableStateOf(false) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+
+    androidx.compose.runtime.DisposableEffect(auth) {
+        val listener = com.google.firebase.auth.FirebaseAuth.AuthStateListener { firebaseAuth ->
+            user = firebaseAuth.currentUser
+            email = firebaseAuth.currentUser?.email.orEmpty()
+        }
+        val firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        firebaseAuth.addAuthStateListener(listener)
+        onDispose { firebaseAuth.removeAuthStateListener(listener) }
+    }
 
     androidx.compose.runtime.LaunchedEffect(user?.uid) {
         val uid = user?.uid ?: return@LaunchedEffect
         val syncRepository = com.t2sstudio.app.data.firebase.T2SFirestoreRepository()
-        ProjectStore.load(context).forEach { project ->
+        val projectsToSync = ProjectStore.load(context)
+        val recordingsToSync = AudioHistoryStore.load(context)
+        val total = projectsToSync.size + recordingsToSync.size
+        if (total == 0) {
+            syncStatus = "Account connected. No local project or script metadata to sync yet."
+            return@LaunchedEffect
+        }
+        syncStatus = "Syncing $total metadata item(s)…"
+        var completed = 0
+        var failed = 0
+        fun recordSyncResult(result: Result<Unit>) {
+            completed++
+            if (result.isFailure) failed++
+            if (completed == total) {
+                syncStatus = if (failed == 0) {
+                    "Metadata sync complete: $total item(s). Audio files remain on this device."
+                } else {
+                    "$failed of $total metadata item(s) could not sync. Your local data is safe; check connection and Firestore rules."
+                }
+            }
+        }
+        projectsToSync.forEach { project ->
             syncRepository.saveProject(
                 uid = uid,
                 projectId = project.id,
                 name = project.name,
-                createdAt = project.createdAt
-            ) { /* Local data remains authoritative if sync is unavailable. */ }
+                createdAt = project.createdAt,
+                onComplete = ::recordSyncResult
+            )
         }
-        AudioHistoryStore.load(context).forEach { recording ->
+        recordingsToSync.forEach { recording ->
             syncRepository.saveScriptMetadata(
                 uid = uid,
                 scriptId = recording.id,
                 projectId = recording.projectId.takeIf { it.isNotBlank() },
                 title = recording.textPreview.ifBlank { "Untitled script" },
                 content = recording.scriptContent.take(180_000),
-                language = recording.language
-            ) { /* Audio files and local history remain on this device. */ }
+                language = recording.language,
+                onComplete = ::recordSyncResult
+            )
         }
     }
 
@@ -98,6 +132,7 @@ fun AccountScreen() {
 
         if (user != null) {
             Text("Signed in", color = T2SOrange, fontWeight = FontWeight.Bold)
+            Text(syncStatus, color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 17.sp)
             Text(user?.email ?: user?.displayName ?: "T2S account", color = T2SText, fontSize = 16.sp)
             Button(
                 onClick = { auth.signOut(); user = null; password = ""; status = "Signed out. Your local projects remain on this device." },
@@ -210,6 +245,7 @@ fun AccountScreen() {
             ) { Text("Continue with Google") }
         }
 
+        if (user == null) Text(syncStatus, color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 17.sp)
         if (status.isNotBlank()) {
             Text(status, color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 17.sp)
         }
