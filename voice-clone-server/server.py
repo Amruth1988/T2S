@@ -8,6 +8,7 @@ from __future__ import annotations
 import io
 import os
 import threading
+import tempfile
 from typing import Optional
 
 import soundfile as sf
@@ -73,21 +74,23 @@ async def clone_tts(
     reference = await audio.read()
     if len(reference) < 1024 or len(reference) > MAX_REFERENCE_BYTES:
         raise HTTPException(400, "Reference recording must be between 1 KB and 20 MB.")
-    if not audio.content_type or not audio.content_type.startswith("audio/"):
-        raise HTTPException(415, "Upload an audio recording.")
     try:
         model = get_model()
-        with _generation_lock:
-            kwargs = {
-                "text": clean_text,
-                "language": SUPPORTED_LANGUAGES[lang],
-                "ref_audio": io.BytesIO(reference),
-            }
-            if ref_text and ref_text.strip():
-                kwargs["ref_text"] = ref_text.strip()
-            else:
-                kwargs["x_vector_only_mode"] = True
-            wavs, sample_rate = model.generate_voice_clone(**kwargs)
+        suffix = os.path.splitext(audio.filename or "reference.wav")[1] or ".wav"
+        with tempfile.NamedTemporaryFile(suffix=suffix) as reference_file:
+            reference_file.write(reference)
+            reference_file.flush()
+            with _generation_lock:
+                kwargs = {
+                    "text": clean_text,
+                    "language": SUPPORTED_LANGUAGES[lang],
+                    "ref_audio": reference_file.name,
+                }
+                if ref_text and ref_text.strip():
+                    kwargs["ref_text"] = ref_text.strip()
+                else:
+                    kwargs["x_vector_only_mode"] = True
+                wavs, sample_rate = model.generate_voice_clone(**kwargs)
         output = io.BytesIO()
         sf.write(output, wavs[0], sample_rate, format="WAV", subtype="PCM_16")
         return Response(
