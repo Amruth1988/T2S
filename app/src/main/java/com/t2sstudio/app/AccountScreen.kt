@@ -163,19 +163,30 @@ fun LoginScreen(onBack: () -> Unit) {
                 horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_t2s_mark),
-                    contentDescription = "T2S Studio logo",
-                    modifier = Modifier.size(76.dp)
-                )
-                Text(
-                    "T2S STUDIO",
-                    color = T2SText,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.3.sp,
-                    textAlign = TextAlign.Center
-                )
+                Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(11.dp)
+                ) {
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier.size(52.dp)
+                            .background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.RoundedCornerShape(12.dp)),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        Text(
+                            "T2S",
+                            color = com.t2sstudio.app.ui.theme.T2SOrangeDark,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 21.sp,
+                            letterSpacing = (-1.1).sp
+                        )
+                    }
+                    Text(
+                        "Studi",
+                        color = T2SText,
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     listOf("WRITE", "CREATE", "SPEAK").forEach { word ->
                         Text(
