@@ -181,6 +181,14 @@ private fun T2SApp() {
                         projects.add(0, project)
                         selectedProjectId = project.id
                         ProjectStore.save(context, projects)
+                        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+                            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveProject(
+                                uid = uid,
+                                projectId = project.id,
+                                name = project.name,
+                                createdAt = project.createdAt
+                            ) { /* Local project remains saved even if cloud sync is unavailable. */ }
+                        }
                     },
                     onRenameProject = { id, name ->
                         val index = projects.indexOfFirst { it.id == id }
@@ -192,6 +200,11 @@ private fun T2SApp() {
                             }
                             ProjectStore.save(context, projects)
                             AudioHistoryStore.save(context, audioRecords)
+                            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+                                com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveProject(
+                                    uid = uid, projectId = id, name = name
+                                ) { /* Local rename remains saved if cloud sync is unavailable. */ }
+                            }
                         }
                     },
                     onDeleteProject = { id ->
@@ -205,6 +218,11 @@ private fun T2SApp() {
                         }
                         ProjectStore.save(context, projects)
                         AudioHistoryStore.save(context, audioRecords)
+                        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+                            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().archiveProject(uid, id) {
+                                /* Local delete is retained regardless of cloud availability. */
+                            }
+                        }
                     }
                 )
                 2 -> SavedAudioScreen(
