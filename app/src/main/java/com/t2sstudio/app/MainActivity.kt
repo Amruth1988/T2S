@@ -241,6 +241,11 @@ private fun T2SApp() {
                         audioRecords.removeAll { it.id == record.id }
                         File(record.filePath).delete()
                         AudioHistoryStore.save(context, audioRecords)
+                        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+                            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().archiveScript(uid, record.id) {
+                                /* Removing a local recording never depends on cloud availability. */
+                            }
+                        }
                     }
                 )
                 3 -> MyVoicesScreen()
