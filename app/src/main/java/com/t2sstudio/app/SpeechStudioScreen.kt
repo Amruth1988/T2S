@@ -850,8 +850,7 @@ fun SpeechStudioScreen(
             val filteredInstalled = if (searchTerm.isBlank()) installedPool else searchedInstalled
             val filteredOnline = if (searchTerm.isBlank()) onlinePool else searchedOnline
             val filteredPersonal = myVoices.filter { voice ->
-                (searchTerm.isBlank() || voice.name.lowercase(Locale.ROOT).contains(searchTerm)) &&
-                    (selectedGender == "All" || voice.gender.equals(selectedGender, ignoreCase = true))
+                (searchTerm.isBlank() || voice.name.lowercase(Locale.ROOT).contains(searchTerm))
             }
 
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
