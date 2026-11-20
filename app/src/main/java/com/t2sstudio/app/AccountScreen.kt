@@ -209,18 +209,31 @@ fun AccountScreen() {
                         busy = true
                         scope.launch {
                             try {
+                                val clientId = context.getString(webClientIdId)
+                                val credentialManager = CredentialManager.create(context)
                                 val googleOption = GetGoogleIdOption.Builder()
-                                    .setFilterByAuthorizedAccounts(false)
-                                    .setServerClientId(context.getString(webClientIdId))
+                                    .setFilterByAuthorizedAccounts(true)
+                                    .setServerClientId(clientId)
                                     .setAutoSelectEnabled(false)
                                     .build()
-                                val request = GetCredentialRequest.Builder()
-                                    .addCredentialOption(googleOption)
-                                    .build()
-                                val result = CredentialManager.create(context).getCredential(activity, request)
-                                val credential = result.credential
+                                val credential = try {
+                                    val request = GetCredentialRequest.Builder()
+                                        .addCredentialOption(googleOption)
+                                        .build()
+                                    credentialManager.getCredential(activity, request).credential
+                                } catch (_: androidx.credentials.exceptions.NoCredentialException) {
+                                    // No previously-authorized account: explicitly show Google's account picker.
+                                    val signInOption = com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+                                        .Builder(clientId)
+                                        .build()
+                                    val signInRequest = GetCredentialRequest.Builder()
+                                        .addCredentialOption(signInOption)
+                                        .build()
+                                    credentialManager.getCredential(activity, signInRequest).credential
+                                }
                                 if (credential is CustomCredential &&
-                                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                                    (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL ||
+                                        credential.type == com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL)
                                 ) {
                                     val googleToken = GoogleIdTokenCredential.createFrom(credential.data)
                                     val firebaseCredential = GoogleAuthProvider.getCredential(googleToken.idToken, null)
