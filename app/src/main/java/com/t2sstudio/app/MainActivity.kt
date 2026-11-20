@@ -125,6 +125,18 @@ private fun T2SApp() {
         mutableStateListOf<T2SProject>().apply { addAll(ProjectStore.load(context)) }
     }
     var selectedProjectId by remember { mutableStateOf(projects.firstOrNull()?.id) }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        val firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        val listener = com.google.firebase.auth.FirebaseAuth.AuthStateListener { auth ->
+            if (auth.currentUser != null) {
+                showLoginPage = false
+                showAccountPage = false
+            }
+        }
+        firebaseAuth.addAuthStateListener(listener)
+        onDispose { firebaseAuth.removeAuthStateListener(listener) }
+    }
+
     var pendingScriptText by remember { mutableStateOf<String?>(null) }
     val scriptDrafts = remember { mutableStateListOf<T2SScriptDraft>().apply { addAll(ScriptDraftStore.load(context)) } }
 
