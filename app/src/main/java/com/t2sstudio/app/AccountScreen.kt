@@ -397,8 +397,6 @@ fun LoginScreen(onBack: () -> Unit) {
                         }
                     }
                 }
-                Text("Sign in to sync metadata. Your audio remains on this device.",
-                    color = T2SSecondaryText, fontSize = 11.sp, textAlign = TextAlign.Center)
                 androidx.compose.material3.TextButton(onClick = onBack) {
                     Text("Continue as Guest  →", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
