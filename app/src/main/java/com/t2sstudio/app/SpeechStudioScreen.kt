@@ -225,11 +225,14 @@ fun SpeechStudioScreen(
         SpeechLanguage("Hindi", Locale("hi", "IN"))
     )
 
+    // Android Voice metadata does not expose a dependable speaker-gender field.
+    // Never infer gender from the engine's voice name: names such as "male", "female",
+    // or numbered voice IDs are inconsistent across manufacturers and TTS engines.
+    // Only use a user's explicit, persisted audition-based classification.
     fun genderForVoice(voice: Voice): String? = when (voiceGenderOverrides[installedVoiceKey(voice)]) {
         "Male" -> "Male"
         "Female" -> "Female"
-        "Unknown" -> null
-        else -> voiceGender(voice.name)
+        else -> null
     }
 
     fun saveGenderOverride(key: String, displayName: String, gender: String) {
@@ -1785,7 +1788,7 @@ private fun installedVoiceDisplayName(voice: Voice, gender: String?, index: Int)
     val label = when (gender) {
         "Male" -> "Male Voice " + index
         "Female" -> "Female Voice " + index
-        else -> "Unclassified Voice " + index
+        else -> "Voice " + index + " (Gender not verified)"
     }
     return label + " (" + voice.locale.toLanguageTag() + ")"
 }
