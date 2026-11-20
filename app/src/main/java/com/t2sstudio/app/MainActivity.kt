@@ -99,9 +99,8 @@ private val destinations = listOf(
     Destination("Home", Icons.Filled.Home),
     Destination("Projects", Icons.Filled.Folder),
     Destination("Recent", Icons.Filled.AccessTime),
-    Destination("My", Icons.Filled.RecordVoiceOver),
-    Destination("Drafts", Icons.Filled.Description),
-    Destination("Profile", Icons.Filled.Person)
+    Destination("My Voice", Icons.Filled.RecordVoiceOver),
+    Destination("Drafts", Icons.Filled.Description)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -363,7 +362,6 @@ private fun T2SApp() {
                     onDelete = { draft -> scriptDrafts.removeAll { it.id == draft.id }; ScriptDraftStore.save(context, scriptDrafts) },
                     onCreateDraft = { selectedDestination = 0 }
                 )
-                5 -> ProfileScreen(onOpenLogin = { showLoginPage = true })
             }
         }
     }
