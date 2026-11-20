@@ -165,7 +165,7 @@ fun MyVoicesScreen() {
                         )
                     }
                 }
-                Text("Your recording and profile details are stored locally. This does not yet create an AI-cloned voice; no paid cloud service is used.", fontSize = 12.sp, color = T2SSecondaryText)
+                Text("Your recording and profile details are stored locally. Connect your own Volt-TTS server above to generate new Telugu or English speech in this voice. The recording is sent only when you request cloned generation.", fontSize = 12.sp, color = T2SSecondaryText)
                 Text("Record your voice directly here, or select an existing file. Speak naturally in a quiet room for 10–30 seconds.", fontSize = 12.sp, color = T2SSecondaryText)
                 Card(
                     colors = CardDefaults.cardColors(containerColor = T2SCream),
