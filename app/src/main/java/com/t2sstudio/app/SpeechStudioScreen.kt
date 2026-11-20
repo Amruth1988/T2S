@@ -129,18 +129,12 @@ fun SpeechStudioScreen(
     onSelectedProjectIdChange: (String?) -> Unit,
     onAudioGenerated: (AudioRecord) -> Unit,
     initialScriptText: String?,
-    onInitialScriptTextConsumed: () -> Unit
+    onInitialScriptTextConsumed: () -> Unit,
+    onSaveDraft: (String, String, String, String) -> T2SScriptDraft
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
-    LaunchedEffect(initialScriptText) {
-        if (initialScriptText != null) {
-            inputText = initialScriptText
-            statusMessage = "Saved script loaded. Edit it and generate new speech when ready."
-            onInitialScriptTextConsumed()
-        }
-    }
     var selectedLanguage by remember { mutableStateOf("English") }
     var selectedGender by remember { mutableStateOf("All") }
     val voiceGenderOverrides = remember { mutableStateMapOf<String, String>().apply {
@@ -157,6 +151,13 @@ fun SpeechStudioScreen(
     var isGenerating by remember { mutableStateOf(false) }
     var generatedFile by remember { mutableStateOf<File?>(null) }
     var statusMessage by remember { mutableStateOf("Enter text to create your first voice recording.") }
+    LaunchedEffect(initialScriptText) {
+        if (initialScriptText != null) {
+            inputText = initialScriptText
+            statusMessage = "Saved script loaded. Edit it and generate new speech when ready."
+            onInitialScriptTextConsumed()
+        }
+    }
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
     var mediaPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
@@ -598,6 +599,15 @@ fun SpeechStudioScreen(
                 )
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("${inputText.length} characters", fontSize = 11.sp, color = T2SSecondaryText)
+                    OutlinedButton(
+                        onClick = {
+                            runCatching {
+                                val draft = onSaveDraft(inputText, selectedLanguage, selectedProject?.id.orEmpty(), selectedProject?.name ?: "Unassigned")
+                                statusMessage = "Draft saved: ${draft.title}"
+                            }.onFailure { statusMessage = it.localizedMessage ?: "Could not save draft." }
+                        },
+                        enabled = inputText.isNotBlank() && !isGenerating
+                    ) { Text("Save draft") }
                     OutlinedButton(
                         onClick = {
                             runCatching {
