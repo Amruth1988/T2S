@@ -6,6 +6,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.text.style.TextAlign
+import com.t2sstudio.app.ui.theme.T2SBorder
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.height
@@ -122,152 +126,172 @@ fun LoginScreen(onBack: () -> Unit) {
         return
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().background(T2SBackground).verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    androidx.compose.foundation.layout.Box(
+        modifier = Modifier.fillMaxSize().background(T2SBackground)
     ) {
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Back") }
-        Text("T2S Login", color = T2SText, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-        Text(
-            "Sign in to sync your project and script metadata across devices. Audio files and original voice recordings stay on this device.",
-            color = T2SSecondaryText, fontSize = 13.sp, lineHeight = 19.sp
-        )
-
-        if (user != null) {
-            Text("Signed in", color = T2SOrange, fontWeight = FontWeight.Bold)
-            Text(syncStatus, color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 17.sp)
-            Text(user?.email ?: user?.displayName ?: "T2S account", color = T2SText, fontSize = 16.sp)
-            Button(
-                onClick = { auth.signOut(); user = null; password = ""; status = "Signed out. Your local projects remain on this device." },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground)
-            ) { Text("Sign out") }
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { isRegister = false; status = "" }, modifier = Modifier.weight(1f)) {
-                    Text("Sign in")
+        Column(
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+        ) {
+            // Warm illustrated brand header, matching the approved concept.
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier.fillMaxWidth().height(300.dp)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            listOf(androidx.compose.ui.graphics.Color(0xFFFFE7B8), androidx.compose.ui.graphics.Color(0xFFFFF4D9), T2SOrange)
+                        )
+                    ),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                Text("🌿", modifier = Modifier.align(androidx.compose.ui.Alignment.TopStart).padding(16.dp), fontSize = 34.sp)
+                Text("🌿", modifier = Modifier.align(androidx.compose.ui.Alignment.TopEnd).padding(16.dp), fontSize = 34.sp)
+                Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                        Text("🧘🏻‍♂️", fontSize = 66.sp)
+                        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                            androidx.compose.foundation.layout.Box(
+                                modifier = Modifier.size(78.dp).background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.RoundedCornerShape(22.dp))
+                                    .border(2.dp, T2SOrange, androidx.compose.foundation.shape.RoundedCornerShape(22.dp)),
+                                contentAlignment = androidx.compose.ui.Alignment.Center
+                            ) { Text("T2S", color = T2SOrange, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold) }
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                Text("Studio", color = T2SText, fontSize = 38.sp, fontWeight = FontWeight.Bold)
+                                Text("🎙️", fontSize = 32.sp)
+                            }
+                            Text("Text to Speech", color = T2SText, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                    Text("✍️     Aa     〰️     ▶", color = T2SOrange, fontSize = 27.sp, modifier = Modifier.padding(top = 12.dp))
                 }
-                OutlinedButton(onClick = { isRegister = true; status = "" }, modifier = Modifier.weight(1f)) {
-                    Text("Create account")
-                }
+                Text("WORDS BECOME VOICES", color = T2SText, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter).padding(bottom = 28.dp), letterSpacing = 2.sp)
             }
-            OutlinedTextField(
-                value = email, onValueChange = { email = it },
-                modifier = Modifier.fillMaxWidth(), singleLine = true,
-                label = { Text("Email address") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-            )
-            OutlinedTextField(
-                value = password, onValueChange = { password = it },
-                modifier = Modifier.fillMaxWidth(), singleLine = true,
-                label = { Text("Password") },
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-            )
-            Button(
-                onClick = {
-                    if (email.isBlank() || password.length < 6) {
-                        status = "Enter a valid email and a password with at least 6 characters."
-                    } else {
-                        busy = true
-                        val callback: (Result<com.google.firebase.auth.FirebaseUser>) -> Unit = { result ->
-                            busy = false
-                            result.onSuccess { user = it; status = "Account ready. Metadata sync can now use this account." }
-                                .onFailure { status = it.localizedMessage ?: "Authentication failed." }
-                        }
-                        if (isRegister) auth.registerWithEmail(email, password, callback)
-                        else auth.signInWithEmail(email, password, callback)
-                    }
-                },
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground)
-            ) { Text(if (busy) "Please wait…" else if (isRegister) "Create account" else "Sign in", fontWeight = FontWeight.Bold) }
 
-            OutlinedButton(
-                onClick = {
-                    if (email.isBlank()) {
-                        status = "Enter your email address first to receive a password reset link."
-                    } else {
-                        busy = true
-                        auth.sendPasswordReset(email) { result ->
-                            busy = false
-                            status = result.fold(
-                                { "Password reset email sent. Check your inbox." },
-                                { it.localizedMessage ?: "Could not send the reset email." }
-                            )
-                        }
-                    }
-                },
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("Forgot password?") }
+            Column(
+                modifier = Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color.White,
+                    androidx.compose.foundation.shape.RoundedCornerShape(topStart = 38.dp, topEnd = 38.dp))
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+            ) {
+                Text("Welcome to T2S Studio", color = T2SText, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                Text("Sign in to sync your projects, scripts and settings across devices.",
+                    color = T2SSecondaryText, fontSize = 14.sp, lineHeight = 20.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center)
 
-            OutlinedButton(
-                onClick = {
-                    val webClientIdId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
-                    if (activity == null || webClientIdId == 0) {
-                        status = "Google sign-in needs the Web OAuth client ID configured in Firebase Console. Email sign-in is ready once Email/Password is enabled."
-                    } else {
-                        busy = true
-                        scope.launch {
-                            try {
-                                val clientId = context.getString(webClientIdId)
-                                val credentialManager = CredentialManager.create(context)
-                                val googleOption = GetGoogleIdOption.Builder()
-                                    .setFilterByAuthorizedAccounts(true)
-                                    .setServerClientId(clientId)
-                                    .setAutoSelectEnabled(false)
-                                    .build()
-                                val credential = try {
-                                    val request = GetCredentialRequest.Builder()
-                                        .addCredentialOption(googleOption)
-                                        .build()
-                                    credentialManager.getCredential(activity, request).credential
-                                } catch (_: androidx.credentials.exceptions.NoCredentialException) {
-                                    // No previously-authorized account: explicitly show Google's account picker.
-                                    val signInOption = com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
-                                        .Builder(clientId)
-                                        .build()
-                                    val signInRequest = GetCredentialRequest.Builder()
-                                        .addCredentialOption(signInOption)
-                                        .build()
-                                    credentialManager.getCredential(activity, signInRequest).credential
-                                }
-                                if (credential is CustomCredential &&
-                                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-                                ) {
-                                    val googleToken = GoogleIdTokenCredential.createFrom(credential.data)
-                                    val firebaseCredential = GoogleAuthProvider.getCredential(googleToken.idToken, null)
-                                    auth.signInWithGoogleCredential(firebaseCredential) { signIn ->
-                                        busy = false
-                                        signIn.onSuccess { user = it; status = "Google account connected." }
-                                            .onFailure { status = it.localizedMessage ?: "Google sign-in failed." }
-                                    }
-                                } else {
-                                    busy = false
-                                    status = "Google did not return a supported sign-in credential."
-                                }
-                            } catch (error: Exception) {
+                if (user != null) {
+                    Text("Signed in", color = T2SOrange, fontWeight = FontWeight.Bold)
+                    Text(syncStatus, color = T2SSecondaryText, fontSize = 13.sp)
+                    Text(user?.email ?: user?.displayName ?: "T2S account", color = T2SText, fontSize = 16.sp)
+                    Button(onClick = { auth.signOut(); user = null; password = ""; status = "Signed out. Your local projects remain on this device." },
+                        modifier = Modifier.fillMaxWidth().height(54.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = T2SOrange)) { Text("Sign out", fontSize = 17.sp) }
+                } else {
+                    Row(modifier = Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFFF1EFED), androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(4.dp)) {
+                        Button(onClick = { isRegister = false; status = "" }, modifier = Modifier.weight(1f).height(48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = if (!isRegister) T2SOrange else androidx.compose.ui.graphics.Color.Transparent,
+                                contentColor = if (!isRegister) androidx.compose.ui.graphics.Color.White else T2SText),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) { Text("Sign In", fontWeight = FontWeight.SemiBold) }
+                        Button(onClick = { isRegister = true; status = "" }, modifier = Modifier.weight(1f).height(48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = if (isRegister) T2SOrange else androidx.compose.ui.graphics.Color.Transparent,
+                                contentColor = if (isRegister) androidx.compose.ui.graphics.Color.White else T2SText),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) { Text("Create Account", fontWeight = FontWeight.SemiBold) }
+                    }
+                    OutlinedTextField(value = email, onValueChange = { email = it }, modifier = Modifier.fillMaxWidth(),
+                        singleLine = true, label = { Text("Email address") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+                    OutlinedTextField(value = password, onValueChange = { password = it }, modifier = Modifier.fillMaxWidth(),
+                        singleLine = true, label = { Text("Password") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text("🔒  Keep me signed in", color = T2SText, fontSize = 13.sp)
+                        androidx.compose.material3.TextButton(onClick = {
+                            if (email.isBlank()) status = "Enter your email address first to receive a password reset link."
+                            else { busy = true; auth.sendPasswordReset(email) { result ->
                                 busy = false
-                                status = error.localizedMessage ?: "Google sign-in was cancelled or unavailable."
+                                status = result.fold({ "Password reset email sent. Check your inbox." }, { it.localizedMessage ?: "Could not send the reset email." })
+                            } }
+                        }, enabled = !busy) { Text("Forgot password?", color = T2SOrange, fontSize = 13.sp) }
+                    }
+                    Button(onClick = {
+                        if (email.isBlank() || password.length < 6) status = "Enter a valid email and a password with at least 6 characters."
+                        else {
+                            busy = true
+                            val callback: (Result<com.google.firebase.auth.FirebaseUser>) -> Unit = { result ->
+                                busy = false
+                                result.onSuccess { user = it; status = "Account ready. Metadata sync can now use this account." }
+                                    .onFailure { status = it.localizedMessage ?: "Authentication failed." }
+                            }
+                            if (isRegister) auth.registerWithEmail(email, password, callback) else auth.signInWithEmail(email, password, callback)
+                        }
+                    }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(58.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = T2SOrange),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(30.dp)) {
+                        Text(if (busy) "Please wait…" else if (isRegister) "Create Account" else "➜  Sign In", fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f), color = T2SBorder)
+                        Text("OR", color = T2SSecondaryText, fontSize = 13.sp)
+                        androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f), color = T2SBorder)
+                    }
+                    OutlinedButton(onClick = {
+                        val webClientIdId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+                        if (activity == null || webClientIdId == 0) status = "Google sign-in needs the Web OAuth client ID configured in Firebase Console."
+                        else {
+                            busy = true
+                            scope.launch {
+                                try {
+                                    val clientId = context.getString(webClientIdId)
+                                    val credentialManager = CredentialManager.create(context)
+                                    val googleOption = GetGoogleIdOption.Builder().setFilterByAuthorizedAccounts(true)
+                                        .setServerClientId(clientId).setAutoSelectEnabled(false).build()
+                                    val credential = try {
+                                        credentialManager.getCredential(activity, GetCredentialRequest.Builder().addCredentialOption(googleOption).build()).credential
+                                    } catch (_: androidx.credentials.exceptions.NoCredentialException) {
+                                        val signInOption = com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption.Builder(clientId).build()
+                                        credentialManager.getCredential(activity, GetCredentialRequest.Builder().addCredentialOption(signInOption).build()).credential
+                                    }
+                                    if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                                        val token = GoogleIdTokenCredential.createFrom(credential.data)
+                                        auth.signInWithGoogleCredential(GoogleAuthProvider.getCredential(token.idToken, null)) { result ->
+                                            busy = false
+                                            result.onSuccess { user = it; status = "Google account connected." }
+                                                .onFailure { status = it.localizedMessage ?: "Google sign-in failed." }
+                                        }
+                                    } else { busy = false; status = "Google did not return a supported sign-in credential." }
+                                } catch (error: Exception) { busy = false; status = error.localizedMessage ?: "Google sign-in was cancelled or unavailable." }
                             }
                         }
+                    }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(54.dp),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(30.dp)) {
+                        Text("🌐   Continue with Google", color = T2SText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
-                },
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("Continue with Google") }
-        }
+                }
 
-        if (user == null) Text(syncStatus, color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 17.sp)
-        if (status.isNotBlank()) {
-            Text(status, color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 17.sp)
-        }
-        Spacer(Modifier.height(4.dp))
-        Text("You can continue using T2S offline without signing in. Local audio and projects are not deleted when you sign out.", color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 17.sp)
-        OutlinedButton(onClick = { showApiSettings = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Online TTS API settings")
+                if (status.isNotBlank()) Text(status, color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 17.sp)
+                Text("☁️                  📱                  ⚙️", color = T2SOrange, fontSize = 23.sp)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    Text("Sync Projects", color = T2SText, fontSize = 11.sp)
+                    Text("Multiple Devices", color = T2SText, fontSize = 11.sp)
+                    Text("Save Settings", color = T2SText, fontSize = 11.sp)
+                }
+                Column(modifier = Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFFFFF4E8),
+                    androidx.compose.foundation.shape.RoundedCornerShape(22.dp)).padding(16.dp),
+                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                    Text("You can also use T2S Studio without an account (offline mode).",
+                        color = T2SText, fontSize = 12.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    androidx.compose.material3.TextButton(onClick = onBack) {
+                        Text("Continue as Guest  ❯", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    }
+                }
+                androidx.compose.material3.TextButton(onClick = { showApiSettings = true }) {
+                    Text("Online TTS API settings", color = T2SSecondaryText, fontSize = 12.sp)
+                }
+            }
         }
     }
 }
