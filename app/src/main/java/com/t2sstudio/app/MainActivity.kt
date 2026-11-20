@@ -199,6 +199,7 @@ private fun T2SApp() {
                                     )
                                 }
                             }
+                            Text("Text to Speech", fontSize = 10.sp, color = Color.White.copy(alpha = 0.92f), lineHeight = 11.sp)
                         }
                     }
                 },
