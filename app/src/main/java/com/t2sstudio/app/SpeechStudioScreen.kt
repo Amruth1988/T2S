@@ -867,7 +867,26 @@ fun SpeechStudioScreen(
                     leadingIcon = { Text("⌕", fontSize = 25.sp, color = T2SOrange, fontWeight = FontWeight.Bold) },
                     trailingIcon = {
                         if (voiceSearch.isNotBlank()) {
-                            TextButton(onClick = { voiceSearch = ""; }) { Text("✕ Clear") }
+                            TextButton(
+                                onClick = {
+                                    stopVoicePreview()
+                                    voiceSearch = ""
+                                    selectedSavedVoice = null
+                                    selectedOnlineVoice = null
+                                    selectedVoice = availableVoices.firstOrNull { voice ->
+                                        selectedGender == "All" || genderForVoice(voice) == selectedGender
+                                    }
+                                    selectedVoice?.let { voice ->
+                                        ttsEngine?.let { engine ->
+                                            engine.stop()
+                                            engine.setLanguage(voice.locale)
+                                            engine.voice = voice
+                                        }
+                                    }
+                                    statusMessage = selectedVoice?.let { "Voice search cleared. ${it.name} is selected as the installed voice." }
+                                        ?: "Voice search cleared. Select an installed voice to continue."
+                                }
+                            ) { Text("✕ Clear") }
                         }
                     }
                 )
