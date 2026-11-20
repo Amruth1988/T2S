@@ -177,6 +177,7 @@ fun SpeechStudioScreen(
     var selectedOnlineVoice by remember { mutableStateOf<OnlineTtsVoice?>(null) }
     var onlineCatalogueStatus by remember { mutableStateOf("Checking online voices…") }
     val myVoices = remember { mutableStateListOf<SavedUserVoice>() }
+    var selectedSavedVoice by remember { mutableStateOf<SavedUserVoice?>(null) }
     val convertedTeluguPacks = remember { mutableStateListOf<TeluguVoicePacks.InstalledConvertedVoice>().apply { addAll(TeluguVoicePacks.installedConverted(context)) } }
     var selectedTeluguPackId by remember { mutableStateOf(convertedTeluguPacks.firstOrNull()?.id) }
     var importingTeluguPacks by remember { mutableStateOf(false) }
@@ -865,6 +866,7 @@ fun SpeechStudioScreen(
                                     isPurohitMode = false
                                     selectedVoice = voice
                                     selectedOnlineVoice = null
+                                    selectedSavedVoice = null
                                     voiceSearch = voice.name
                                     ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
                                     statusMessage = "${voice.name} selected."
@@ -953,6 +955,7 @@ fun SpeechStudioScreen(
                                     isPurohitMode = false
                                     selectedOnlineVoice = voice
                                     selectedVoice = null
+                                    selectedSavedVoice = null
                                     voiceSearch = voice.name
                                     statusMessage = voice.name + " selected. Voice licence: " + voice.licence + ". " + voice.attribution
                                 }) {
@@ -973,10 +976,17 @@ fun SpeechStudioScreen(
                             enabled = false
                         )
                         filteredPersonal.forEach { voice ->
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).background(if (selectedSavedVoice?.id == voice.id) T2SCream else Color.Transparent, RoundedCornerShape(10.dp)).clickable {
+                                isPurohitMode = false
+                                selectedSavedVoice = voice
+                                selectedVoice = null
+                                selectedOnlineVoice = null
+                                voiceSearch = voice.name
+                                statusMessage = "${voice.name} selected. This is a saved recording sample, not a trained voice model; text-to-speech generation in this exact voice is not available yet."
+                            }.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
-                                    Text("Saved sample • " + voice.language.uppercase(), color = T2SSecondaryText, fontSize = 11.sp)
+                                    Text(voice.name + if (selectedSavedVoice?.id == voice.id) " ✓" else "", color = T2SText, fontWeight = FontWeight.SemiBold)
+                                    Text("Saved sample • " + voice.language.uppercase() + " • select to use", color = T2SSecondaryText, fontSize = 11.sp)
                                 }
                                 TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "personal:${voice.id}", localSamplePath = voice.localSamplePath, languageOverride = voice.language) }) {
                                     Text(if (activePreviewKey == "personal:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = T2SOrange)
@@ -1140,6 +1150,8 @@ fun SpeechStudioScreen(
                 val language = languages.first { it.label == selectedLanguage }
                 if (textToSpeak.isBlank()) {
                     statusMessage = "Please enter some text first."
+                } else if (selectedSavedVoice != null) {
+                    statusMessage = "${selectedSavedVoice?.name} is a saved audio sample, not a trained voice-cloning model. T2S cannot generate new text in that voice yet. Choose an installed or online TTS voice, or preview the saved recording."
                 } else if (selectedLanguage == "Telugu" && !isPurohitMode && outputFormat == "WAV" && convertedTeluguPacks.any { it.id == selectedTeluguPackId }) {
                     val pack = convertedTeluguPacks.firstOrNull { it.id == selectedTeluguPackId }
                     if (pack == null) {
