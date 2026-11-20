@@ -190,7 +190,12 @@ fun SpeechStudioScreen(
         SpeechLanguage("Hindi", Locale("hi", "IN"))
     )
 
-    fun genderForVoice(voice: Voice): String? = voiceGenderOverrides[installedVoiceKey(voice)] ?: voiceGender(voice.name)
+    fun genderForVoice(voice: Voice): String? = when (voiceGenderOverrides[installedVoiceKey(voice)]) {
+        "Male" -> "Male"
+        "Female" -> "Female"
+        "Unknown" -> null
+        else -> voiceGender(voice.name)
+    }
 
     fun saveVoiceGender(voice: Voice, gender: String) {
         voiceGenderOverrides[installedVoiceKey(voice)] = gender
@@ -913,10 +918,10 @@ fun SpeechStudioScreen(
                                                 listOf("Male", "Female", "Unknown").forEach { genderOption ->
                                                     DropdownMenuItem(text = { Text(genderOption) }, onClick = {
                                                         if (genderOption == "Unknown") {
-                                                            voiceGenderOverrides.remove(installedVoiceKey(voice))
+                                                            voiceGenderOverrides[installedVoiceKey(voice)] = "Unknown"
                                                             context.getSharedPreferences("t2s_voice_gender_overrides", android.content.Context.MODE_PRIVATE)
                                                                 .edit().putStringSet("overrides", voiceGenderOverrides.map { (key, value) -> key + "=" + value }.toSet()).apply()
-                                                            statusMessage = "Gender classification cleared for " + voice.name + "."
+                                                            statusMessage = "Gender set to Unknown for " + voice.name + "."
                                                         } else saveVoiceGender(voice, genderOption)
                                                         genderMenuVoiceKey = null
                                                     })
