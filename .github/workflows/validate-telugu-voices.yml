@@ -9,7 +9,7 @@ on:
       - ".github/workflows/validate-telugu-voices.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   convert-and-synthesize:
@@ -76,6 +76,36 @@ jobs:
           rm -rf build/telugu-voices/maya
           test -s build/telugu-voices/venkatesh/ATTRIBUTION.md
           test -s build/telugu-voices/padmavathi/ATTRIBUTION.md
+
+      - name: Build versioned automatic-install archives
+        run: |
+          set -euo pipefail
+          for voice in venkatesh padmavathi; do
+            dir="build/telugu-voices/$voice"
+            archive="build/t2s-telugu-$voice-v1.zip"
+            (cd build/telugu-voices && zip -qr "../$archive" "$voice")
+            sha256sum "$archive" > "$archive.sha256"
+            test -s "$archive"
+            test -s "$archive.sha256"
+          done
+
+      - name: Publish stable Telugu voice-pack release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: telugu-voice-packs-v1
+          target_commitish: develop
+          name: T2S Telugu Voice Packs v1
+          body: |
+            Versioned, attributed Telugu Piper voice packs for automatic in-app installation.
+            Each archive includes model weights, tokens, model card, attribution and licence notice.
+            T2S verifies the SHA-256 checksum before installing a pack.
+          files: |
+            build/t2s-telugu-venkatesh-v1.zip
+            build/t2s-telugu-venkatesh-v1.zip.sha256
+            build/t2s-telugu-padmavathi-v1.zip
+            build/t2s-telugu-padmavathi-v1.zip.sha256
+          fail_on_unmatched_files: true
+          make_latest: false
 
       - name: Upload attributed Telugu import packs and synthesis samples
         uses: actions/upload-artifact@v4
