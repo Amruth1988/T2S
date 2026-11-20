@@ -187,12 +187,28 @@ fun LoginScreen(onBack: () -> Unit) {
                             )
                         )
                     }
-                    Text(
-                        "Studi",
-                        color = T2SText,
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+                        Text(
+                            "Studi",
+                            color = T2SOrange,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        androidx.compose.foundation.layout.Box(
+                            modifier = Modifier.padding(start = 3.dp)
+                                .size(23.dp)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(androidx.compose.ui.graphics.Color.White),
+                            contentAlignment = androidx.compose.ui.Alignment.Center
+                        ) {
+                            androidx.compose.material3.Icon(
+                                androidx.compose.material.icons.Icons.Filled.Mic,
+                                contentDescription = "Microphone",
+                                tint = T2SOrange,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                    }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     listOf("WRITE", "CREATE", "SPEAK").forEach { word ->
