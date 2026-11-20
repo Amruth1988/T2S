@@ -54,12 +54,16 @@ jobs:
       - name: Build Debug and Release APKs
         run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease
 
-      - name: Prepare direct APK download
+      - name: Prepare ABI-specific APK downloads
         if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
-          test -s app/build/outputs/apk/release/app-release.apk
-          cp app/build/outputs/apk/release/app-release.apk T2S.apk
+          mkdir -p dist
+          for abi in arm64-v8a armeabi-v7a; do
+            apk="app/build/outputs/apk/release/app-${abi}-release.apk"
+            test -s "$apk"
+            cp "$apk" "dist/T2S-${abi}.apk"
+          done
 
       - name: Publish T2S.apk as a direct download
         if: github.event_name != 'pull_request'
@@ -67,7 +71,9 @@ jobs:
         with:
           tag_name: t2s-build-${{ github.run_number }}
           name: T2S Build #${{ github.run_number }}
-          files: T2S.apk
+          files: |
+            dist/T2S-arm64-v8a.apk
+            dist/T2S-armeabi-v7a.apk
           draft: false
           prerelease: false
           make_latest: false
@@ -78,8 +84,9 @@ jobs:
           GH_REPOSITORY: ${{ github.repository }}
           GH_RUN_NUMBER: ${{ github.run_number }}
         run: |
-          echo "## T2S Android APK" >> "$GITHUB_STEP_SUMMARY"
+          echo "## T2S Android APK downloads" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "[Download T2S.apk](https://github.com/$GH_REPOSITORY/releases/download/t2s-build-$GH_RUN_NUMBER/T2S.apk)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- [ARM64 (most modern Android phones)](https://github.com/$GH_REPOSITORY/releases/download/t2s-build-$GH_RUN_NUMBER/T2S-arm64-v8a.apk)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- [ARMv7 (32-bit ARM devices)](https://github.com/$GH_REPOSITORY/releases/download/t2s-build-$GH_RUN_NUMBER/T2S-armeabi-v7a.apk)" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "This is a direct APK file, not the ZIP-wrapped Actions artifact." >> "$GITHUB_STEP_SUMMARY"
+          echo "Install only the APK matching the device CPU architecture." >> "$GITHUB_STEP_SUMMARY"

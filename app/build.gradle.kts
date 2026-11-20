@@ -54,6 +54,17 @@ android {
         }
     }
 
+    // Keep native Sherpa-ONNX libraries out of unrelated CPU architectures.
+    // Publish one small installable APK per supported Android ARM ABI.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = false
+        }
+    }
+
     buildFeatures {
         compose = true
     }
