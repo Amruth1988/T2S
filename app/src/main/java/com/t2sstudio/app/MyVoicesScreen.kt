@@ -104,7 +104,23 @@ fun MyVoicesScreen() {
                 Text("Voice sample language", color = T2SText, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("en" to "English", "te" to "Telugu", "hi" to "Hindi").forEach { (code, label) ->
-                        androidx.compose.material3.FilterChip(selected = cloneLanguage == code, onClick = { cloneLanguage = code }, label = { Text(label) })
+                        androidx.compose.material3.FilterChip(
+                            selected = cloneLanguage == code,
+                            onClick = { cloneLanguage = code },
+                            label = { Text(label) },
+                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = T2SOrange,
+                                selectedLabelColor = androidx.compose.ui.graphics.Color.White,
+                                containerColor = T2SBackground,
+                                labelColor = T2SText
+                            ),
+                            border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = cloneLanguage == code,
+                                borderColor = T2SOrange.copy(alpha = 0.45f),
+                                selectedBorderColor = T2SOrange
+                            )
+                        )
                     }
                 }
                 Text("Your recording and profile details are stored locally. This does not yet create an AI-cloned voice; no paid cloud service is used.", fontSize = 12.sp, color = T2SSecondaryText)
