@@ -842,9 +842,22 @@ fun SpeechStudioScreen(
             }
             val allInstalledForLanguage = availableVoices.toList()
             val genderMatches = allInstalledForLanguage.filter { voice -> selectedGender == "All" || genderForVoice(voice) == selectedGender }
-            val installedPool = genderMatches
-            val onlineGenderMatches = onlineVoices.filter { voice -> selectedGender == "All" || voice.gender.equals(selectedGender, true) }
-            val onlinePool = onlineGenderMatches
+            // Many Android TTS engines do not publish gender metadata in Voice.name.
+            // Keep the language voices visible rather than showing an empty list when no
+            // installed voice can be confidently classified for the selected gender.
+            val installedPool = if (selectedGender != "All" && genderMatches.isEmpty()) {
+                allInstalledForLanguage
+            } else genderMatches
+            val onlineGenderMatches = onlineVoices.filter { voice ->
+                selectedGender == "All" || voice.gender.equals(selectedGender, true) ||
+                    (selectedGender == "Male" && voice.gender.equals("masculine", true)) ||
+                    (selectedGender == "Female" && voice.gender.equals("feminine", true))
+            }
+            // Some online catalogues omit gender or use different metadata labels.
+            // Fall back to all voices for this language only when no exact gender match exists.
+            val onlinePool = if (selectedGender != "All" && onlineGenderMatches.isEmpty()) {
+                onlineVoices.toList()
+            } else onlineGenderMatches
             val searchTerm = voiceSearch.trim().lowercase(Locale.ROOT)
             val searchedInstalled = installedPool.filter { voice ->
                 "${voice.name} ${voice.locale.displayName} ${voice.locale.toLanguageTag()}".lowercase(Locale.ROOT).contains(searchTerm)
