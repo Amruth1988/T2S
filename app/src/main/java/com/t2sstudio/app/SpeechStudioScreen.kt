@@ -726,89 +726,7 @@ fun SpeechStudioScreen(
           }
         }
 
-        if (selectedLanguage == "Telugu") {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = T2SCream),
-                border = androidx.compose.foundation.BorderStroke(1.dp, T2SOrange.copy(alpha = 0.35f))
-            ) {
-                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Purohit-style voice presets", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
-                    Text(
-                        "These presets adjust speed and pitch on an installed Telugu Android voice. Android may not identify the voice gender. They are previews, not a dedicated or verified priest-recitation model.",
-                        fontSize = 11.sp,
-                        color = T2SSecondaryText
-                    )
-                    purohitPresets.forEach { preset ->
-                        val selected = isPurohitMode && selectedPurohitPreset?.name == preset.name
-                        Card(
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                selectedPurohitPreset = preset
-                                isPurohitMode = true
-                                val engine = ttsEngine
-                                selectedPurohitVoice = selectedPurohitVoice?.takeIf { it.locale.language == "te" }
-                                    ?: availableVoices.firstOrNull { it.locale.language == "te" && voiceGender(it.name) == "Male" }
-                                    ?: availableVoices.firstOrNull { it.locale.language == "te" }
-                                    ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" && voiceGender(it.name) == "Male" }
-                                    ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" }
-                                engine?.let {
-                                    it.setLanguage(Locale("te", "IN"))
-                                    selectedPurohitVoice?.let { voice -> it.voice = voice }
-                                }
-                                statusMessage = if (selectedPurohitVoice == null) {
-                                    "${preset.name} selected, but no explicitly male Telugu voice is installed. Female voices are blocked for this preset."
-                                } else {
-                                    "${preset.name} selected with male Telugu voice ${selectedPurohitVoice?.name}. Preview it before generating audio."
-                                }
-                            },
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(13.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (selected) Color(0xFFFFE3CC) else Color.White
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (selected) T2SOrange else Color(0xFFE5D6C8)
-                            )
-                        ) {
-                            Row(
-                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                            ) {
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(preset.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Text(preset.description, color = T2SSecondaryText, fontSize = 11.sp)
-                                }
-                                if (selected) Text("SELECTED", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 9.sp)
-                            }
-                        }
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = {
-                                val preset = selectedPurohitPreset.takeIf { isPurohitMode }
-                                if (preset == null) statusMessage = "Select Purohit 1, 2 or 3 first."
-                                else previewPurohitPreset(preset)
-                            },
-                            enabled = isPurohitMode && selectedPurohitPreset != null && selectedPurohitVoice?.locale?.language == "te" && engineReady,
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
-                        ) {
-                            Text(if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) "Preview playing…" else "▶ Preview")
-                        }
-                        androidx.compose.material3.OutlinedButton(
-                            onClick = {
-                                stopVoicePreview()
-                                isPurohitMode = false
-                                statusMessage = "Purohit mode cleared. Your selected preset and voice-library choice are kept."
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Clear") }
-                    }
-                }
-            }
-        }
+
 
         Card(modifier = Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = T2SBackground)) {
           Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1052,6 +970,90 @@ fun SpeechStudioScreen(
             }
         }
         }
+        }
+
+        if (selectedLanguage == "Telugu") {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = T2SCream),
+                border = androidx.compose.foundation.BorderStroke(1.dp, T2SOrange.copy(alpha = 0.35f))
+            ) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Purohit-style voice presets", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                    Text(
+                        "These presets adjust speed and pitch on an installed Telugu Android voice. Android may not identify the voice gender. They are previews, not a dedicated or verified priest-recitation model.",
+                        fontSize = 11.sp,
+                        color = T2SSecondaryText
+                    )
+                    purohitPresets.forEach { preset ->
+                        val selected = isPurohitMode && selectedPurohitPreset?.name == preset.name
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                selectedPurohitPreset = preset
+                                isPurohitMode = true
+                                val engine = ttsEngine
+                                selectedPurohitVoice = selectedPurohitVoice?.takeIf { it.locale.language == "te" }
+                                    ?: availableVoices.firstOrNull { it.locale.language == "te" && voiceGender(it.name) == "Male" }
+                                    ?: availableVoices.firstOrNull { it.locale.language == "te" }
+                                    ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" && voiceGender(it.name) == "Male" }
+                                    ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" }
+                                engine?.let {
+                                    it.setLanguage(Locale("te", "IN"))
+                                    selectedPurohitVoice?.let { voice -> it.voice = voice }
+                                }
+                                statusMessage = if (selectedPurohitVoice == null) {
+                                    "${preset.name} selected, but no explicitly male Telugu voice is installed. Female voices are blocked for this preset."
+                                } else {
+                                    "${preset.name} selected with male Telugu voice ${selectedPurohitVoice?.name}. Preview it before generating audio."
+                                }
+                            },
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(13.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (selected) Color(0xFFFFE3CC) else Color.White
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (selected) T2SOrange else Color(0xFFE5D6C8)
+                            )
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(preset.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text(preset.description, color = T2SSecondaryText, fontSize = 11.sp)
+                                }
+                                if (selected) Text("SELECTED", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                            }
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                val preset = selectedPurohitPreset.takeIf { isPurohitMode }
+                                if (preset == null) statusMessage = "Select Purohit 1, 2 or 3 first."
+                                else previewPurohitPreset(preset)
+                            },
+                            enabled = isPurohitMode && selectedPurohitPreset != null && selectedPurohitVoice?.locale?.language == "te" && engineReady,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
+                        ) {
+                            Text(if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) "Preview playing…" else "▶ Preview")
+                        }
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = {
+                                stopVoicePreview()
+                                isPurohitMode = false
+                                statusMessage = "Purohit mode cleared. Your selected preset and voice-library choice are kept."
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Clear") }
+                    }
+                }
+            }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
