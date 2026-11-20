@@ -28,6 +28,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -165,12 +167,22 @@ fun LoginScreen(onBack: () -> Unit) {
                 horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
-                androidx.compose.foundation.layout.Box(
-                    modifier = Modifier.size(70.dp).background(androidx.compose.ui.graphics.Color.White,
-                        androidx.compose.foundation.shape.RoundedCornerShape(23.dp)),
-                    contentAlignment = androidx.compose.ui.Alignment.Center
+                Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("🎙", fontSize = 34.sp)
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_t2s_mark),
+                        contentDescription = "T2S Studio logo",
+                        modifier = Modifier.size(64.dp)
+                    )
+                    Text(
+                        "T2S STUDIO",
+                        color = androidx.compose.ui.graphics.Color.White,
+                        fontSize = 21.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.1.sp
+                    )
                 }
                 Text("Your voice. Your stories.", color = androidx.compose.ui.graphics.Color.White,
                     fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
