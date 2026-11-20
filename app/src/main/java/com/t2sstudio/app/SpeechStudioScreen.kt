@@ -447,30 +447,9 @@ fun SpeechStudioScreen(
     }
 
     fun saveToDownloads(file: File) {
-        runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val values = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, file.name)
-                    put(MediaStore.Downloads.MIME_TYPE, audioMimeType(file))
-                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/T2S Studio")
-                    put(MediaStore.Downloads.IS_PENDING, 1)
-                }
-                val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                    ?: error("Could not create download entry")
-                context.contentResolver.openOutputStream(uri)?.use { output ->
-                    file.inputStream().use { input -> input.copyTo(output) }
-                } ?: error("Could not open download output")
-                val complete = ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }
-                context.contentResolver.update(uri, complete, null, null)
-                statusMessage = "Saved to Downloads/T2S Studio."
-            } else {
-                val target = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), file.name)
-                file.copyTo(target, overwrite = true)
-                statusMessage = "Saved in T2S Studio app storage: Music/${file.name}"
-            }
-        }.onFailure {
-            statusMessage = "Unable to save audio: ${it.localizedMessage ?: "storage error"}"
-        }
+        runCatching { AudioFileTransfer.saveToDownloads(context, file) }
+            .onSuccess { statusMessage = it }
+            .onFailure { statusMessage = "Unable to save audio: ${it.localizedMessage ?: "storage error"}" }
     }
 
     Column(
