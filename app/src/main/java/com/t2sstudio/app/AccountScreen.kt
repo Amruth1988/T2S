@@ -369,7 +369,14 @@ fun LoginScreen(onBack: () -> Unit) {
                         }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(15.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = T2SText)) {
-                            Text("🌐   Continue with Google", color = T2SText, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            ) {
+                                Text("G", color = androidx.compose.ui.graphics.Color(0xFF4285F4), fontSize = 19.sp, fontWeight = FontWeight.Black)
+                                Text("  Continue with Google", color = T2SText, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                     if (status.isNotBlank()) {
