@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -91,7 +92,7 @@ class MainActivity : ComponentActivity() {
 private data class Destination(val label: String, val icon: ImageVector)
 
 private val destinations = listOf(
-    Destination("Create", Icons.Filled.Add),
+    Destination("Home", Icons.Filled.Home),
     Destination("Projects", Icons.Filled.Folder),
     Destination("Recent", Icons.Filled.AccessTime),
     Destination("My", Icons.Filled.RecordVoiceOver),
@@ -174,7 +175,6 @@ private fun T2SApp() {
                                     )
                                 }
                             }
-                            Text("Text to Speech", fontSize = 10.sp, color = Color.White.copy(alpha = 0.92f), lineHeight = 11.sp)
                         }
                     }
                 },
