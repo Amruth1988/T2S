@@ -108,7 +108,9 @@ private fun T2SApp() {
     }
     val context = androidx.compose.ui.platform.LocalContext.current
     var selectedDestination by remember { mutableIntStateOf(0) }
-    var showLoginPage by remember { mutableStateOf(false) }
+    var showLoginPage by remember {
+        mutableStateOf(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser == null)
+    }
     if (showLoginPage) {
         LoginScreen(onBack = { showLoginPage = false })
         return
