@@ -2,6 +2,7 @@ package com.t2sstudio.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -110,6 +111,7 @@ private fun T2SApp() {
     }
     val context = androidx.compose.ui.platform.LocalContext.current
     var selectedDestination by remember { mutableIntStateOf(0) }
+    val destinationBackStack = remember { mutableStateListOf<Int>() }
     var showLoginPage by remember {
         mutableStateOf(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser == null)
     }
@@ -122,6 +124,14 @@ private fun T2SApp() {
     var selectedProjectId by remember { mutableStateOf(projects.firstOrNull()?.id) }
     var pendingScriptText by remember { mutableStateOf<String?>(null) }
     val scriptDrafts = remember { mutableStateListOf<T2SScriptDraft>().apply { addAll(ScriptDraftStore.load(context)) } }
+
+    BackHandler(enabled = showLoginPage || destinationBackStack.isNotEmpty()) {
+        if (showLoginPage) {
+            showLoginPage = false
+        } else if (destinationBackStack.isNotEmpty()) {
+            selectedDestination = destinationBackStack.removeAt(destinationBackStack.lastIndex)
+        }
+    }
 
     if (showLoginPage) {
         LoginScreen(onBack = { showLoginPage = false })
@@ -196,7 +206,15 @@ private fun T2SApp() {
                 destinations.forEachIndexed { index, destination ->
                     NavigationBarItem(
                         selected = selectedDestination == index,
-                        onClick = { selectedDestination = index; showLoginPage = false },
+                        onClick = {
+                            if (selectedDestination != index) {
+                                if (destinationBackStack.lastOrNull() != selectedDestination) {
+                                    destinationBackStack.add(selectedDestination)
+                                }
+                                selectedDestination = index
+                            }
+                            showLoginPage = false
+                        },
                         icon = { Icon(destination.icon, contentDescription = destination.label) },
                         label = { Text(destination.label, fontSize = 10.sp, maxLines = 1) },
                         colors = NavigationBarItemDefaults.colors(
