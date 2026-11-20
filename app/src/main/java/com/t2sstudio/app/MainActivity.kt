@@ -229,12 +229,26 @@ private fun T2SApp() {
                             }
                             showLoginPage = false
                         },
-                        icon = { Icon(destination.icon, contentDescription = destination.label) },
+                        icon = {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(RoundedCornerShape(9.dp))
+                                    .background(if (selectedDestination == index) T2SOrange else Color.Transparent),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    destination.icon,
+                                    contentDescription = destination.label,
+                                    tint = if (selectedDestination == index) Color.White else T2SSecondaryText
+                                )
+                            }
+                        },
                         label = { Text(destination.label, fontSize = 10.sp, maxLines = 1) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = Color.White,
                             selectedTextColor = T2SOrange,
-                            indicatorColor = T2SOrange,
+                            indicatorColor = Color.Transparent,
                             unselectedIconColor = T2SSecondaryText,
                             unselectedTextColor = T2SSecondaryText
                         )
