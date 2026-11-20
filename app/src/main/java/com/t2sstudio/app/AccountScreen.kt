@@ -53,7 +53,7 @@ import com.t2sstudio.app.ui.theme.T2SText
 import kotlinx.coroutines.launch
 
 @Composable
-fun LoginScreen(onBack: () -> Unit) {
+fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
     val context = LocalContext.current
     val activity = context as? Activity
     val auth = remember { T2SAuthRepository() }
@@ -75,6 +75,7 @@ fun LoginScreen(onBack: () -> Unit) {
             if (signedInUser != null) {
                 busy = false
                 status = ""
+                onSignedIn()
             }
         }
         val firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
