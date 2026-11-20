@@ -1148,7 +1148,8 @@ fun SpeechStudioScreen(
                                         color = if (configuredMalePurohitPack != null) T2SOrange else Color(0xFFB45309),
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.SemiBold
-                                    )                                }
+                                    )
+                                }
                                 if (selected) Text("SELECTED", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 9.sp)
                             }
                         }
@@ -1156,15 +1157,20 @@ fun SpeechStudioScreen(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = {
-                                val preset = selectedPurohitPreset.takeIf { isPurohitMode }
-                                if (preset == null) statusMessage = "Select Purohit 1, 2 or 3 first."
-                                else previewPurohitPreset(preset)
+                                if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) {
+                                    stopVoicePreview()
+                                    statusMessage = "Purohit preview stopped."
+                                } else {
+                                    val preset = selectedPurohitPreset.takeIf { isPurohitMode }
+                                    if (preset == null) statusMessage = "Select Purohit 1, 2 or 3 first."
+                                    else previewPurohitPreset(preset)
+                                }
                             },
                             enabled = isPurohitMode && selectedPurohitPreset != null && configuredMalePurohitPack != null && !importingTeluguPacks,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
                         ) {
-                            Text(if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) "Playing" else "▶ Preview")
+                            Text(if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) "■ Stop" else "▶ Preview")
                         }
                         androidx.compose.material3.OutlinedButton(
                             onClick = {
