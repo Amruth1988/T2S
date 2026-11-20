@@ -382,7 +382,7 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
                 ready = true
                 tts?.setSpeechRate(0.92f)
                 tts?.speak(
-                    "Welcome to T2S Studio. From your words to a voice that speaks.",
+                    "T2S Studio ki swagatam. From your words to a voice that speaks.",
                     TextToSpeech.QUEUE_FLUSH,
                     null,
                     "t2s-splash-intro"
