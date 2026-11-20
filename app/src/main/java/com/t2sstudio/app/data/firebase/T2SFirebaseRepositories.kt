@@ -159,6 +159,20 @@ class T2SFirestoreRepository(
             .addOnFailureListener { onComplete(Result.failure(it)) }
     }
 
+    fun archiveScript(
+        uid: String,
+        scriptId: String,
+        onComplete: (Result<Unit>) -> Unit
+    ) {
+        userCollection(uid, "scripts").document(scriptId)
+            .set(
+                mapOf("isDeleted" to true, "updatedAt" to FieldValue.serverTimestamp()),
+                SetOptions.merge()
+            )
+            .addOnSuccessListener { onComplete(Result.success(Unit)) }
+            .addOnFailureListener { onComplete(Result.failure(it)) }
+    }
+
     fun savePreferences(
         uid: String,
         preferences: Map<String, Any>,
