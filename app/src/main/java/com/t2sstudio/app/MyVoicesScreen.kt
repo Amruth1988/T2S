@@ -102,15 +102,15 @@ fun MyVoicesScreen() {
         Text("Save and manage reusable voice recordings on this device. Local profiles remain available after reopening the app.", color = T2SSecondaryText, fontSize = 14.sp)
         Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text("AI voice cloning server", fontWeight = FontWeight.SemiBold, color = T2SText)
-                Text("Optional self-hosted Volt-TTS server for genuine Telugu and English voice cloning. Your saved recording is sent only when you generate cloned speech.", color = T2SSecondaryText, fontSize = 12.sp)
+                Text("Self-hosted AI voice cloning server", fontWeight = FontWeight.SemiBold, color = T2SText)
+                Text("Connect an OmniVoiceTTS-compatible server to generate new Telugu or English speech from your saved voice sample. The sample is uploaded only when you tap Generate Speech.", color = T2SSecondaryText, fontSize = 12.sp)
                 OutlinedTextField(
                     value = cloneServerUrl,
                     onValueChange = { cloneServerUrl = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     label = { Text("Server URL") },
-                    placeholder = { Text("https://your-private-server:8080") }
+                    placeholder = { Text("https://your-server:7861") }
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
@@ -136,7 +136,8 @@ fun MyVoicesScreen() {
                         else Text("Test connection")
                     }
                 }
-                Text("The service requires your own NVIDIA GPU host (about 8 GB VRAM). No paid TTS API or cloud account is configured by T2S.", color = T2SSecondaryText, fontSize = 11.sp)
+                Text("Server API: /tts/generate-upload and /tts/ping. The host can use an NVIDIA GPU or CPU (CPU generation may be slow and memory-heavy). T2S does not send recordings to any third party except the server URL you configure.", color = T2SSecondaryText, fontSize = 11.sp)
+                Text("License note: check the selected server and model licenses before commercial use. The reference OmniVoiceTTS checkpoint is marked non-commercial.", color = T2SSecondaryText, fontSize = 11.sp)
             }
         }
         Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
