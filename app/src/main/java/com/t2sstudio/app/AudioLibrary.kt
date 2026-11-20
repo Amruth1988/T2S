@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
@@ -158,7 +159,8 @@ object AudioHistoryStore {
 @Composable
 fun SavedAudioScreen(
     records: List<AudioRecord>,
-    onDelete: (AudioRecord) -> Unit
+    onDelete: (AudioRecord) -> Unit,
+    onEditScript: (AudioRecord) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var playingId by remember { mutableStateOf<String?>(null) }
@@ -263,6 +265,7 @@ fun SavedAudioScreen(
                                     Text(if (playingId == record.id) "Pause" else "Play")
                                 }
                                 Spacer(Modifier.weight(1f))
+                                IconButton(onClick = { onEditScript(record) }) { Icon(Icons.Filled.Edit, contentDescription = "Edit script", tint = T2SOrange) }
                                 IconButton(onClick = { download(record) }) { Icon(Icons.Filled.Download, contentDescription = "Download", tint = T2SOrange) }
                                 IconButton(onClick = { share(record) }) { Icon(Icons.Filled.Share, contentDescription = "Share", tint = T2SOrange) }
                                 IconButton(onClick = {
