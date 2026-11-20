@@ -1,0 +1,20 @@
+{
+  "project_info": {
+    "project_number": "112392588493",
+    "project_id": "t2s-studio",
+    "storage_bucket": "t2s-studio.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:112392588493:android:2e07940d87d03cf928ad84",
+        "android_client_info": {
+          "package_name": "com.t2sstudio.app"
+        }
+      },
+      "api_key": [{ "current_key": "AIzaSyDGrwVf-HeDEKVwDsuBI1dsreRDm6sjOCg" }],
+      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+    }
+  ],
+  "configuration_version": "1"
+}
