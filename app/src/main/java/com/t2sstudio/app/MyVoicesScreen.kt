@@ -68,6 +68,7 @@ fun MyVoicesScreen() {
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordingFile by remember { mutableStateOf<File?>(null) }
     var previewPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
+    var previewingSavedVoiceId by remember { mutableStateOf<String?>(null) }
     var recordingStartedAt by remember { mutableStateOf(0L) }
     var hasMicPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
     var message by remember { mutableStateOf("Add a clear recording of your own voice to create a reusable voice profile.") }
@@ -282,9 +283,67 @@ fun MyVoicesScreen() {
                         Text("Local recording", color = T2SText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Text("Voice ID  •  ${voice.id}", color = T2SSecondaryText, fontSize = 10.sp, maxLines = 1)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Text("Saved sample • available for playback", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { runCatching { MyVoicesClient.deleteLocal(context, voice.id); loadVoices(); message = "Voice profile deleted from this device." }.onFailure { message = "Could not delete profile: ${it.message}" } }) { Text("Delete") }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text("Saved sample • preview the original recording", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp, modifier = Modifier.weight(1f))
+                        TextButton(onClick = {
+                            val currentPlayer = previewPlayer
+                            if (previewingSavedVoiceId == voice.id && currentPlayer?.isPlaying == true) {
+                                currentPlayer.pause()
+                                currentPlayer.seekTo(0)
+                                previewingSavedVoiceId = null
+                                message = "Voice sample preview stopped."
+                            } else runCatching {
+                                currentPlayer?.release()
+                                previewPlayer = null
+                                previewingSavedVoiceId = null
+                                val sampleFile = voice.localSamplePath?.let(::File)
+                                    ?: error("Saved voice sample file is missing.")
+                                require(sampleFile.exists() && sampleFile.length() > 1024L) { "Saved voice sample file is missing or empty." }
+                                val player = ExoPlayer.Builder(context).build()
+                                previewPlayer = player
+                                player.setAudioAttributes(
+                                    Media3AudioAttributes.Builder()
+                                        .setUsage(C.USAGE_MEDIA)
+                                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                                        .build(),
+                                    true
+                                )
+                                player.volume = 1f
+                                player.addListener(object : Player.Listener {
+                                    override fun onPlaybackStateChanged(playbackState: Int) {
+                                        if (playbackState == Player.STATE_ENDED) {
+                                            player.release()
+                                            if (previewPlayer === player) previewPlayer = null
+                                            previewingSavedVoiceId = null
+                                            message = "${voice.name} sample preview finished."
+                                        }
+                                    }
+                                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                                        player.release()
+                                        if (previewPlayer === player) previewPlayer = null
+                                        previewingSavedVoiceId = null
+                                        message = "Sample preview failed: ${error.message ?: "audio playback error"}"
+                                    }
+                                })
+                                player.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(sampleFile)))
+                                player.prepare()
+                                player.play()
+                                previewingSavedVoiceId = voice.id
+                                message = "Playing saved sample for ${voice.name}. This is the original recording, not generated speech."
+                            }.onFailure {
+                                previewingSavedVoiceId = null
+                                message = "Could not preview saved voice: ${it.localizedMessage ?: "audio playback error"}"
+                            }
+                        }) { Text(if (previewingSavedVoiceId == voice.id) "■ Stop" else "▶ Preview") }
+                        TextButton(onClick = {
+                            if (previewingSavedVoiceId == voice.id) {
+                                runCatching { previewPlayer?.release() }
+                                previewPlayer = null
+                                previewingSavedVoiceId = null
+                            }
+                            runCatching { MyVoicesClient.deleteLocal(context, voice.id); loadVoices(); message = "Voice profile deleted from this device." }
+                                .onFailure { message = "Could not delete profile: ${it.message}" }
+                        }) { Text("Delete") }
                     }
                 }
             }
