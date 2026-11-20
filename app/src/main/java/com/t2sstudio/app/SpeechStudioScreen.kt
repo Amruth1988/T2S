@@ -203,6 +203,7 @@ fun SpeechStudioScreen(
     var importingTeluguPacks by remember { mutableStateOf(false) }
     var downloadingTeluguPack by remember { mutableStateOf(false) }
     var teluguDownloadProgress by remember { mutableFloatStateOf(0f) }
+    var teluguDownloadFailed by remember { mutableStateOf(false) }
     val importTeluguPackLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             importingTeluguPacks = true
@@ -216,6 +217,36 @@ fun SpeechStudioScreen(
                 }.onFailure { statusMessage = "Voice-pack import failed: " + (it.message ?: "invalid archive") }
                 importingTeluguPacks = false
             }
+        }
+    }
+
+    // Download the Purohit Telugu voice automatically when Speech Studio opens.
+    // Existing installations are detected locally, so repeat launches do not re-download it.
+    LaunchedEffect(Unit) {
+        val installed = TeluguVoicePacks.installedConverted(context)
+            .firstOrNull { it.id == "venkatesh" && it.group == TeluguVoiceGroup.MALE }
+        if (installed == null) {
+            downloadingTeluguPack = true
+            teluguDownloadFailed = false
+            teluguDownloadProgress = 0f
+            statusMessage = "Preparing Telugu voice for Purohit presets…"
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    TeluguVoicePacks.downloadAndInstallVenkatesh(context) {
+                        teluguDownloadProgress = it.toFloat()
+                    }
+                }
+            }
+            result.onSuccess { voice ->
+                convertedTeluguPacks.clear()
+                convertedTeluguPacks.addAll(TeluguVoicePacks.installedConverted(context))
+                selectedTeluguPackId = voice.id
+                statusMessage = "Telugu voice is ready. Purohit presets can now play offline."
+            }.onFailure {
+                teluguDownloadFailed = true
+                statusMessage = "Telugu voice setup failed. Check your internet connection and retry."
+            }
+            downloadingTeluguPack = false
         }
     }
 
@@ -1223,53 +1254,53 @@ fun SpeechStudioScreen(
                     val configuredMalePurohitPack = convertedTeluguPacks.firstOrNull {
                         it.id == "venkatesh" && it.group == TeluguVoiceGroup.MALE
                     }
-                    Text(
-                        configuredMalePurohitPack?.let { "Male Telugu model ready • " + it.displayName }
-                            ?: if (downloadingTeluguPack) "Downloading Venkatesh male Telugu voice • " + teluguDownloadProgress.toInt() + "%"
-                            else "Male Telugu model not installed • Download once to use Purohit voices",
-                        color = if (configuredMalePurohitPack != null) T2SOrange else Color(0xFFB45309),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
                     if (downloadingTeluguPack) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Text("Setting up Telugu voice • " + teluguDownloadProgress.toInt() + "%", color = T2SSecondaryText, fontSize = 11.sp)
+                        }
                         LinearProgressIndicator(
                             progress = { teluguDownloadProgress / 100f },
                             modifier = Modifier.fillMaxWidth(),
                             color = T2SOrange
                         )
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            if (!downloadingTeluguPack && configuredMalePurohitPack == null) {
-                                downloadingTeluguPack = true
-                                teluguDownloadProgress = 0f
-                                coroutineScope.launch {
-                                    val result = runCatching {
-                                        withContext(Dispatchers.IO) {
-                                            TeluguVoicePacks.downloadAndInstallVenkatesh(context) { teluguDownloadProgress = it.toFloat() }
+                    } else if (configuredMalePurohitPack == null && teluguDownloadFailed) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Voice setup needs a retry.", color = Color(0xFFB45309), fontSize = 11.sp)
+                            TextButton(onClick = {
+                                if (!downloadingTeluguPack) {
+                                    downloadingTeluguPack = true
+                                    teluguDownloadFailed = false
+                                    teluguDownloadProgress = 0f
+                                    coroutineScope.launch {
+                                        val result = runCatching {
+                                            withContext(Dispatchers.IO) {
+                                                TeluguVoicePacks.downloadAndInstallVenkatesh(context) {
+                                                    teluguDownloadProgress = it.toFloat()
+                                                }
+                                            }
                                         }
+                                        result.onSuccess { voice ->
+                                            convertedTeluguPacks.clear()
+                                            convertedTeluguPacks.addAll(TeluguVoicePacks.installedConverted(context))
+                                            selectedTeluguPackId = voice.id
+                                            statusMessage = "Telugu voice is ready. Purohit presets can now play offline."
+                                        }.onFailure {
+                                            teluguDownloadFailed = true
+                                            statusMessage = "Telugu voice setup failed. Check your connection and retry."
+                                        }
+                                        downloadingTeluguPack = false
                                     }
-                                    result.onSuccess { installed ->
-                                        convertedTeluguPacks.clear()
-                                        convertedTeluguPacks.addAll(TeluguVoicePacks.installedConverted(context))
-                                        selectedTeluguPackId = installed.id
-                                        statusMessage = "Venkatesh male Telugu voice installed and ready for offline use."
-                                    }.onFailure {
-                                        statusMessage = "Telugu voice download failed: " + (it.message ?: "Please try again.")
-                                    }
-                                    downloadingTeluguPack = false
                                 }
-                            }
-                        },
-                        enabled = configuredMalePurohitPack != null || !downloadingTeluguPack,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        if (downloadingTeluguPack) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Downloading Telugu voice…")
-                        } else {
-                            Text(if (configuredMalePurohitPack == null) "Download male Telugu voice pack" else "Male Telugu voice installed")
+                            }) { Text("Retry") }
                         }
                     }
                     purohitPresets.forEach { preset ->
@@ -1279,13 +1310,10 @@ fun SpeechStudioScreen(
                                 stopVoicePreview()
                                 selectedPurohitPreset = preset
                                 isPurohitMode = true
-                                val malePack = convertedTeluguPacks.firstOrNull {
-                                    it.id == "venkatesh" && it.group == TeluguVoiceGroup.MALE
-                                }
-                                statusMessage = if (malePack == null) {
-                                    preset.name + " selected. Import the Venkatesh (Male) Telugu voice pack to preview and generate Purohit speech."
+                                statusMessage = if (downloadingTeluguPack) {
+                                    preset.name + " selected. Telugu voice is preparing in the background."
                                 } else {
-                                    preset.name + " selected with " + malePack.displayName + " (Male Telugu model)."
+                                    preset.name + " selected."
                                 }
                             },
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(13.dp),
@@ -1305,13 +1333,6 @@ fun SpeechStudioScreen(
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                     Text(preset.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                     Text(preset.description, color = T2SSecondaryText, fontSize = 11.sp)
-                                    Text(
-                                        configuredMalePurohitPack?.let { "Male model • " + it.displayName }
-                                            ?: "Male model • Not installed",
-                                        color = if (configuredMalePurohitPack != null) T2SOrange else Color(0xFFB45309),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
                                 }
                                 if (selected) Text("SELECTED", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 9.sp)
                             }
@@ -1329,7 +1350,7 @@ fun SpeechStudioScreen(
                                     else previewPurohitPreset(preset)
                                 }
                             },
-                            enabled = isPurohitMode && selectedPurohitPreset != null && configuredMalePurohitPack != null && !importingTeluguPacks,
+                            enabled = isPurohitMode && selectedPurohitPreset != null && configuredMalePurohitPack != null && !downloadingTeluguPack && !importingTeluguPacks,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
                         ) {
