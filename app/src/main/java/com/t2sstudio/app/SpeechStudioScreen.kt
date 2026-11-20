@@ -1545,7 +1545,10 @@ fun SpeechStudioScreen(
                                     createdAt = System.currentTimeMillis(),
                                     projectId = selectedProject?.id.orEmpty(),
                                     projectName = selectedProject?.name ?: "Unassigned",
-                                    scriptContent = textToSpeak
+                                    scriptContent = textToSpeak,
+                                    voiceSource = "My Voice",
+                                    voiceName = savedVoice?.name.orEmpty(),
+                                    voiceGender = savedVoice?.gender.orEmpty()
                                 ))
                                 statusMessage = "AI-cloned " + selectedLanguage + " voice WAV is ready."
                                 if (autoPlayAfterGeneration) playGeneratedFile(output)
