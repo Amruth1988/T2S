@@ -64,6 +64,7 @@ fun MyVoicesScreen() {
     var cloneServerUrl by remember { mutableStateOf(VoiceCloneServerSettings.get(context)) }
     var checkingCloneServer by remember { mutableStateOf(false) }
     var cloneLanguage by remember { mutableStateOf("en") }
+    var voiceGender by remember { mutableStateOf("Male") }
     var pickedUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var pickedLabel by remember { mutableStateOf("No audio selected") }
     var recording by remember { mutableStateOf(false) }
@@ -144,6 +145,28 @@ fun MyVoicesScreen() {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("Add a voice", fontWeight = FontWeight.SemiBold, color = T2SText)
                 OutlinedTextField(value = voiceName, onValueChange = { voiceName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Voice name") }, singleLine = true)
+                Text("Voice gender", color = T2SText, fontSize = 13.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Male", "Female", "Other").forEach { gender ->
+                        androidx.compose.material3.FilterChip(
+                            selected = voiceGender == gender,
+                            onClick = { voiceGender = gender },
+                            label = { Text(gender) },
+                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = T2SOrange,
+                                selectedLabelColor = androidx.compose.ui.graphics.Color.White,
+                                containerColor = T2SBackground,
+                                labelColor = T2SText
+                            ),
+                            border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = voiceGender == gender,
+                                borderColor = T2SOrange.copy(alpha = 0.45f),
+                                selectedBorderColor = T2SOrange
+                            )
+                        )
+                    }
+                }
                 Text("Voice sample language", color = T2SText, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("en" to "English", "te" to "Telugu", "hi" to "Hindi").forEach { (code, label) ->
@@ -291,11 +314,13 @@ fun MyVoicesScreen() {
                             scope.launch {
                                 runCatching {
                                     withContext(Dispatchers.IO) {
-                                        MyVoicesClient.createLocal(context, voiceName, uri, cloneLanguage)
+                                        MyVoicesClient.createLocal(context, voiceName, uri, cloneLanguage, voiceGender)
                                     }
                                 }.onSuccess { saved ->
                                     loadVoices()
                                     voiceName = "My Voice"
+                                    voiceGender = "Male"
+                                    cloneLanguage = "en"
                                     pickedUri = null
                                     pickedLabel = "No audio selected"
                                     consentConfirmed = false
@@ -331,7 +356,7 @@ fun MyVoicesScreen() {
                         ) { Text("🎙️", fontSize = 23.sp) }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(voice.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("${voice.language.uppercase()} • Local recording", color = T2SSecondaryText, fontSize = 12.sp)
+                            Text("${voice.gender} • ${voice.language.uppercase()} • Local recording", color = T2SSecondaryText, fontSize = 12.sp)
                         }
                         Text("SAVED", color = T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
                             modifier = Modifier.background(T2SCream, androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 6.dp))
