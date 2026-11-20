@@ -68,7 +68,7 @@ object VoiceCloneClient {
                 field("speed", "1.0")
                 out.write("--$boundary\r\n".toByteArray())
                 out.write("Content-Disposition: form-data; name=\"audio\"; filename=\"reference.wav\"\r\n".toByteArray())
-                out.write("Content-Type: audio/wav\r\n\r\n".toByteArray())
+                out.write("Content-Type: application/octet-stream\r\n\r\n".toByteArray())
                 referenceAudio.inputStream().use { input -> input.copyTo(out) }
                 out.write("\r\n--$boundary--\r\n".toByteArray())
                 out.flush()
