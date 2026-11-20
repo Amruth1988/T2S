@@ -1,31 +1,52 @@
 # Telugu voice model provenance and distribution gates
 
-This file records the upstream provenance of Telugu models currently referenced by the validation workflow. Passing conversion/synthesis CI does not itself grant redistribution rights or prove Android runtime compatibility.
+Last reviewed: 2026-11-20
 
-## Piper Telugu voices
+This document separates model-code licensing from training-data/model-weight rights. A repository-level MIT badge does not override the licence stated by an individual voice's model card or the upstream dataset terms. This is a technical provenance review, not legal advice.
 
-| Voice | Upstream model | Dataset / stated licence | T2S status |
+## Telugu Piper voices
+
+| Voice | Model / dataset provenance | Stated terms | T2S release decision |
 |---|---|---|---|
-| Venkatesh | [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices/tree/main/te/te_IN/venkatesh) | The Piper model card identifies the Venkatesh dataset; the upstream Piper voice catalogue groups this model under CC BY-SA. Obtain and retain the authoritative dataset licence and attribution before shipping weights. | Converted and Python synthesis validated; Android runtime/device playback not yet verified. |
-| Padmavathi | [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices/tree/main/te/te_IN/padmavathi) | IndicVoices-R dataset, CC BY 4.0 per model card. Preserve attribution and licence notice. | Converted and Python synthesis validated; Android runtime/device playback not yet verified. |
-| Maya | [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices/tree/main/te/te_IN/maya) | IndicTTS dataset; model card points to the IIT Madras dataset licence. The exact applicable terms must be reviewed before redistributing the model. | Converted and Python synthesis validated; Android runtime/device playback not yet verified. |
+| Venkatesh | [Piper model card](https://huggingface.co/rhasspy/piper-voices/blob/main/te/te_IN/venkatesh/medium/MODEL_CARD); trained by [PravalX](https://github.com/PravalX); dataset [AI4Bharat IndicVoices-R](https://huggingface.co/datasets/ai4bharat/indicvoices_r). | Model card states CC BY 4.0 for the dataset. The dataset card also states CC BY 4.0. Preserve attribution, licence, notices and dataset citation. | Eligible for a clearly attributed validation/import pack; not yet cleared by real-device audio testing. |
+| Padmavathi | [Piper model card](https://huggingface.co/rhasspy/piper-voices/blob/main/te/te_IN/padmavathi/medium/MODEL_CARD); trained by [PravalX](https://github.com/PravalX); dataset [AI4Bharat IndicVoices-R](https://huggingface.co/datasets/ai4bharat/indicvoices_r). | Model card states CC BY 4.0. The dataset card states CC BY 4.0. Preserve attribution, licence, notices and dataset citation. | Eligible for a clearly attributed validation/import pack; not yet cleared by real-device audio testing. |
+| Maya | [Piper model card](https://huggingface.co/rhasspy/piper-voices/blob/main/te/te_IN/maya/medium/MODEL_CARD) points to the [IIT Madras IndicTTS licence](https://www.iitm.ac.in/donlab/indictts/downloads/license.pdf). | The exact IITM terms govern this voice. The IITM voice page requires acceptance of its licence before download. The exact commercial redistribution and derivative-model conditions have not been independently confirmed for this converted model. | **Validation only. Excluded from public import artifacts and the app's accepted voice-pack list until the exact licence and redistribution rights are verified.** |
 
-The upstream repository's MIT licence does not replace the individual dataset licence attached to each voice. Do not bundle or redistribute a voice until its own dataset terms and attribution requirements have been reviewed.
+### Attribution retained for Venkatesh and Padmavathi
 
-## Additional male Telugu candidate
+The model cards identify the trainer as PravalX and the dataset as AI4Bharat IndicVoices-R under CC BY 4.0. Each distributed pack must carry:
+- its original MODEL_CARD;
+- an ATTRIBUTION.md identifying the voice, trainer, dataset and upstream model-card URL;
+- the complete CC BY 4.0 legal code or an equally clear licence copy/link;
+- the dataset citation and upstream provenance links.
 
-[SYSPIN Telugu Male ONNX conversion](https://huggingface.co/codebucketsolutions/bolo-syspin-telugu-male) is published as an ONNX/Sherpa-ONNX Telugu male voice. Its model card states MIT for weights and CC BY 4.0 for the SYSPIN training corpus, and attributes the source to IISc Bengaluru. It is a candidate for a second distinct male voice, but it has not yet been tested with T2S's exact Piper phonemizer + Sherpa VITS configuration. Do not list it as an installed/working T2S voice until that compatibility test passes.
+The Piper voices repository's top-level MIT badge describes the repository/code and must not be used as a substitute for the individual voice's dataset licence.
+
+## SYSPIN Telugu male candidate
+
+[bolo-syspin-telugu-male](https://huggingface.co/codebucketsolutions/bolo-syspin-telugu-male) identifies its weights as MIT and its training corpus as CC BY 4.0. Its attribution points to [SYSPIN/vits_Telugu_Male](https://huggingface.co/SYSPIN/vits_Telugu_Male), revision cf04058b94123801f7742ebe1b604af160c4f677, from SPIRE Lab, IISc Bengaluru. The Bolo repository says it is a format conversion, not a retraining.
+
+T2S currently has a Python smoke-validation workflow for the pinned ONNX conversion. It is a Coqui VITS/character-input model, not a Piper model; it is not accepted by the current Piper pack importer. Do not present it as an installed T2S voice until a separate Android adapter, phonemization/tokenization path, ABI compatibility, real-device synthesis and listening review pass.
+
+## DhVaani and voice-cloning candidates
+
+The official [ARTPARK DhVaani-0.5 model card](https://huggingface.co/ARTPARK-IISc/DhVaani-0.5) currently declares CC BY-NC 4.0 and identifies ZipVoice as its base. The authors' [licensing clarification](https://huggingface.co/ARTPARK-IISc/DhVaani-0.5/discussions/1) states that the fine-tuned weights inherit a non-commercial restriction from the pretrained base. **Do not use or redistribute these weights in a commercial T2S release.** An MNN conversion's separate code licence does not remove the upstream model-weight restriction.
+
+Any future voice-cloning flow must use a clean reference recording and exact transcript supplied with the speaker's explicit, informed consent for this specific use. Do not use public-figure, celebrity, priest or other third-party recordings without permission. A cloned reference voice is not automatically a Purohit/Vedic voice.
 
 ## Purohit / Vedic recitation
 
-No Telugu priest-recitation model has been approved for this app. Generic male voices with pitch or speed changes are not Purohit voices and must not be presented as such. The Chaganti discourse dataset found during research is marked CC BY-NC 4.0, so it is not suitable for commercial redistribution without separate permission. A Sanskrit chant model is not a Telugu priest voice and must not be substituted.
+No dedicated Telugu Purohit/Vedic-recitation model has passed T2S's model, licence, Android and listening gates. Pitch/speed presets applied to a generic Android voice must remain labelled as presets, not as a priest-recitation model. The Chaganti discourse dataset previously reviewed is marked CC BY-NC 4.0 and is not an acceptable commercial redistribution source without separate permission. Sanskrit chant models are not substitutes for Telugu priest recitation.
 
-The Vāgdhenu project was also reviewed. It is a metered Sanskrit classical-chant system, not a Telugu Purohit model; its published model notes that it does not produce Vedic svaras. It requires a CUDA 12.1/Python inference stack and is not an Android Sherpa-ONNX voice pack. It is therefore not substituted into T2S.
+## Distribution gate
 
-## Release gate
+Before publishing any voice weights:
+1. retain the exact model card, dataset licence, attribution, required notices and source revision;
+2. verify commercial use, derivative-model and redistribution permission for the exact weights and training data;
+3. pin model downloads to immutable revisions and record checksums;
+4. validate conversion and synthesis with the exact Android Sherpa-ONNX and phonemizer versions;
+5. verify both supported Android ABIs and perform real-device playback;
+6. have native Telugu speakers review intelligibility, pronunciation, prosody and clipping;
+7. ship the model's attribution and licence materials inside the same archive as its weights.
 
-Before any voice pack is shipped in a public release:
-1. retain the model card, dataset licence, attribution and required notices;
-2. verify commercial-use and redistribution permission for the exact weights and dataset;
-3. test the converted model with the exact Android Sherpa-ONNX + phonemizer versions and supported ABIs;
-4. verify Telugu text normalization, phoneme coverage, intelligibility and audio output on real devices.
+A successful Python smoke test or APK build does not satisfy the Android/device or audio-quality gates.
