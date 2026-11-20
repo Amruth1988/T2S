@@ -183,6 +183,7 @@ fun SpeechStudioScreen(
     var outputFormat by remember { mutableStateOf("WAV") }
     var autoPlayAfterGeneration by remember { mutableStateOf(false) }
     var voiceSearch by remember { mutableStateOf("") }
+    var voiceLibraryTab by remember { mutableStateOf("Installed") }
     var projectMenuExpanded by remember { mutableStateOf(false) }
     val selectedProject = projects.firstOrNull { it.id == selectedProjectId }
     var selectedVoice by remember { mutableStateOf<Voice?>(null) }
@@ -846,19 +847,31 @@ fun SpeechStudioScreen(
             val searchedOnline = onlinePool.filter { voice ->
                 "${voice.name} ${voice.language}".lowercase(Locale.ROOT).contains(searchTerm)
             }
-            val filteredInstalled = if (searchedInstalled.isNotEmpty() || searchTerm.isBlank()) searchedInstalled else installedPool.take(5)
-            val filteredOnline = if (searchedOnline.isNotEmpty() || searchTerm.isBlank()) searchedOnline else onlinePool.take(5)
+            val filteredInstalled = if (searchTerm.isBlank()) installedPool else searchedInstalled
+            val filteredOnline = if (searchTerm.isBlank()) onlinePool else searchedOnline
             val filteredPersonal = myVoices.filter { voice ->
-                voice.name.lowercase(Locale.ROOT).contains(searchTerm)
+                (searchTerm.isBlank() || voice.name.lowercase(Locale.ROOT).contains(searchTerm)) &&
+                    (selectedGender == "All" || voice.gender.equals(selectedGender, ignoreCase = true))
             }
-            val showingSuggestions = searchTerm.isNotBlank() && searchedInstalled.isEmpty() && searchedOnline.isEmpty() && filteredPersonal.isEmpty()
 
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = voiceSearch,
-                    onValueChange = {
-                        voiceSearch = it
-                                },
+                    onValueChange = { query ->
+                        voiceSearch = query
+                        val term = query.trim().lowercase(Locale.ROOT)
+                        if (term.isNotBlank()) {
+                            val installedMatch = installedPool.any { v -> "${v.name} ${v.locale.displayName} ${v.locale.toLanguageTag()}".lowercase(Locale.ROOT).contains(term) }
+                            val onlineMatch = onlinePool.any { v -> "${v.name} ${v.language}".lowercase(Locale.ROOT).contains(term) }
+                            val personalMatch = myVoices.any { v -> v.name.lowercase(Locale.ROOT).contains(term) && (selectedGender == "All" || v.gender.equals(selectedGender, true)) }
+                            voiceLibraryTab = when {
+                                installedMatch -> "Installed"
+                                onlineMatch -> "Online"
+                                personalMatch -> "My Voice"
+                                else -> voiceLibraryTab
+                            }
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
@@ -871,6 +884,7 @@ fun SpeechStudioScreen(
                                 onClick = {
                                     stopVoicePreview()
                                     voiceSearch = ""
+                                    voiceLibraryTab = "Installed"
                                     selectedSavedVoice = null
                                     selectedOnlineVoice = null
                                     selectedVoice = availableVoices.firstOrNull { voice ->
@@ -890,6 +904,25 @@ fun SpeechStudioScreen(
                         }
                     }
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("Installed", "Online", "My Voice").forEach { tab ->
+                        FilterChip(
+                            modifier = Modifier.weight(1f),
+                            selected = voiceLibraryTab == tab,
+                            onClick = { voiceLibraryTab = tab },
+                            label = { Text(tab, maxLines = 1, softWrap = false, fontSize = 11.sp) },
+                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = T2SOrange,
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFFFFF7F0),
+                                labelColor = Color(0xFF6B5546)
+                            )
+                        )
+                    }
+                }
                 Card(
                     modifier = Modifier.fillMaxWidth().heightIn(max = 390.dp),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
@@ -904,7 +937,7 @@ fun SpeechStudioScreen(
                         .padding(horizontal = 10.dp, vertical = 9.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                   ) {
-                    if (filteredInstalled.isNotEmpty()) {
+                    if (voiceLibraryTab == "Installed" && filteredInstalled.isNotEmpty()) {
                         DropdownMenuItem(
                             text = {
                                 Row(
@@ -1013,7 +1046,7 @@ fun SpeechStudioScreen(
                             )
                         }
                     }
-                    if (filteredOnline.isNotEmpty()) {
+                    if (voiceLibraryTab == "Online" && filteredOnline.isNotEmpty()) {
                         DropdownMenuItem(
                             text = {
                                 Row(
@@ -1055,7 +1088,7 @@ fun SpeechStudioScreen(
                             }
                         }
                     }
-                    if (filteredPersonal.isNotEmpty()) {
+                    if (voiceLibraryTab == "My Voice" && filteredPersonal.isNotEmpty()) {
                         DropdownMenuItem(
                             text = { Text("MY SAVED VOICE SAMPLES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
                             onClick = {},
@@ -1080,9 +1113,9 @@ fun SpeechStudioScreen(
                             }
                         }
                     }
-                    if (filteredInstalled.isEmpty() && filteredOnline.isEmpty() && filteredPersonal.isEmpty()) {
+                    if ((voiceLibraryTab == "Installed" && filteredInstalled.isEmpty()) || (voiceLibraryTab == "Online" && filteredOnline.isEmpty()) || (voiceLibraryTab == "My Voice" && filteredPersonal.isEmpty())) {
                         DropdownMenuItem(
-                            text = { Text(if (onlineCatalogueStatus.startsWith("Loading")) "Loading voices…" else if (selectedGender != "All") "No $selectedGender voices match this language. Choose All or another gender." else "No voices are installed or available for this language yet. Try another language.", color = T2SSecondaryText) },
+                            text = { Text(when (voiceLibraryTab) { "Installed" -> if (filteredInstalled.isEmpty()) "No installed voices match this search and language." else ""; "Online" -> if (onlineCatalogueStatus.startsWith("Loading")) "Loading online voices…" else "No online voices match this search and language."; else -> "No saved voices match this search." }, color = T2SSecondaryText) },
                             onClick = {},
                             enabled = false
                         )
