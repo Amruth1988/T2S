@@ -162,14 +162,14 @@ private fun T2SApp() {
                                 Box(
                                     modifier = Modifier.padding(start = 3.dp)
                                         .size(23.dp)
-                                        .clip(RoundedCornerShape(7.dp))
-                                        .background(T2SOrangeDark),
+                                        .clip(CircleShape)
+                                        .background(Color.White),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         Icons.Filled.Mic,
                                         contentDescription = "Microphone",
-                                        tint = Color.White,
+                                        tint = T2SOrange,
                                         modifier = Modifier.size(15.dp)
                                     )
                                 }
