@@ -486,43 +486,45 @@ fun SpeechStudioScreen(
             color = T2SText
         )
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = T2SBackground)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+        if (projects.isNotEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = T2SBackground)
             ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Save to project", color = T2SText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    Text(selectedProject?.name ?: "Unassigned", color = T2SSecondaryText, fontSize = 12.sp)
-                }
-                Box {
-                    OutlinedButton(onClick = { projectMenuExpanded = true }) {
-                        Text("Change")
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Save to project", color = T2SText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(selectedProject?.name ?: "Unassigned", color = T2SSecondaryText, fontSize = 12.sp)
                     }
-                    DropdownMenu(
-                        expanded = projectMenuExpanded,
-                        onDismissRequest = { projectMenuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Unassigned") },
-                            onClick = {
-                                onSelectedProjectIdChange(null)
-                                projectMenuExpanded = false
-                            }
-                        )
-                        projects.forEach { project ->
+                    Box {
+                        OutlinedButton(onClick = { projectMenuExpanded = true }) {
+                            Text("Change")
+                        }
+                        DropdownMenu(
+                            expanded = projectMenuExpanded,
+                            onDismissRequest = { projectMenuExpanded = false }
+                        ) {
                             DropdownMenuItem(
-                                text = { Text(project.name) },
+                                text = { Text("Unassigned") },
                                 onClick = {
-                                    onSelectedProjectIdChange(project.id)
+                                    onSelectedProjectIdChange(null)
                                     projectMenuExpanded = false
                                 }
                             )
+                            projects.forEach { project ->
+                                DropdownMenuItem(
+                                    text = { Text(project.name) },
+                                    onClick = {
+                                        onSelectedProjectIdChange(project.id)
+                                        projectMenuExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
