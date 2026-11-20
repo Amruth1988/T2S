@@ -667,40 +667,43 @@ fun SpeechStudioScreen(
                         onClick = { languageMenuExpanded = true },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                            .height(36.dp),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                         border = androidx.compose.foundation.BorderStroke(
                             if (languageMenuExpanded) 1.5.dp else 1.dp,
-                            if (languageMenuExpanded) T2SOrange else Color(0xFFD8D2CC)
+                            T2SOrange
                         ),
                         colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.White,
-                            contentColor = T2SText
+                            containerColor = Color(0xFFF47721),
+                            contentColor = Color.White
                         ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Text(
                             selectedLanguage,
                             modifier = Modifier.weight(1f),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                            maxLines = 1,
+                            softWrap = false
                         )
                         Canvas(
                             modifier = Modifier
-                                .size(22.dp)
+                                .size(18.dp)
                                 .graphicsLayer { rotationZ = if (languageMenuExpanded) 180f else 0f }
                         ) {
                             val stroke = 2.2.dp.toPx()
                             drawLine(
-                                color = T2SOrange,
+                                color = Color.White,
                                 start = androidx.compose.ui.geometry.Offset(size.width * 0.22f, size.height * 0.38f),
                                 end = androidx.compose.ui.geometry.Offset(size.width * 0.5f, size.height * 0.64f),
                                 strokeWidth = stroke,
                                 cap = androidx.compose.ui.graphics.StrokeCap.Round
                             )
                             drawLine(
-                                color = T2SOrange,
+                                color = Color.White,
                                 start = androidx.compose.ui.geometry.Offset(size.width * 0.5f, size.height * 0.64f),
                                 end = androidx.compose.ui.geometry.Offset(size.width * 0.78f, size.height * 0.38f),
                                 strokeWidth = stroke,
@@ -741,84 +744,38 @@ fun SpeechStudioScreen(
                     }
                 }
             }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Gender", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-                var genderMenuExpanded by remember { mutableStateOf(false) }
-                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                    val genderDropdownWidth = maxWidth
-                    OutlinedButton(
-                        onClick = { genderMenuExpanded = true },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(
-                            if (genderMenuExpanded) 1.5.dp else 1.dp,
-                            if (genderMenuExpanded) T2SOrange else Color(0xFFD8D2CC)
-                        ),
-                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.White,
-                            contentColor = T2SText
-                        ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            selectedGender,
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf("All", "Male", "Female").forEach { gender ->
+                        FilterChip(
                             modifier = Modifier.weight(1f),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
+                            selected = selectedGender == gender,
+                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFF47721),
+                                selectedLabelColor = Color.White,
+                                selectedLeadingIconColor = Color.White,
+                                selectedTrailingIconColor = Color.White,
+                                containerColor = Color(0xFFFFF7F0),
+                                labelColor = Color(0xFF6B5546)
+                            ),
+                            border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = selectedGender == gender,
+                                borderColor = Color(0xFFE6CDB8),
+                                selectedBorderColor = Color(0xFFF47721)
+                            ),
+                            onClick = {
+                                selectedGender = gender
+                                selectedVoice = availableVoices.firstOrNull { voice ->
+                                    gender == "All" || genderForVoice(voice) == gender
+                                }
+                                selectedOnlineVoice = onlineVoices.firstOrNull { voice ->
+                                    gender == "All" || voice.gender.equals(gender, ignoreCase = true)
+                                }
+                            },
+                            label = { Text(gender, fontSize = 10.sp, maxLines = 1, softWrap = false) }
                         )
-                        Canvas(
-                            modifier = Modifier.size(22.dp)
-                                .graphicsLayer { rotationZ = if (genderMenuExpanded) 180f else 0f }
-                        ) {
-                            val stroke = 2.2.dp.toPx()
-                            drawLine(
-                                color = T2SOrange,
-                                start = androidx.compose.ui.geometry.Offset(size.width * 0.22f, size.height * 0.38f),
-                                end = androidx.compose.ui.geometry.Offset(size.width * 0.5f, size.height * 0.64f),
-                                strokeWidth = stroke,
-                                cap = androidx.compose.ui.graphics.StrokeCap.Round
-                            )
-                            drawLine(
-                                color = T2SOrange,
-                                start = androidx.compose.ui.geometry.Offset(size.width * 0.5f, size.height * 0.64f),
-                                end = androidx.compose.ui.geometry.Offset(size.width * 0.78f, size.height * 0.38f),
-                                strokeWidth = stroke,
-                                cap = androidx.compose.ui.graphics.StrokeCap.Round
-                            )
-                        }
-                    }
-                    DropdownMenu(
-                        expanded = genderMenuExpanded,
-                        onDismissRequest = { genderMenuExpanded = false },
-                        modifier = Modifier.width(genderDropdownWidth)
-                            .background(Color.White, androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
-                            .border(1.dp, Color(0xFFE7DED6), androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
-                    ) {
-                        listOf("All", "Male", "Female").forEach { gender ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        gender,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        color = if (selectedGender == gender) T2SOrange else T2SText,
-                                        fontSize = 14.sp,
-                                        fontWeight = if (selectedGender == gender) FontWeight.Bold else FontWeight.Medium
-                                    )
-                                },
-                                onClick = {
-                                    selectedGender = gender
-                                    selectedVoice = availableVoices.firstOrNull { voice ->
-                                        gender == "All" || genderForVoice(voice) == gender
-                                    }
-                                    selectedOnlineVoice = onlineVoices.firstOrNull { voice ->
-                                        gender == "All" || voice.gender.equals(gender, ignoreCase = true)
-                                    }
-                                    genderMenuExpanded = false
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
                     }
                 }
             }
