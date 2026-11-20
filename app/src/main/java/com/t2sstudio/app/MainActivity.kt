@@ -258,15 +258,26 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
         animationSpec = infiniteRepeatable(tween(420), RepeatMode.Reverse),
         label = "writing-pen"
     )
-    val gold = Color(0xFFFFB52E)
-    val cream = Color(0xFFFFF4DE)
-    val muted = Color(0xFFB9B5C9)
+    val writerEntrance by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (progress > 0.02f) 1f else 0f,
+        animationSpec = tween(900, easing = FastOutSlowInEasing),
+        label = "writer-entrance"
+    )
+    val speakerBob by pulse.animateFloat(
+        initialValue = 0f,
+        targetValue = 9f,
+        animationSpec = infiniteRepeatable(tween(850, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "speaker-bob"
+    )
+    val gold = T2SOrange
+    val cream = T2SText
+    val muted = T2SSecondaryText
     val firstFlow = ((progress - 0.08f) / 0.40f).coerceIn(0f, 1f)
     val secondFlow = ((progress - 0.52f) / 0.40f).coerceIn(0f, 1f)
 
     androidx.compose.foundation.layout.BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF10182F), Color(0xFF171329), Color(0xFF25152E))))
+            .background(Brush.verticalGradient(listOf(Color.White, T2SBackground, T2SCream)))
             .padding(horizontal = 22.dp, vertical = 25.dp)
     ) {
         val sceneWidth = maxWidth
@@ -283,7 +294,7 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(1.dp)
                 ) {
-                    Text("🧑🏻‍💻", fontSize = 62.sp)
+                    Text("🧑🏻‍💻", fontSize = 62.sp, modifier = Modifier.offset(y = (writerEntrance * -10f).dp))
                     Text("🪑", fontSize = 25.sp, modifier = Modifier.offset(y = (-12).dp))
                     Text(
                         "THE STORY BEGINS",
@@ -305,15 +316,15 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
                     Box(
                         Modifier.padding(top = 3.dp).width(132.dp).height(12.dp)
                             .clip(RoundedCornerShape(4.dp))
-                            .background(Color(0xFF9A613C))
+                            .background(T2SOrangeDark)
                     )
                     Box(
                         Modifier.padding(top = 4.dp).size(70.dp, 38.dp)
                             .clip(RoundedCornerShape(5.dp))
-                            .background(Color(0xFFFFE8BD)),
+                            .background(T2SCream),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Aa   అక్షరం", color = Color(0xFF513A35), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("Aa   అక్షరం", color = T2SText, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                     Text("WORDS ON PAPER", color = muted, fontSize = 8.sp, letterSpacing = 1.sp)
                 }
@@ -323,15 +334,15 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
             Box(Modifier.weight(0.92f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(
-                        modifier = Modifier.size(112.dp).shadow(24.dp, RoundedCornerShape(30.dp))
+                        modifier = Modifier.size((112 * logoPulse).dp).shadow(24.dp, RoundedCornerShape(30.dp))
                             .clip(RoundedCornerShape(30.dp))
-                            .background(Brush.linearGradient(listOf(Color(0xFF49304E), Color(0xFF24213F))))
+                            .background(Brush.linearGradient(listOf(T2SOrange, T2SOrangeDark)))
                             .border(2.dp, gold.copy(alpha = 0.9f), RoundedCornerShape(30.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
                             Modifier.size((96 * logoPulse).dp).clip(RoundedCornerShape(24.dp))
-                                .background(Color.White.copy(alpha = 0.045f)),
+                                .background(T2SBorder),
                             contentAlignment = Alignment.Center
                         ) {
                             Text("T2S", color = Color.White, fontSize = 37.sp, fontWeight = FontWeight.Black)
@@ -361,8 +372,8 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
                     modifier = Modifier.align(Alignment.CenterEnd).padding(end = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("🧔🏻", fontSize = 61.sp)
-                    Text("🗣️", fontSize = 24.sp, modifier = Modifier.offset(y = (-9).dp))
+                    Text("🧔🏻", fontSize = 61.sp, modifier = Modifier.offset(y = speakerBob.dp))
+                    Text(")))", color = T2SOrange, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = (-9).dp))
                     Text(
                         "YOUR VOICE",
                         color = cream,
@@ -378,7 +389,7 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
                     Text(")))", color = gold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     Box(
                         Modifier.padding(top = 4.dp).clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.10f)).padding(horizontal = 10.dp, vertical = 7.dp)
+                            .background(T2SOrange.copy(alpha = 0.10f)).padding(horizontal = 10.dp, vertical = 7.dp)
                     ) {
                         Text("నమస్కారం • Hello", color = cream, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                     }
@@ -431,7 +442,7 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
                     Modifier.fillMaxWidth(progress).height(3.dp).clip(CircleShape).background(gold)
                 )
             }
-            Text("Opening your studio…", color = muted, fontSize = 10.sp)
+            Text("Opening your studio…", color = T2SOrangeDark, fontSize = 10.sp)
         }
     }
 }
