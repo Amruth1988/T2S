@@ -295,14 +295,16 @@ fun LoginScreen(onBack: () -> Unit) {
                             visualTransformation = PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(15.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            androidx.compose.material3.TextButton(onClick = {
-                                if (email.isBlank()) status = "Enter your email address first to receive a password reset link."
-                                else { busy = true; auth.sendPasswordReset(email) { result ->
-                                    busy = false
-                                    status = result.fold({ "Password reset email sent. Check your inbox." }, { it.localizedMessage ?: "Could not send the reset email." })
-                                } }
-                            }, enabled = !busy) { Text("Forgot password?", color = T2SOrange, fontWeight = FontWeight.SemiBold) }
+                        if (!isRegister) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                androidx.compose.material3.TextButton(onClick = {
+                                    if (email.isBlank()) status = "Enter your email address first to receive a password reset link."
+                                    else { busy = true; auth.sendPasswordReset(email) { result ->
+                                        busy = false
+                                        status = result.fold({ "Password reset email sent. Check your inbox." }, { it.localizedMessage ?: "Could not send the reset email." })
+                                    } }
+                                }, enabled = !busy) { Text("Forgot password?", color = T2SOrange, fontWeight = FontWeight.SemiBold) }
+                            }
                         }
                         Button(onClick = {
                             if (email.isBlank() || password.length < 6) status = "Enter a valid email and a password with at least 6 characters."
