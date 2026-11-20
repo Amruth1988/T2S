@@ -60,6 +60,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -131,6 +132,14 @@ fun SpeechStudioScreen(
     var inputText by remember { mutableStateOf("") }
     var selectedLanguage by remember { mutableStateOf("English") }
     var selectedGender by remember { mutableStateOf("All") }
+    val voiceGenderOverrides = remember { mutableStateMapOf<String, String>().apply {
+        context.getSharedPreferences("t2s_voice_gender_overrides", android.content.Context.MODE_PRIVATE)
+            .getStringSet("overrides", emptySet()).orEmpty().forEach { entry ->
+                val split = entry.lastIndexOf("=")
+                if (split > 0) put(entry.substring(0, split), entry.substring(split + 1))
+            }
+    } }
+    var genderMenuVoiceKey by remember { mutableStateOf<String?>(null) }
     var speechRate by remember { mutableFloatStateOf(1f) }
     var speechPitch by remember { mutableFloatStateOf(1f) }
     var engineReady by remember { mutableStateOf(false) }
@@ -181,6 +190,15 @@ fun SpeechStudioScreen(
         SpeechLanguage("Hindi", Locale("hi", "IN"))
     )
 
+    fun genderForVoice(voice: Voice): String? = voiceGenderOverrides[installedVoiceKey(voice)] ?: voiceGender(voice.name)
+
+    fun saveVoiceGender(voice: Voice, gender: String) {
+        voiceGenderOverrides[installedVoiceKey(voice)] = gender
+        context.getSharedPreferences("t2s_voice_gender_overrides", android.content.Context.MODE_PRIVATE)
+            .edit().putStringSet("overrides", voiceGenderOverrides.map { (key, value) -> key + "=" + value }.toSet()).apply()
+        statusMessage = voice.name + " marked as " + gender + "."
+    }
+
     fun refreshVoices(engine: TextToSpeech, locale: Locale) {
         runCatching {
             engine.setLanguage(locale)
@@ -189,7 +207,7 @@ fun SpeechStudioScreen(
                 .sortedBy { it.name.lowercase(Locale.ROOT) }
             availableVoices.clear()
             availableVoices.addAll(matching)
-            selectedVoice = matching.firstOrNull { selectedGender == "All" || voiceGender(it.name) == selectedGender }
+            selectedVoice = matching.firstOrNull { selectedGender == "All" || genderForVoice(it) == selectedGender }
         }.onFailure {
             availableVoices.clear()
             selectedVoice = null
@@ -704,7 +722,7 @@ fun SpeechStudioScreen(
                             onClick = {
                                 selectedGender = gender
                                 selectedVoice = availableVoices.firstOrNull { voice ->
-                                    gender == "All" || voiceGender(voice.name) == gender
+                                    gender == "All" || genderForVoice(voice) == gender
                                 }
                                 selectedOnlineVoice = onlineVoices.firstOrNull { voice ->
                                     gender == "All" || voice.gender.equals(gender, ignoreCase = true)
@@ -816,7 +834,7 @@ fun SpeechStudioScreen(
                 )
             }
             val allInstalledForLanguage = availableVoices.toList()
-            val genderMatches = allInstalledForLanguage.filter { voice -> selectedGender == "All" || voiceGender(voice.name) == selectedGender }
+            val genderMatches = allInstalledForLanguage.filter { voice -> selectedGender == "All" || genderForVoice(voice) == selectedGender }
             val installedPool = genderMatches
             val onlineGenderMatches = onlineVoices.filter { voice -> selectedGender == "All" || voice.gender.equals(selectedGender, true) }
             val onlinePool = onlineGenderMatches
@@ -885,8 +903,26 @@ fun SpeechStudioScreen(
                             DropdownMenuItem(
                                 text = {
                                     Column {
-                                        Text(installedVoiceDisplayName(voice), color = Color(0xFF101B35), fontWeight = FontWeight.Bold, maxLines = 1)
-                                        Text("${voiceGender(voice.name) ?: "Voice"} • On device", color = Color(0xFF58677F), fontSize = 11.sp, maxLines = 1)
+                                        Text(installedVoiceDisplayName(voice, genderForVoice(voice), filteredInstalled.filter { genderForVoice(it) == genderForVoice(voice) }.indexOf(voice) + 1), color = Color(0xFF101B35), fontWeight = FontWeight.Bold, maxLines = 1)
+                                        Text(voice.name + " • " + voice.locale.toLanguageTag(), color = Color(0xFF58677F), fontSize = 11.sp, maxLines = 1)
+                                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                            TextButton(onClick = { genderMenuVoiceKey = installedVoiceKey(voice) }) {
+                                                Text("Gender: " + (genderForVoice(voice) ?: "Not set") + " ▾", fontSize = 11.sp)
+                                            }
+                                            DropdownMenu(expanded = genderMenuVoiceKey == installedVoiceKey(voice), onDismissRequest = { genderMenuVoiceKey = null }) {
+                                                listOf("Male", "Female", "Unknown").forEach { genderOption ->
+                                                    DropdownMenuItem(text = { Text(genderOption) }, onClick = {
+                                                        if (genderOption == "Unknown") {
+                                                            voiceGenderOverrides.remove(installedVoiceKey(voice))
+                                                            context.getSharedPreferences("t2s_voice_gender_overrides", android.content.Context.MODE_PRIVATE)
+                                                                .edit().putStringSet("overrides", voiceGenderOverrides.map { (key, value) -> key + "=" + value }.toSet()).apply()
+                                                            statusMessage = "Gender classification cleared for " + voice.name + "."
+                                                        } else saveVoiceGender(voice, genderOption)
+                                                        genderMenuVoiceKey = null
+                                                    })
+                                                }
+                                            }
+                                        }
                                         if (isPlaying && activePreviewKey == "installed:${voice.name}") {
                                             VoicePlaybackWaveform()
                                         }
@@ -1372,27 +1408,13 @@ private fun VoicePlaybackWaveform() {
     }
 }
 
-private fun installedVoiceDisplayName(voice: Voice): String {
-    val language = voice.locale.language.lowercase(Locale.ROOT)
-    val gender = voiceGender(voice.name)
-    val names = when (language) {
-        "te" -> when (gender) {
-            "Female" -> listOf("Sneha", "Ananya", "Kavya", "Divya")
-            "Male" -> listOf("Ajay", "Raj", "Kiran", "Arjun")
-            else -> listOf("Ajay", "Sneha", "Raj", "Kavya")
-        }
-        "en" -> when (gender) {
-            "Female" -> listOf("Emma", "Olivia", "Sophia", "Mia")
-            "Male" -> listOf("John", "David", "James", "Michael")
-            else -> listOf("John", "Emma", "David", "Olivia")
-        }
-        "hi" -> when (gender) {
-            "Female" -> listOf("Priya", "Ananya", "Neha", "Pooja")
-            "Male" -> listOf("Arjun", "Rahul", "Amit", "Rohan")
-            else -> listOf("Arjun", "Priya", "Rahul", "Neha")
-        }
-        else -> listOf("Voice A", "Voice B", "Voice C", "Voice D")
+private fun installedVoiceKey(voice: Voice): String = voice.locale.toLanguageTag() + "|" + voice.name
+
+private fun installedVoiceDisplayName(voice: Voice, gender: String?, index: Int): String {
+    val label = when (gender) {
+        "Male" -> "Male Voice " + index
+        "Female" -> "Female Voice " + index
+        else -> "Unclassified Voice " + index
     }
-    val index = (voice.name.hashCode() and Int.MAX_VALUE) % names.size
-    return "${names[index]} (${voice.locale.toLanguageTag()})"
+    return label + " (" + voice.locale.toLanguageTag() + ")"
 }
