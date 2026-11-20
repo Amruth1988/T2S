@@ -611,10 +611,21 @@ fun SpeechStudioScreen(
                         }
                         DropdownMenu(
                             expanded = projectMenuExpanded,
-                            onDismissRequest = { projectMenuExpanded = false }
+                            onDismissRequest = { projectMenuExpanded = false },
+                            modifier = Modifier
+                                .background(Color.White, RoundedCornerShape(14.dp))
+                                .border(1.dp, Color(0xFFE7D7C2), RoundedCornerShape(14.dp))
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Unassigned") },
+                                text = {
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                        shape = RoundedCornerShape(9.dp),
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7F0)),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0D7C2))
+                                    ) { Text("Unassigned", Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), color = T2SText, fontWeight = FontWeight.Medium) }
+                                },
                                 onClick = {
                                     onSelectedProjectIdChange(null)
                                     projectMenuExpanded = false
@@ -622,7 +633,15 @@ fun SpeechStudioScreen(
                             )
                             projects.forEach { project ->
                                 DropdownMenuItem(
-                                    text = { Text(project.name) },
+                                    text = {
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                            shape = RoundedCornerShape(9.dp),
+                                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7F0)),
+                                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0D7C2))
+                                        ) { Text(project.name, Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), color = T2SText, fontWeight = FontWeight.Medium) }
+                                    },
                                     onClick = {
                                         onSelectedProjectIdChange(project.id)
                                         projectMenuExpanded = false
@@ -784,13 +803,21 @@ fun SpeechStudioScreen(
                         languages.forEach { language ->
                             DropdownMenuItem(
                                 text = {
-                                    Text(
-                                        language.label,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        color = if (selectedLanguage == language.label) Color(0xFFF47721) else Color(0xFF101B35),
-                                        fontSize = 14.sp,
-                                        fontWeight = if (selectedLanguage == language.label) FontWeight.Bold else FontWeight.Medium
-                                    )
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                        shape = RoundedCornerShape(9.dp),
+                                        colors = CardDefaults.cardColors(containerColor = if (selectedLanguage == language.label) Color(0xFFFFEBDD) else Color(0xFFFFF7F0)),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, if (selectedLanguage == language.label) T2SOrange else Color(0xFFF0D7C2))
+                                    ) {
+                                        Text(
+                                            language.label,
+                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                                            color = if (selectedLanguage == language.label) Color(0xFFF47721) else Color(0xFF101B35),
+                                            fontSize = 14.sp,
+                                            fontWeight = if (selectedLanguage == language.label) FontWeight.Bold else FontWeight.Medium
+                                        )
+                                    }
                                 },
                                 onClick = {
                                     selectedLanguage = language.label
@@ -1098,7 +1125,22 @@ fun SpeechStudioScreen(
                                         ) {
                                             listOf("Male", "Female", "Unknown").forEach { genderOption ->
                                                 DropdownMenuItem(
-                                                    text = { Text(genderOption) },
+                                                    text = {
+                                                        Card(
+                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                                            shape = RoundedCornerShape(9.dp),
+                                                            colors = CardDefaults.cardColors(containerColor = if (onlineVoiceGender(voice) == genderOption) Color(0xFFFFEBDD) else Color(0xFFFFF7F0)),
+                                                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                                            border = androidx.compose.foundation.BorderStroke(1.dp, if (onlineVoiceGender(voice) == genderOption) T2SOrange else Color(0xFFF0D7C2))
+                                                        ) {
+                                                            Text(
+                                                                genderOption,
+                                                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                                                                color = T2SText,
+                                                                fontWeight = if (onlineVoiceGender(voice) == genderOption) FontWeight.Bold else FontWeight.Medium
+                                                            )
+                                                        }
+                                                    },
                                                     onClick = {
                                                         saveGenderOverride("online|" + voice.id, voice.name, genderOption)
                                                         genderMenuVoiceKey = null
