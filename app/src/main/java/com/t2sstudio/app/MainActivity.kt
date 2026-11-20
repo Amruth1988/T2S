@@ -112,6 +112,7 @@ private fun T2SApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
     var selectedDestination by remember { mutableIntStateOf(0) }
     val destinationBackStack = remember { mutableStateListOf<Int>() }
+    var showAccountPage by remember { mutableStateOf(false) }
     var showLoginPage by remember {
         mutableStateOf(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser == null)
     }
@@ -125,9 +126,11 @@ private fun T2SApp() {
     var pendingScriptText by remember { mutableStateOf<String?>(null) }
     val scriptDrafts = remember { mutableStateListOf<T2SScriptDraft>().apply { addAll(ScriptDraftStore.load(context)) } }
 
-    BackHandler(enabled = showLoginPage || destinationBackStack.isNotEmpty()) {
+    BackHandler(enabled = showLoginPage || showAccountPage || destinationBackStack.isNotEmpty()) {
         if (showLoginPage) {
             showLoginPage = false
+        } else if (showAccountPage) {
+            showAccountPage = false
         } else if (destinationBackStack.isNotEmpty()) {
             selectedDestination = destinationBackStack.removeAt(destinationBackStack.lastIndex)
         }
@@ -135,6 +138,13 @@ private fun T2SApp() {
 
     if (showLoginPage) {
         LoginScreen(onBack = { showLoginPage = false })
+        return
+    }
+    if (showAccountPage) {
+        AccountPageScreen(
+            onBack = { showAccountPage = false },
+            onSignIn = { showLoginPage = true }
+        )
         return
     }
 
@@ -192,7 +202,7 @@ private fun T2SApp() {
                 actions = {
                     Box(
                         modifier = Modifier.padding(end = 16.dp).size(40.dp).clip(CircleShape).background(T2SCream)
-                            .clickable { showLoginPage = true },
+                            .clickable { showAccountPage = true },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Filled.AccountCircle, contentDescription = "Profile", tint = T2SOrange, modifier = Modifier.size(27.dp))
