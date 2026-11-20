@@ -12,8 +12,35 @@
           "package_name": "com.t2sstudio.app"
         }
       },
-      "api_key": [{ "current_key": "AIzaSyDGrwVf-HeDEKVwDsuBI1dsreRDm6sjOCg" }],
-      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+      "oauth_client": [
+        {
+          "client_id": "112392588493-b2fj3lc16h0tkj9p59oocs89ss8dffa7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.t2sstudio.app",
+            "certificate_hash": "cb90e4139cd25b84d384d95a14814de87c870ed3"
+          }
+        },
+        {
+          "client_id": "112392588493-r5idcgve83om2q2088tt8uj7s6e92skc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDGrwVf-HeDEKVwDsuBI1dsreRDm6sjOCg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "112392588493-r5idcgve83om2q2088tt8uj7s6e92skc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"
