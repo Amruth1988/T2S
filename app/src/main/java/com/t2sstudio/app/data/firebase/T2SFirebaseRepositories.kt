@@ -107,15 +107,31 @@ class T2SFirestoreRepository(
         uid: String,
         projectId: String,
         name: String,
+        createdAt: Long? = null,
         onComplete: (Result<Unit>) -> Unit
     ) {
         val data = mapOf(
             "name" to name.trim(),
+            "createdAt" to createdAt?.let { Date(it) },
             "updatedAt" to FieldValue.serverTimestamp(),
             "isArchived" to false
-        )
+        ).filterValues { it != null }
         userCollection(uid, "projects").document(projectId)
             .set(data, SetOptions.merge())
+            .addOnSuccessListener { onComplete(Result.success(Unit)) }
+            .addOnFailureListener { onComplete(Result.failure(it)) }
+    }
+
+    fun archiveProject(
+        uid: String,
+        projectId: String,
+        onComplete: (Result<Unit>) -> Unit
+    ) {
+        userCollection(uid, "projects").document(projectId)
+            .set(
+                mapOf("isArchived" to true, "updatedAt" to FieldValue.serverTimestamp()),
+                SetOptions.merge()
+            )
             .addOnSuccessListener { onComplete(Result.success(Unit)) }
             .addOnFailureListener { onComplete(Result.failure(it)) }
     }
