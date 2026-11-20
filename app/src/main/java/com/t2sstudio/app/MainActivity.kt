@@ -216,7 +216,7 @@ private fun T2SApp() {
                     }
                 )
                 3 -> MyVoicesScreen()
-                4 -> ApiKeySettingsScreen()
+                4 -> AccountScreen()
             }
         }
     }
