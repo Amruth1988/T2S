@@ -170,6 +170,16 @@ private fun T2SApp() {
                     onAudioGenerated = { record ->
                         audioRecords.add(0, record)
                         AudioHistoryStore.save(context, audioRecords)
+                        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+                            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveScriptMetadata(
+                                uid = uid,
+                                scriptId = record.id,
+                                projectId = record.projectId.takeIf { it.isNotBlank() },
+                                title = record.textPreview.ifBlank { "Untitled script" },
+                                content = record.scriptContent.take(180_000),
+                                language = record.language
+                            ) { /* Speech generation and local history do not depend on cloud sync. */ }
+                        }
                     }
                 )
                 1 -> ProjectsScreen(
