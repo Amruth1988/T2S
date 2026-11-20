@@ -1182,7 +1182,58 @@ fun SpeechStudioScreen(
                 if (textToSpeak.isBlank()) {
                     statusMessage = "Please enter some text first."
                 } else if (selectedSavedVoice != null) {
-                    statusMessage = "${selectedSavedVoice?.name} is a saved audio sample, not a trained voice-cloning model. T2S cannot generate new text in that voice yet. Choose an installed or online TTS voice, or preview the saved recording."
+                    val savedVoice = selectedSavedVoice
+                    val reference = savedVoice?.localSamplePath?.let(::File)
+                    val cloneLanguage = when (selectedLanguage) {
+                        "Telugu" -> "te"
+                        "English" -> "en"
+                        else -> ""
+                    }
+                    val serverUrl = VoiceCloneServerSettings.get(context)
+                    if (cloneLanguage.isBlank()) {
+                        statusMessage = "AI voice cloning currently supports Telugu and English."
+                    } else if (reference == null || !reference.isFile) {
+                        statusMessage = "Saved voice recording is missing. Please add the voice again in My Voices."
+                    } else if (serverUrl.isBlank()) {
+                        statusMessage = "Connect your self-hosted Volt-TTS server in My Voices to generate new speech in this saved voice. Previewing the saved recording still works offline."
+                    } else {
+                        val audioDirectory = File(
+                            context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
+                            "T2SStudio"
+                        ).apply { mkdirs() }
+                        val output = File(audioDirectory, "voice_clone_" + System.currentTimeMillis() + ".wav")
+                        isGenerating = true
+                        generatedFile = null
+                        stopVoicePreview()
+                        statusMessage = "Cloning your saved voice and generating " + selectedLanguage + " speech…"
+                        coroutineScope.launch {
+                            val result = runCatching {
+                                withContext(Dispatchers.IO) {
+                                    VoiceCloneClient.generate(serverUrl, textToSpeak, cloneLanguage, reference, output)
+                                }
+                            }
+                            result.onSuccess {
+                                isGenerating = false
+                                generatedFile = output
+                                onAudioGenerated(AudioRecord(
+                                    id = java.util.UUID.randomUUID().toString(),
+                                    filePath = output.absolutePath,
+                                    textPreview = textToSpeak.take(180),
+                                    language = selectedLanguage,
+                                    createdAt = System.currentTimeMillis(),
+                                    projectId = selectedProject?.id.orEmpty(),
+                                    projectName = selectedProject?.name ?: "Unassigned",
+                                    scriptContent = textToSpeak
+                                ))
+                                statusMessage = "AI-cloned " + selectedLanguage + " voice WAV is ready."
+                                if (autoPlayAfterGeneration) playGeneratedFile(output)
+                            }.onFailure {
+                                output.delete()
+                                isGenerating = false
+                                statusMessage = "Voice cloning failed: " + (it.message ?: "server error")
+                            }
+                        }
+                    }
                 } else if (selectedLanguage == "Telugu" && !isPurohitMode && outputFormat == "WAV" && convertedTeluguPacks.any { it.id == selectedTeluguPackId }) {
                     val pack = convertedTeluguPacks.firstOrNull { it.id == selectedTeluguPackId }
                     if (pack == null) {
