@@ -860,13 +860,9 @@ fun SpeechStudioScreen(
                 )
             }
             val allInstalledForLanguage = availableVoices.toList()
-            val genderMatches = allInstalledForLanguage.filter { voice -> selectedGender == "All" || genderForVoice(voice) == selectedGender }
-            // Many Android TTS engines do not publish gender metadata in Voice.name.
-            // Keep the language voices visible rather than showing an empty list when no
-            // installed voice can be confidently classified for the selected gender.
-            val installedPool = if (selectedGender != "All" && genderMatches.isEmpty()) {
-                allInstalledForLanguage
-            } else genderMatches
+            // Installed Android voices are listed without gender labels or gender filtering.
+            // Android TTS does not provide reliable speaker-gender metadata.
+            val installedPool = allInstalledForLanguage
             val onlineGenderMatches = onlineVoices.filter { voice ->
                 selectedGender == "All" || onlineVoiceGender(voice) == selectedGender
             }
@@ -990,26 +986,8 @@ fun SpeechStudioScreen(
                             DropdownMenuItem(
                                 text = {
                                     Column {
-                                        Text(installedVoiceDisplayName(voice, genderForVoice(voice), filteredInstalled.filter { genderForVoice(it) == genderForVoice(voice) }.indexOf(voice) + 1), color = Color(0xFF101B35), fontWeight = FontWeight.Bold, maxLines = 1)
+                                        Text(installedVoiceDisplayName(voice, filteredInstalled.indexOf(voice) + 1), color = Color(0xFF101B35), fontWeight = FontWeight.Bold, maxLines = 1)
                                         Text(voice.name + " • " + voice.locale.toLanguageTag(), color = Color(0xFF58677F), fontSize = 11.sp, maxLines = 1)
-                                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                            TextButton(onClick = { genderMenuVoiceKey = installedVoiceKey(voice) }) {
-                                                Text("Gender: " + (genderForVoice(voice) ?: "Not set") + " ▾", fontSize = 11.sp)
-                                            }
-                                            DropdownMenu(expanded = genderMenuVoiceKey == installedVoiceKey(voice), onDismissRequest = { genderMenuVoiceKey = null }) {
-                                                listOf("Male", "Female", "Unknown").forEach { genderOption ->
-                                                    DropdownMenuItem(text = { Text(genderOption) }, onClick = {
-                                                        if (genderOption == "Unknown") {
-                                                            voiceGenderOverrides[installedVoiceKey(voice)] = "Unknown"
-                                                            context.getSharedPreferences("t2s_voice_gender_overrides", android.content.Context.MODE_PRIVATE)
-                                                                .edit().putStringSet("overrides", voiceGenderOverrides.map { (key, value) -> key + "=" + value }.toSet()).apply()
-                                                            statusMessage = "Gender set to Unknown for " + voice.name + "."
-                                                        } else saveVoiceGender(voice, genderOption)
-                                                        genderMenuVoiceKey = null
-                                                    })
-                                                }
-                                            }
-                                        }
                                         if (isPlaying && activePreviewKey == "installed:${voice.name}") {
                                             VoicePlaybackWaveform()
                                         }
@@ -1784,11 +1762,6 @@ private fun VoicePlaybackWaveform() {
 
 private fun installedVoiceKey(voice: Voice): String = voice.locale.toLanguageTag() + "|" + voice.name
 
-private fun installedVoiceDisplayName(voice: Voice, gender: String?, index: Int): String {
-    val label = when (gender) {
-        "Male" -> "Male Voice " + index
-        "Female" -> "Female Voice " + index
-        else -> "Voice " + index + " (Gender not verified)"
-    }
-    return label + " (" + voice.locale.toLanguageTag() + ")"
+private fun installedVoiceDisplayName(voice: Voice, index: Int): String {
+    return "Voice " + index + " (" + voice.locale.toLanguageTag() + ")"
 }
