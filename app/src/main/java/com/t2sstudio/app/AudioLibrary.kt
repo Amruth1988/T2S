@@ -61,6 +61,42 @@ private fun audioMimeType(file: File): String = when (file.extension.lowercase(L
     else -> "audio/wav"
 }
 
+/** Saves audio to the public Downloads collection where supported, or app-specific music storage on older Android. */
+object AudioFileTransfer {
+    fun saveToDownloads(context: Context, file: File): String {
+        require(file.isFile && file.length() > 0L) { "The audio file is missing or empty." }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, file.name)
+                put(MediaStore.Downloads.MIME_TYPE, audioMimeType(file))
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/T2S Studio")
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+            val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: error("Unable to create a Downloads entry.")
+            try {
+                context.contentResolver.openOutputStream(uri, "w")?.use { output ->
+                    file.inputStream().use { input -> input.copyTo(output) }
+                } ?: error("Unable to open the Downloads output.")
+                val complete = ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }
+                check(context.contentResolver.update(uri, complete, null, null) > 0) {
+                    "The audio was copied but could not be published in Downloads."
+                }
+            } catch (error: Exception) {
+                runCatching { context.contentResolver.delete(uri, null, null) }
+                throw error
+            }
+            return "Saved to Downloads/T2S Studio."
+        }
+
+        val musicRoot = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir
+        val targetDirectory = File(musicRoot, "T2S Studio")
+        check(targetDirectory.exists() || targetDirectory.mkdirs()) { "Could not create the app music folder." }
+        file.copyTo(File(targetDirectory, file.name), overwrite = true)
+        return "Saved to app storage: Music/T2S Studio."
+    }
+}
+
 data class AudioRecord(
     val id: String,
     val filePath: String,
@@ -147,30 +183,12 @@ fun SavedAudioScreen(
 
     fun download(record: AudioRecord) {
         runCatching {
-            val file = File(record.filePath)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val values = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, file.name)
-                    put(MediaStore.Downloads.MIME_TYPE, audioMimeType(file))
-                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/T2S Studio")
-                    put(MediaStore.Downloads.IS_PENDING, 1)
-                }
-                val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                    ?: error("Unable to create download")
-                context.contentResolver.openOutputStream(uri)?.use { output ->
-                    file.inputStream().use { input -> input.copyTo(output) }
-                } ?: error("Unable to write download")
-                val complete = ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }
-                context.contentResolver.update(uri, complete, null, null)
-            } else {
-                val target = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), file.name)
-                file.copyTo(target, overwrite = true)
-            }
-            message = "Saved to Downloads/T2S Studio."
-        }.onFailure { message = "Unable to download this recording." }
+            AudioFileTransfer.saveToDownloads(context, File(record.filePath))
+        }.onSuccess { message = it }
+            .onFailure { message = "Unable to download this recording: ${it.localizedMessage ?: "storage error"}" }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier = androidx.compose.ui.Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Saved Audio", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = T2SText)
         Text("Generated audio files saved on this device.", fontSize = 13.sp, color = T2SSecondaryText)
         if (records.isEmpty()) {
@@ -182,7 +200,7 @@ fun SavedAudioScreen(
                 }
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            LazyColumn(modifier = androidx.compose.ui.Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(records, key = { it.id }) { record ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
