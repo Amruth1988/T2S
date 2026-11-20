@@ -651,8 +651,8 @@ fun SpeechStudioScreen(
                             selectedLanguage,
                             modifier = Modifier.weight(1f),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                         Canvas(
                             modifier = Modifier
