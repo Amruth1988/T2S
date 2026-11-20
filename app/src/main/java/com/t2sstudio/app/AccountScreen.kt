@@ -408,9 +408,6 @@ fun LoginScreen(onBack: () -> Unit) {
                     Text("Continue as Guest  →", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
-            androidx.compose.material3.TextButton(onClick = { showApiSettings = true }) {
-                Text("Online TTS API settings", color = T2SSecondaryText, fontSize = 12.sp)
-            }
             Spacer(modifier = Modifier.height(12.dp))
         }
     }
