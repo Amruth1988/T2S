@@ -232,8 +232,7 @@ fun AccountScreen() {
                                     credentialManager.getCredential(activity, signInRequest).credential
                                 }
                                 if (credential is CustomCredential &&
-                                    (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL ||
-                                        credential.type == com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL)
+                                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
                                 ) {
                                     val googleToken = GoogleIdTokenCredential.createFrom(credential.data)
                                     val firebaseCredential = GoogleAuthProvider.getCredential(googleToken.idToken, null)
