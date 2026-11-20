@@ -82,13 +82,7 @@ object ExternalMediaClient {
             val partial = File(directory, "download-$index.part")
             try {
                 require(isHttpsUrl(mediaUrl)) { "Only HTTPS media URLs are accepted." }
-                val connection = (URL(mediaUrl).openConnection() as HttpURLConnection).apply {
-                    connectTimeout = CONNECT_TIMEOUT_MS
-                    readTimeout = READ_TIMEOUT_MS
-                    instanceFollowRedirects = false
-                    requestMethod = "GET"
-                    setRequestProperty("Accept-Encoding", "identity")
-                }
+                val connection = openHttpsConnection(mediaUrl, "GET")
                 try {
                     val status = connection.responseCode
                     require(status in 200..299) { "Media server returned HTTP $status." }
@@ -136,12 +130,7 @@ object ExternalMediaClient {
 
     private fun readHttps(url: String, maxBytes: Int): ByteArray {
         require(isHttpsUrl(url)) { "Catalogue URL must use HTTPS." }
-        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = CONNECT_TIMEOUT_MS
-            readTimeout = READ_TIMEOUT_MS
-            instanceFollowRedirects = false
-            requestMethod = "GET"
-        }
+        val connection = openHttpsConnection(url, "GET")
         try {
             require(connection.responseCode in 200..299) { "Catalogue server returned HTTP ${connection.responseCode}." }
             val output = java.io.ByteArrayOutputStream()
@@ -158,6 +147,34 @@ object ExternalMediaClient {
         } finally {
             connection.disconnect()
         }
+    }
+
+
+    /** Follow a small number of redirects, but never allow a redirect to leave HTTPS. */
+    private fun openHttpsConnection(initialUrl: String, method: String): HttpURLConnection {
+        var current = URL(initialUrl)
+        repeat(6) { attempt ->
+            require(current.protocol.equals("https", ignoreCase = true) && current.host.isNotBlank()) {
+                "Media redirects must remain on HTTPS."
+            }
+            val connection = (current.openConnection() as HttpURLConnection).apply {
+                connectTimeout = CONNECT_TIMEOUT_MS
+                readTimeout = READ_TIMEOUT_MS
+                instanceFollowRedirects = false
+                requestMethod = method
+                setRequestProperty("Accept-Encoding", "identity")
+            }
+            val status = connection.responseCode
+            if (status in 300..399) {
+                val location = connection.getHeaderField("Location")
+                connection.disconnect()
+                require(!location.isNullOrBlank() && attempt < 5) { "Too many or invalid media redirects." }
+                current = URL(current, location)
+            } else {
+                return connection
+            }
+        }
+        error("Too many media redirects.")
     }
 
     private fun isHttpsUrl(value: String): Boolean =
