@@ -667,7 +667,7 @@ fun SpeechStudioScreen(
                         onClick = { languageMenuExpanded = true },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp),
+                            .height(48.dp),
                         shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
                         border = androidx.compose.foundation.BorderStroke(
                             if (languageMenuExpanded) 1.5.dp else 1.dp,
@@ -746,7 +746,7 @@ fun SpeechStudioScreen(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("All", "Male", "Female").forEach { gender ->
                         FilterChip(
-                            modifier = Modifier.weight(1f).height(50.dp),
+                            modifier = Modifier.weight(1f),
                             selected = selectedGender == gender,
                             colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color(0xFFF47721),
