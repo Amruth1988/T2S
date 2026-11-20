@@ -103,9 +103,9 @@ private data class PurohitPreset(
 )
 
 private val purohitPresets = listOf(
-    PurohitPreset("Purohit 1", "Deep, steady traditional recitation", 0.84f, 0.86f),
-    PurohitPreset("Purohit 2", "Slow, devotional verse delivery", 0.72f, 1.08f),
-    PurohitPreset("Purohit 3", "Clear, formal temple-style delivery", 0.96f, 0.98f)
+    PurohitPreset("Purohit 1", "Deep, steady traditional recitation • Male", 0.84f, 0.86f),
+    PurohitPreset("Purohit 2", "Slow, devotional verse delivery • Male", 0.72f, 0.90f),
+    PurohitPreset("Purohit 3", "Clear, formal temple-style delivery • Male", 0.96f, 0.88f)
 )
 
 private fun voiceGender(name: String): String? {
@@ -384,7 +384,7 @@ fun SpeechStudioScreen(
     fun previewPurohitPreset(preset: PurohitPreset) {
         // Every Purohit preset uses the dedicated Venkatesh model classified as MALE.
         // Android system voices and female packs are never used for this feature.
-        val malePack = convertedTeluguPacks.firstOrNull { it.group == TeluguVoiceGroup.MALE }
+        val malePack = convertedTeluguPacks.firstOrNull { it.id == "venkatesh" && it.group == TeluguVoiceGroup.MALE }
         if (malePack == null) {
             statusMessage = "Purohit preview needs the Venkatesh (Male) Telugu voice pack. Import the male voice pack below; no female or Android system voice will be used."
             return
@@ -448,7 +448,7 @@ fun SpeechStudioScreen(
                 player.setPlaybackParameters(
                     androidx.media3.common.PlaybackParameters(
                         1f,
-                        (speechPitch * preset.pitchMultiplier).coerceIn(0.5f, 2f)
+                        (speechPitch * preset.pitchMultiplier).coerceIn(0.72f, 0.95f)
                     )
                 )
                 player.addListener(object : Player.Listener {
@@ -497,7 +497,7 @@ fun SpeechStudioScreen(
         }
     }
 
-    fun playGeneratedFile(file: File) {
+    fun playGeneratedFile(file: File, pitch: Float = 1f) {
         stopVoicePreview()
         runCatching {
             mediaPlayer?.release()
@@ -511,6 +511,9 @@ fun SpeechStudioScreen(
                 true
             )
             player.volume = 1f
+            player.setPlaybackParameters(
+                androidx.media3.common.PlaybackParameters(1f, pitch.coerceIn(0.5f, 2f))
+            )
             player.addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     when (playbackState) {
@@ -1086,7 +1089,7 @@ fun SpeechStudioScreen(
                         color = T2SSecondaryText
                     )
                     val configuredMalePurohitPack = convertedTeluguPacks.firstOrNull {
-                        it.group == TeluguVoiceGroup.MALE
+                        it.id == "venkatesh" && it.group == TeluguVoiceGroup.MALE
                     }
                     Text(
                         configuredMalePurohitPack?.let { "Male Telugu model ready • " + it.displayName }
@@ -1118,7 +1121,7 @@ fun SpeechStudioScreen(
                                 selectedPurohitPreset = preset
                                 isPurohitMode = true
                                 val malePack = convertedTeluguPacks.firstOrNull {
-                                    it.group == TeluguVoiceGroup.MALE
+                                    it.id == "venkatesh" && it.group == TeluguVoiceGroup.MALE
                                 }
                                 statusMessage = if (malePack == null) {
                                     preset.name + " selected. Import the Venkatesh (Male) Telugu voice pack to preview and generate Purohit speech."
@@ -1249,7 +1252,7 @@ fun SpeechStudioScreen(
                     statusMessage = "Please enter some text first."
                 } else if (isPurohitMode) {
                     val preset = selectedPurohitPreset
-                    val malePack = convertedTeluguPacks.firstOrNull { it.group == TeluguVoiceGroup.MALE }
+                    val malePack = convertedTeluguPacks.firstOrNull { it.id == "venkatesh" && it.group == TeluguVoiceGroup.MALE }
                     if (selectedLanguage != "Telugu") {
                         statusMessage = "Purohit presets are available only for Telugu."
                     } else if (preset == null) {
@@ -1294,7 +1297,10 @@ fun SpeechStudioScreen(
                                     )
                                 )
                                 statusMessage = "Purohit audio ready • " + malePack.displayName + " (Male Telugu model)."
-                                playGeneratedFile(output)
+                                playGeneratedFile(
+                                    output,
+                                    (speechPitch * preset.pitchMultiplier).coerceIn(0.72f, 0.95f)
+                                )
                             }.onFailure {
                                 output.delete()
                                 isGenerating = false
