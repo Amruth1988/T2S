@@ -258,30 +258,43 @@ fun LoginScreen(onBack: () -> Unit) {
                                 try {
                                     val clientId = context.getString(webClientIdId)
                                     val credentialManager = CredentialManager.create(context)
-                                    val googleOption = GetGoogleIdOption.Builder().setFilterByAuthorizedAccounts(true)
-                                        .setServerClientId(clientId).setAutoSelectEnabled(false).build()
+                                    // Do not force the stale authorised-account reauthentication path.
+                                    // Request an explicit account chooser first, then clear stale
+                                    // Credential Manager state and retry Google's dedicated sign-in.
+                                    val freshAccountOption = GetGoogleIdOption.Builder()
+                                        .setFilterByAuthorizedAccounts(false)
+                                        .setServerClientId(clientId)
+                                        .setAutoSelectEnabled(false)
+                                        .build()
                                     val credential = try {
                                         credentialManager.getCredential(
                                             activity,
-                                            GetCredentialRequest.Builder().addCredentialOption(googleOption).build()
+                                            GetCredentialRequest.Builder()
+                                                .addCredentialOption(freshAccountOption)
+                                                .build()
                                         ).credential
-                                    } catch (_: androidx.credentials.exceptions.GetCredentialException) {
-                                        val retryOption = GetGoogleIdOption.Builder()
-                                            .setFilterByAuthorizedAccounts(false)
-                                            .setServerClientId(clientId)
-                                            .setAutoSelectEnabled(false)
+                                    } catch (firstError: androidx.credentials.exceptions.GetCredentialException) {
+                                        try {
+                                            credentialManager.clearCredentialState(
+                                                androidx.credentials.ClearCredentialStateRequest()
+                                            )
+                                        } catch (_: Exception) {
+                                            // Clearing is best-effort; continue with explicit Google sign-in.
+                                        }
+                                        val signInOption = com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption.Builder(clientId)
                                             .build()
                                         try {
                                             credentialManager.getCredential(
                                                 activity,
-                                                GetCredentialRequest.Builder().addCredentialOption(retryOption).build()
+                                                GetCredentialRequest.Builder()
+                                                    .addCredentialOption(signInOption)
+                                                    .build()
                                             ).credential
-                                        } catch (_: androidx.credentials.exceptions.GetCredentialException) {
-                                            val signInOption = com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption.Builder(clientId).build()
-                                            credentialManager.getCredential(
-                                                activity,
-                                                GetCredentialRequest.Builder().addCredentialOption(signInOption).build()
-                                            ).credential
+                                        } catch (secondError: Exception) {
+                                            throw IllegalStateException(
+                                                "Google account selection failed. Please update Google Play services and try again. Details: ${secondError.localizedMessage ?: firstError.localizedMessage ?: "No credential returned."}",
+                                                secondError
+                                            )
                                         }
                                     }
                                     if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
