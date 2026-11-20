@@ -365,26 +365,26 @@ fun SpeechStudioScreen(
 
     fun previewPurohitPreset(preset: PurohitPreset) {
         val engine = ttsEngine
-        // Prefer an explicitly male voice, but accept Telugu voices with unknown gender metadata.
-        val maleTeluguVoice = selectedPurohitVoice?.takeIf { it.locale.language == "te" }
-            ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" && voiceGender(it.name) == "Male" }
+        // Purohit presets are delivery styles, not gender filters. Use the selected
+        // Telugu system voice (including female voices), or the first installed Telugu voice.
+        val purohitTeluguVoice = selectedPurohitVoice?.takeIf { it.locale.language == "te" }
             ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" }
         if (engine == null || !engineReady) {
             statusMessage = "Android speech engine is still starting. Try the preview again."
             return
         }
-        if (maleTeluguVoice == null) {
+        if (purohitTeluguVoice == null) {
             statusMessage = "No Telugu system voice is installed. Install Telugu speech data in Android speech settings, then retry."
             return
         }
         stopVoicePreview()
-        selectedPurohitVoice = maleTeluguVoice
+        selectedPurohitVoice = purohitTeluguVoice
         val languageResult = engine.setLanguage(Locale("te", "IN"))
         if (languageResult == TextToSpeech.LANG_MISSING_DATA || languageResult == TextToSpeech.LANG_NOT_SUPPORTED) {
             statusMessage = "Telugu voice data is missing. Install Telugu speech data in Android settings."
             return
         }
-        engine.voice = maleTeluguVoice
+        engine.voice = purohitTeluguVoice
         engine.setSpeechRate((speechRate * preset.speedMultiplier).coerceIn(0.5f, 2f))
         engine.setPitch((speechPitch * preset.pitchMultiplier).coerceIn(0.5f, 2f))
         val key = "purohit:${preset.name}"
@@ -394,7 +394,7 @@ fun SpeechStudioScreen(
         engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             private val main = Handler(Looper.getMainLooper())
             override fun onStart(utteranceId: String?) {
-                main.post { isPlaying = true; statusMessage = "Playing ${preset.name} style preview using ${maleTeluguVoice.name}." }
+                main.post { isPlaying = true; statusMessage = "Playing ${preset.name} style preview using ${purohitTeluguVoice.name}." }
             }
             override fun onDone(utteranceId: String?) {
                 main.post {
@@ -1019,18 +1019,16 @@ fun SpeechStudioScreen(
                                 isPurohitMode = true
                                 val engine = ttsEngine
                                 selectedPurohitVoice = selectedPurohitVoice?.takeIf { it.locale.language == "te" }
-                                    ?: availableVoices.firstOrNull { it.locale.language == "te" && voiceGender(it.name) == "Male" }
                                     ?: availableVoices.firstOrNull { it.locale.language == "te" }
-                                    ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" && voiceGender(it.name) == "Male" }
                                     ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" }
                                 engine?.let {
                                     it.setLanguage(Locale("te", "IN"))
                                     selectedPurohitVoice?.let { voice -> it.voice = voice }
                                 }
                                 statusMessage = if (selectedPurohitVoice == null) {
-                                    "${preset.name} selected, but no explicitly male Telugu voice is installed. Female voices are blocked for this preset."
+                                    "${preset.name} selected, but no Telugu system voice is installed. Install Telugu speech data in Android settings."
                                 } else {
-                                    "${preset.name} selected with male Telugu voice ${selectedPurohitVoice?.name}. Preview it before generating audio."
+                                    "${preset.name} selected with Telugu voice ${selectedPurohitVoice?.name}. Any installed voice can be used; preview it before generating audio."
                                 }
                             },
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(13.dp),
@@ -1234,15 +1232,12 @@ fun SpeechStudioScreen(
                             } else {
                                 val preset = selectedPurohitPreset.takeIf { isPurohitMode }
                                 val presetVoice = if (preset != null) {
-                                    selectedPurohitVoice?.takeIf {
-                                        it.locale.language == "te" && voiceGender(it.name) == "Male"
-                                    } ?: engine.voices.orEmpty().firstOrNull {
-                                        it.locale.language == "te" && voiceGender(it.name) == "Male"
-                                    }
+                                    selectedPurohitVoice?.takeIf { it.locale.language == "te" }
+                                        ?: engine.voices.orEmpty().firstOrNull { it.locale.language == "te" }
                                 } else null
                                 if (preset != null && presetVoice == null) {
                                     isGenerating = false
-                                    statusMessage = "Cannot generate ${preset.name}: no explicitly male Telugu voice is installed. Female voices are blocked. Install a male Telugu TTS voice first."
+                                    statusMessage = "Cannot generate ${preset.name}: no Telugu system voice is installed. Install Telugu speech data in Android speech settings, or import a converted Telugu offline voice pack."
                                 } else {
                                 val languageResult = engine.setLanguage(language.locale)
                                 if (languageResult == TextToSpeech.LANG_MISSING_DATA ||
