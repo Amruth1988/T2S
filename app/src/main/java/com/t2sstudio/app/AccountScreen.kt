@@ -132,38 +132,36 @@ fun LoginScreen(onBack: () -> Unit) {
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
         ) {
-            // Warm illustrated brand header, matching the approved concept.
+            // Compact, premium brand hero. Keep clear of the system status bar.
             androidx.compose.foundation.layout.Box(
-                modifier = Modifier.fillMaxWidth().height(300.dp)
+                modifier = Modifier.fillMaxWidth().height(224.dp)
                     .background(
                         androidx.compose.ui.graphics.Brush.verticalGradient(
-                            listOf(androidx.compose.ui.graphics.Color(0xFFFFE7B8), androidx.compose.ui.graphics.Color(0xFFFFF4D9), T2SOrange)
+                            listOf(androidx.compose.ui.graphics.Color(0xFFFFE9C8), androidx.compose.ui.graphics.Color(0xFFFFF4E8))
                         )
                     ),
                 contentAlignment = androidx.compose.ui.Alignment.Center
             ) {
-                Text("🌿", modifier = Modifier.align(androidx.compose.ui.Alignment.TopStart).padding(16.dp), fontSize = 34.sp)
-                Text("🌿", modifier = Modifier.align(androidx.compose.ui.Alignment.TopEnd).padding(16.dp), fontSize = 34.sp)
-                Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                        Text("🧘🏻‍♂️", fontSize = 66.sp)
-                        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                            androidx.compose.foundation.layout.Box(
-                                modifier = Modifier.size(78.dp).background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.RoundedCornerShape(22.dp))
-                                    .border(2.dp, T2SOrange, androidx.compose.foundation.shape.RoundedCornerShape(22.dp)),
-                                contentAlignment = androidx.compose.ui.Alignment.Center
-                            ) { Text("T2S", color = T2SOrange, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold) }
-                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                Text("Studio", color = T2SText, fontSize = 38.sp, fontWeight = FontWeight.Bold)
-                                Text("🎙️", fontSize = 32.sp)
-                            }
-                            Text("Text to Speech", color = T2SText, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                        }
+                Column(
+                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(7.dp),
+                    modifier = Modifier.padding(top = 10.dp)
+                ) {
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier.size(76.dp)
+                            .background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.RoundedCornerShape(23.dp))
+                            .border(2.dp, T2SOrange, androidx.compose.foundation.shape.RoundedCornerShape(23.dp)),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        Text("T2S", color = T2SOrange, fontSize = 29.sp, fontWeight = FontWeight.ExtraBold)
                     }
-                    Text("✍️     Aa     〰️     ▶", color = T2SOrange, fontSize = 27.sp, modifier = Modifier.padding(top = 12.dp))
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text("Studi", color = T2SText, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("🎙", fontSize = 28.sp)
+                    }
+                    Text("TEXT  •  CREATE  •  SPEAK", color = T2SSecondaryText,
+                        fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.8.sp)
                 }
-                Text("WORDS BECOME VOICES", color = T2SText, fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter).padding(bottom = 28.dp), letterSpacing = 2.sp)
             }
 
             Column(
@@ -220,7 +218,7 @@ fun LoginScreen(onBack: () -> Unit) {
                         shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Text("🔒  Keep me signed in", color = T2SText, fontSize = 13.sp)
+                        Text("Your account stays securely signed in", color = T2SSecondaryText, fontSize = 12.sp)
                         androidx.compose.material3.TextButton(onClick = {
                             if (email.isBlank()) status = "Enter your email address first to receive a password reset link."
                             else { busy = true; auth.sendPasswordReset(email) { result ->
@@ -304,11 +302,22 @@ fun LoginScreen(onBack: () -> Unit) {
                 }
 
                 if (status.isNotBlank()) Text(status, color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 17.sp)
-                Text("☁️                  📱                  ⚙️", color = T2SOrange, fontSize = 23.sp)
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    Text("Sync Projects", color = T2SText, fontSize = 11.sp)
-                    Text("Multiple Devices", color = T2SText, fontSize = 11.sp)
-                    Text("Save Settings", color = T2SText, fontSize = 11.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("☁" to "Sync", "▣" to "Projects", "⚙" to "Settings").forEach { (symbol, label) ->
+                        Column(
+                            modifier = Modifier.weight(1f)
+                                .background(androidx.compose.ui.graphics.Color(0xFFFFF4E8), androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                                .padding(vertical = 10.dp),
+                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Text(symbol, color = T2SOrange, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Text(label, color = T2SSecondaryText, fontSize = 10.sp)
+                        }
+                    }
                 }
                 Column(modifier = Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFFFFF4E8),
                     androidx.compose.foundation.shape.RoundedCornerShape(22.dp)).padding(16.dp),
