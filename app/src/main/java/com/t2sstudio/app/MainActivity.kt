@@ -149,7 +149,7 @@ private fun T2SApp() {
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = T2SBackground, tonalElevation = 3.dp) {
+            NavigationBar(containerColor = Color.White, tonalElevation = 0.dp) {
                 destinations.forEachIndexed { index, destination ->
                     NavigationBarItem(
                         selected = selectedDestination == index,
@@ -157,9 +157,9 @@ private fun T2SApp() {
                         icon = { Icon(destination.icon, contentDescription = destination.label) },
                         label = { Text(destination.label, fontSize = 10.sp, maxLines = 1) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = T2SOrange,
+                            selectedIconColor = Color.White,
                             selectedTextColor = T2SOrange,
-                            indicatorColor = T2SCream,
+                            indicatorColor = T2SOrange,
                             unselectedIconColor = T2SSecondaryText,
                             unselectedTextColor = T2SSecondaryText
                         )
