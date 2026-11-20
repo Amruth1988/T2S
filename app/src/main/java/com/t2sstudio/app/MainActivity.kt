@@ -318,209 +318,157 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
     val progress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = 1f,
         animationSpec = tween(durationMillis = 7_700, easing = FastOutSlowInEasing),
-        label = "splash-story-flow"
+        label = "splash-progress"
     )
-    val pulse = rememberInfiniteTransition(label = "splash-pulse")
-    val logoPulse by pulse.animateFloat(
-        initialValue = 0.97f,
-        targetValue = 1.035f,
-        animationSpec = infiniteRepeatable(
-            tween(1_100, easing = FastOutSlowInEasing),
-            RepeatMode.Reverse
-        ),
-        label = "logo-pulse"
+    val motion = rememberInfiniteTransition(label = "splash-motion")
+    val logoScale by motion.animateFloat(
+        initialValue = 0.98f,
+        targetValue = 1.025f,
+        animationSpec = infiniteRepeatable(tween(1_300, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "logo-scale"
     )
-    val penTilt by pulse.animateFloat(
-        initialValue = -8f,
-        targetValue = 8f,
-        animationSpec = infiniteRepeatable(tween(420), RepeatMode.Reverse),
-        label = "writing-pen"
+    val penTilt by motion.animateFloat(
+        initialValue = -7f,
+        targetValue = 7f,
+        animationSpec = infiniteRepeatable(tween(650), RepeatMode.Reverse),
+        label = "pen-tilt"
     )
-    val writerEntrance by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (progress > 0.02f) 1f else 0f,
-        animationSpec = tween(900, easing = FastOutSlowInEasing),
-        label = "writer-entrance"
-    )
-    val speakerBob by pulse.animateFloat(
+    val speakerBob by motion.animateFloat(
         initialValue = 0f,
-        targetValue = 9f,
-        animationSpec = infiniteRepeatable(tween(850, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        targetValue = 5f,
+        animationSpec = infiniteRepeatable(tween(900, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "speaker-bob"
     )
-    val gold = T2SOrange
-    val cream = T2SText
+    val ink = T2SText
     val muted = T2SSecondaryText
-    val firstFlow = ((progress - 0.08f) / 0.40f).coerceIn(0f, 1f)
-    val secondFlow = ((progress - 0.52f) / 0.40f).coerceIn(0f, 1f)
+    val orange = T2SOrange
 
-    androidx.compose.foundation.layout.BoxWithConstraints(
+    BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color.White, T2SBackground, T2SCream)))
-            .padding(horizontal = 22.dp, vertical = 25.dp)
+            .background(Brush.verticalGradient(listOf(Color(0xFFFFFEFC), Color(0xFFFFF5EC))))
+            .padding(horizontal = 26.dp, vertical = 18.dp)
     ) {
-        val sceneWidth = maxWidth
-        val sceneHeight = maxHeight
-
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Scene 1: a seated writer works at a desk; the paper is the source of the letters.
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 2.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(1.dp)
-                ) {
-                    Text("🧑🏻‍💻", fontSize = 62.sp, modifier = Modifier.offset(y = (writerEntrance * -10f).dp))
-                    Text("🪑", fontSize = 25.sp, modifier = Modifier.offset(y = (-12).dp))
-                    Text(
-                        "THE STORY BEGINS",
-                        color = cream,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp
-                    )
+            // A single, connected opening scene keeps the writer and paper visually related.
+            Row(
+                modifier = Modifier.weight(0.88f).fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("🧑🏻‍💻", fontSize = 48.sp)
+                    Text("THE STORY BEGINS", color = ink, fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
                 }
-                Column(
-                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        "✍️",
-                        fontSize = 30.sp,
-                        modifier = Modifier.offset(y = penTilt.dp)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("✍️", fontSize = 27.sp, modifier = Modifier.offset(y = penTilt.dp))
+                    Box(
+                        Modifier.width(116.dp).height(9.dp).clip(RoundedCornerShape(8.dp))
+                            .background(orange)
                     )
                     Box(
-                        Modifier.padding(top = 3.dp).width(132.dp).height(12.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(T2SOrangeDark)
-                    )
-                    Box(
-                        Modifier.padding(top = 4.dp).size(70.dp, 38.dp)
-                            .clip(RoundedCornerShape(5.dp))
-                            .background(T2SCream),
-                        contentAlignment = Alignment.Center
+                        Modifier.padding(top = 6.dp).clip(RoundedCornerShape(9.dp))
+                            .background(Color(0xFFFFEBDD)).padding(horizontal = 12.dp, vertical = 7.dp)
                     ) {
-                        Text("Aa   అక్షరం", color = T2SText, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("Aa  అక్షరం", color = ink, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
-                    Text("WORDS ON PAPER", color = muted, fontSize = 8.sp, letterSpacing = 1.sp)
+                    Text("WORDS ON PAPER", color = muted, fontSize = 8.sp, letterSpacing = 1.sp,
+                        modifier = Modifier.padding(top = 5.dp))
                 }
             }
 
-            // Scene 2: the words gather around the T2S Studio identity.
-            Box(Modifier.weight(0.92f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            // Keep the moving characters inside the logo zone, never over the people.
+            Box(
+                modifier = Modifier.weight(1.28f).fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(
-                        modifier = Modifier.size((112 * logoPulse).dp).shadow(24.dp, RoundedCornerShape(30.dp))
-                            .clip(RoundedCornerShape(30.dp))
-                            .background(Brush.linearGradient(listOf(T2SOrange, T2SOrangeDark)))
-                            .border(2.dp, gold.copy(alpha = 0.9f), RoundedCornerShape(30.dp)),
+                        modifier = Modifier.size((116f * logoScale).dp)
+                            .shadow(16.dp, RoundedCornerShape(28.dp))
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(Brush.linearGradient(listOf(orange, T2SOrangeDark)))
+                            .padding(8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
-                            Modifier.size((96 * logoPulse).dp).clip(RoundedCornerShape(24.dp))
-                                .background(T2SBorder),
+                            Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp))
+                                .background(Color(0xFFF3E9E2)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("T2S", color = Color.White, fontSize = 37.sp, fontWeight = FontWeight.Black)
+                            Text("T2S", color = Color.White, fontSize = 38.sp,
+                                fontWeight = FontWeight.Black)
                         }
                     }
-                    Text(
-                        "STUDIO",
-                        color = gold,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 5.sp,
-                        modifier = Modifier.padding(top = 9.dp)
-                    )
-                    Text(
-                        "TEXT  •  CREATE  •  SPEAK",
-                        color = muted,
-                        fontSize = 9.sp,
-                        letterSpacing = 1.5.sp,
-                        modifier = Modifier.padding(top = 5.dp)
-                    )
+                    Text("STUDIO", color = orange, fontSize = 17.sp,
+                        fontWeight = FontWeight.ExtraBold, letterSpacing = 5.sp,
+                        modifier = Modifier.padding(top = 10.dp))
+                    Text("TEXT  •  CREATE  •  SPEAK", color = muted, fontSize = 9.sp,
+                        letterSpacing = 1.4.sp, modifier = Modifier.padding(top = 5.dp))
                 }
-            }
 
-            // Scene 3: a speaker receives the words and gives them a voice.
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("🧔🏻", fontSize = 61.sp, modifier = Modifier.offset(y = speakerBob.dp))
-                    Text(")))", color = T2SOrange, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = (-9).dp))
+                val glyphs = listOf("A", "త", "♪", "మ")
+                glyphs.forEachIndexed { index, glyph ->
+                    val phase = ((progress * 2.2f + index * 0.23f) % 1f)
+                    val x = (maxWidth * (0.18f + phase * 0.64f))
+                    val y = (maxHeight * (0.30f + (index % 2) * 0.40f))
                     Text(
-                        "YOUR VOICE",
-                        color = cream,
-                        fontSize = 10.sp,
+                        glyph,
+                        color = orange.copy(alpha = if (progress > 0.92f) 0.15f else 0.72f),
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.8.sp
+                        modifier = Modifier.offset(x = x - maxWidth * 0.5f, y = y - maxHeight * 0.5f)
                     )
                 }
-                Column(
-                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 2.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(")))", color = gold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            }
+
+            // Words become speech: the speech bubble and speaker share one visual group.
+            Row(
+                modifier = Modifier.weight(0.88f).fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(")))", color = orange, fontSize = 23.sp, fontWeight = FontWeight.Bold)
                     Box(
-                        Modifier.padding(top = 4.dp).clip(RoundedCornerShape(12.dp))
-                            .background(T2SOrange.copy(alpha = 0.10f)).padding(horizontal = 10.dp, vertical = 7.dp)
+                        Modifier.clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFFFEBDD))
+                            .padding(horizontal = 12.dp, vertical = 9.dp)
                     ) {
-                        Text("నమస్కారం • Hello", color = cream, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                        Text("నమస్కారం  •  Hello", color = ink, fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold)
                     }
-                    Text("WORDS COME ALIVE", color = muted, fontSize = 8.sp, letterSpacing = 1.sp)
+                    Text("WORDS COME ALIVE", color = muted, fontSize = 8.sp,
+                        letterSpacing = 0.9.sp, modifier = Modifier.padding(top = 5.dp))
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("🧔🏻", fontSize = 51.sp, modifier = Modifier.offset(y = speakerBob.dp))
+                    Text("YOUR VOICE", color = ink, fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                 }
             }
-        }
 
-        // Individual Telugu, English and music glyphs travel paper -> logo -> speaker.
-        val letters = listOf("A", "త", "S", "మ", "♪", "ఓ")
-        letters.forEachIndexed { index, letter ->
-            val firstStage = progress < 0.52f
-            val t = if (firstStage) firstFlow else secondFlow
-            val x = if (firstStage) {
-                0.19f + 0.31f * t
-            } else {
-                0.50f + 0.34f * t
-            }
-            val y = if (firstStage) {
-                0.20f + 0.29f * t + (index % 3) * 0.018f
-            } else {
-                0.50f + 0.29f * t + (index % 3) * 0.018f
-            }
-            val alpha = when {
-                progress < 0.07f -> 0f
-                progress in 0.49f..0.54f -> 0.15f
-                else -> 1f
-            }
-            Text(
-                letter,
-                color = gold.copy(alpha = alpha),
-                fontSize = (16 + (index % 3) * 3).sp,
-                fontWeight = FontWeight.ExtraBold,
-                modifier = Modifier.align(Alignment.TopStart)
-                    .offset(x = sceneWidth * x, y = sceneHeight * y)
-            )
-        }
-
-        Column(
-            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(bottom = 2.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(7.dp)
-        ) {
-            Text("From your words to a voice that speaks", color = cream, fontSize = 12.sp)
-            Box(
-                Modifier.fillMaxWidth(0.68f).height(3.dp).clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.16f))
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                Text("From your words to a voice that speaks",
+                    color = ink, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 Box(
-                    Modifier.fillMaxWidth(progress).height(3.dp).clip(CircleShape).background(gold)
-                )
+                    Modifier.fillMaxWidth(0.76f).height(4.dp).clip(CircleShape)
+                        .background(orange.copy(alpha = 0.16f))
+                ) {
+                    Box(
+                        Modifier.fillMaxWidth(progress).height(4.dp)
+                            .clip(CircleShape).background(orange)
+                    )
+                }
+                Text("Opening your studio…", color = muted, fontSize = 10.sp)
             }
-            Text("Opening your studio…", color = T2SOrangeDark, fontSize = 10.sp)
         }
     }
 }
