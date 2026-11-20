@@ -117,7 +117,7 @@ private fun T2SApp() {
     LaunchedEffect(Unit) {
         val installed = TeluguVoicePacks.installedConverted(context)
             .any { it.id == "venkatesh" && it.group == TeluguVoiceGroup.MALE }
-        if (!installed) {
+        if (showLoginPage && !installed) {
             runCatching {
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     TeluguVoicePacks.downloadAndInstallVenkatesh(context) { }
