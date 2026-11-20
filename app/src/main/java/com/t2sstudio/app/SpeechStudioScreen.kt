@@ -382,165 +382,118 @@ fun SpeechStudioScreen(
     }
 
     fun previewPurohitPreset(preset: PurohitPreset) {
-        val engine = ttsEngine
-        if (engine == null || !engineReady) {
-            statusMessage = "Android speech engine is still starting. Try the preview again."
-            return
-        }
-        // All three presets must use a Telugu voice explicitly marked Male.
-        // Never fall back to an arbitrary installed Telugu voice.
-        val purohitTeluguVoice = selectedPurohitVoice?.takeIf {
-            it.locale.language == "te" && genderForVoice(it) == "Male" &&
-                !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
-        } ?: availableVoices.firstOrNull {
-            it.locale.language == "te" && genderForVoice(it) == "Male" &&
-                !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
-        } ?: engine.voices.orEmpty().firstOrNull {
-            it.locale.language == "te" && genderForVoice(it) == "Male" &&
-                !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
-        }
-        if (purohitTeluguVoice == null) {
-            statusMessage = "Cannot preview ${preset.name}: no installed Telugu voice is marked Male. In Voice library, set a Telugu voice Gender to Male, then select a Purohit preset again."
+        // Every Purohit preset uses the dedicated Venkatesh model classified as MALE.
+        // Android system voices and female packs are never used for this feature.
+        val malePack = convertedTeluguPacks.firstOrNull { it.group == TeluguVoiceGroup.MALE }
+        if (malePack == null) {
+            statusMessage = "Purohit preview needs the Venkatesh (Male) Telugu voice pack. Import the male voice pack below; no female or Android system voice will be used."
             return
         }
 
         stopVoicePreview()
-        selectedPurohitVoice = purohitTeluguVoice
-        val languageResult = engine.setLanguage(Locale("te", "IN"))
-        if (languageResult == TextToSpeech.LANG_MISSING_DATA || languageResult == TextToSpeech.LANG_NOT_SUPPORTED) {
-            statusMessage = "Telugu voice data is missing. Install Telugu speech data in Android settings."
-            return
-        }
-        val voiceResult = runCatching { engine.setVoice(purohitTeluguVoice) }.getOrDefault(TextToSpeech.ERROR)
-        if (voiceResult == TextToSpeech.ERROR) {
-            statusMessage = "Android rejected the selected Telugu male voice. Install its voice data in Android Text-to-speech settings."
-            return
-        }
-
-        engine.setSpeechRate((speechRate * preset.speedMultiplier).coerceIn(0.5f, 2f))
-        engine.setPitch((speechPitch * preset.pitchMultiplier).coerceIn(0.5f, 2f))
-        val key = "purohit:${preset.name}"
-        val previewFile = File(context.cacheDir, "purohit_preview_${System.currentTimeMillis()}.wav")
+        val key = "purohit:" + preset.name
+        val previewFile = File(context.cacheDir, "purohit_preview_" + System.currentTimeMillis() + ".wav")
+        val previewText = "ఓం శ్రీ గణేశాయ నమః। నమస్కారం। ఇది తెలుగు పూజారి స్వర పరీక్ష। శుభం భవतु।"
         activePreviewKey = key
         isPreviewing = true
         isPlaying = false
-        statusMessage = "Creating ${preset.name} preview with male Telugu voice: ${purohitTeluguVoice.name}…"
+        statusMessage = "Creating " + preset.name + " preview with " + malePack.displayName + " (Male Telugu model)…"
 
-        val main = Handler(Looper.getMainLooper())
-        engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String?) {
-                main.post {
-                    if (activePreviewKey == key) {
-                        statusMessage = "Preparing audible preview…"
+        coroutineScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    TeluguOfflineTtsEngine(context, malePack.model, malePack.tokens).use { offlineEngine ->
+                        offlineEngine.synthesizeToWav(
+                            previewText,
+                            previewFile,
+                            (speechRate * preset.speedMultiplier).coerceIn(0.5f, 2f)
+                        )
                     }
                 }
             }
+            if (result.isFailure) {
+                previewFile.delete()
+                if (activePreviewKey == key) {
+                    isPlaying = false
+                    isPreviewing = false
+                    activePreviewKey = null
+                    statusMessage = "Purohit preview synthesis failed: " + (result.exceptionOrNull()?.message ?: "male voice model error")
+                }
+                return@launch
+            }
+            if (activePreviewKey != key) {
+                previewFile.delete()
+                return@launch
+            }
+            if (!previewFile.isFile || previewFile.length() <= 44L) {
+                previewFile.delete()
+                isPlaying = false
+                isPreviewing = false
+                activePreviewKey = null
+                statusMessage = "Purohit preview audio is empty. Re-import the Venkatesh male voice pack."
+                return@launch
+            }
 
-            override fun onDone(utteranceId: String?) {
-                main.post {
-                    if (activePreviewKey != key) {
-                        previewFile.delete()
-                        return@post
-                    }
-                    if (!previewFile.isFile || previewFile.length() <= 44L) {
-                        previewFile.delete()
-                        isPlaying = false
-                        isPreviewing = false
-                        activePreviewKey = null
-                        statusMessage = "Preview audio was not created. Check that the selected Telugu voice is installed."
-                        return@post
-                    }
-                    runCatching {
-                        val player = ExoPlayer.Builder(context).build()
-                        mediaPlayer = player
-                        player.setAudioAttributes(
-                            Media3AudioAttributes.Builder()
-                                .setUsage(C.USAGE_MEDIA)
-                                .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                                .build(),
-                            true
-                        )
-                        player.volume = 1f
-                        player.addListener(object : Player.Listener {
-                            override fun onPlaybackStateChanged(playbackState: Int) {
-                                when (playbackState) {
-                                    Player.STATE_READY -> {
-                                        if (activePreviewKey == key) {
-                                            player.play()
-                                            isPlaying = true
-                                            statusMessage = "Playing ${preset.name} • Male Telugu voice: ${purohitTeluguVoice.name}"
-                                        }
-                                    }
-                                    Player.STATE_ENDED -> {
-                                        player.release()
-                                        if (mediaPlayer === player) mediaPlayer = null
-                                        previewFile.delete()
-                                        isPlaying = false
-                                        isPreviewing = false
-                                        activePreviewKey = null
-                                        statusMessage = "${preset.name} preview finished."
-                                    }
+            runCatching {
+                val player = ExoPlayer.Builder(context).build()
+                mediaPlayer = player
+                player.setAudioAttributes(
+                    Media3AudioAttributes.Builder()
+                        .setUsage(C.USAGE_MEDIA)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                        .build(),
+                    true
+                )
+                player.volume = 1f
+                player.setPlaybackParameters(
+                    androidx.media3.common.PlaybackParameters(
+                        1f,
+                        (speechPitch * preset.pitchMultiplier).coerceIn(0.5f, 2f)
+                    )
+                )
+                player.addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        when (playbackState) {
+                            Player.STATE_READY -> {
+                                if (activePreviewKey == key) {
+                                    player.play()
+                                    isPlaying = true
+                                    statusMessage = "Playing " + preset.name + " • " + malePack.displayName + " (Male Telugu)"
                                 }
                             }
-
-                            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                            Player.STATE_ENDED -> {
                                 player.release()
                                 if (mediaPlayer === player) mediaPlayer = null
                                 previewFile.delete()
                                 isPlaying = false
                                 isPreviewing = false
                                 activePreviewKey = null
-                                statusMessage = "Preview playback failed: ${error.errorCodeName}"
+                                statusMessage = preset.name + " male Telugu preview finished."
                             }
-                        })
-                        player.setMediaItem(MediaItem.fromUri(Uri.fromFile(previewFile)))
-                        player.prepare()
-                    }.onFailure {
+                        }
+                    }
+
+                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                        player.release()
+                        if (mediaPlayer === player) mediaPlayer = null
                         previewFile.delete()
-                        mediaPlayer?.release()
-                        mediaPlayer = null
                         isPlaying = false
                         isPreviewing = false
                         activePreviewKey = null
-                        statusMessage = "Could not play Purohit preview: ${it.message ?: "audio player error"}"
+                        statusMessage = "Purohit preview playback failed: " + error.errorCodeName
                     }
-                }
+                })
+                player.setMediaItem(MediaItem.fromUri(Uri.fromFile(previewFile)))
+                player.prepare()
+            }.onFailure {
+                previewFile.delete()
+                mediaPlayer?.release()
+                mediaPlayer = null
+                isPlaying = false
+                isPreviewing = false
+                activePreviewKey = null
+                statusMessage = "Could not play Purohit preview: " + (it.message ?: "audio player error")
             }
-
-            @Deprecated("Deprecated in Java")
-            override fun onError(utteranceId: String?) {
-                main.post {
-                    previewFile.delete()
-                    if (activePreviewKey == key) {
-                        isPlaying = false
-                        isPreviewing = false
-                        activePreviewKey = null
-                        statusMessage = "Could not synthesize ${preset.name} preview. Check the installed Telugu male voice."
-                    }
-                }
-            }
-
-            override fun onError(utteranceId: String?, errorCode: Int) {
-                main.post {
-                    previewFile.delete()
-                    if (activePreviewKey == key) {
-                        isPlaying = false
-                        isPreviewing = false
-                        activePreviewKey = null
-                        statusMessage = "${preset.name} preview synthesis failed (code $errorCode)."
-                    }
-                }
-            }
-        })
-
-        val previewText = "ఓం శ్రీ గణేశాయ నమః। నమస్కారం। ఇది తెలుగు పూజారి స్వర పరీక్ష। శుభం భవतु।"
-        val result = engine.synthesizeToFile(previewText, Bundle(), previewFile, key)
-        if (result != TextToSpeech.SUCCESS) {
-            previewFile.delete()
-            isPreviewing = false
-            isPlaying = false
-            activePreviewKey = null
-            statusMessage = "Android could not create the Telugu Purohit preview audio."
         }
     }
 
