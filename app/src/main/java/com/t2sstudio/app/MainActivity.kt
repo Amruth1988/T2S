@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -86,6 +87,7 @@ private val destinations = listOf(
     Destination("Projects", Icons.Filled.Folder),
     Destination("Recent", Icons.Filled.AccessTime),
     Destination("My Voices", Icons.Filled.RecordVoiceOver),
+    Destination("Drafts", Icons.Filled.Description),
     Destination("Profile", Icons.Filled.Person)
 )
 
@@ -107,6 +109,7 @@ private fun T2SApp() {
     }
     var selectedProjectId by remember { mutableStateOf(projects.firstOrNull()?.id) }
     var pendingScriptText by remember { mutableStateOf<String?>(null) }
+    val scriptDrafts = remember { mutableStateListOf<T2SScriptDraft>().apply { addAll(ScriptDraftStore.load(context)) } }
 
     Scaffold(
         containerColor = T2SBackground,
@@ -183,7 +186,13 @@ private fun T2SApp() {
                         }
                     },
                     initialScriptText = pendingScriptText,
-                    onInitialScriptTextConsumed = { pendingScriptText = null }
+                    onInitialScriptTextConsumed = { pendingScriptText = null },
+                    onSaveDraft = { text, language, projectId, projectName ->
+                        val draft = ScriptDraftStore.create(text, language, projectId, projectName)
+                        scriptDrafts.add(0, draft)
+                        ScriptDraftStore.save(context, scriptDrafts)
+                        draft
+                    }
                 )
                 1 -> ProjectsScreen(
                     projects = projects,
@@ -256,7 +265,12 @@ private fun T2SApp() {
                     }
                 )
                 3 -> MyVoicesScreen()
-                4 -> AccountScreen()
+                4 -> ScriptDraftsScreen(
+                    drafts = scriptDrafts,
+                    onOpen = { draft -> pendingScriptText = draft.content; selectedProjectId = draft.projectId.takeIf { it.isNotBlank() }; selectedDestination = 0 },
+                    onDelete = { draft -> scriptDrafts.removeAll { it.id == draft.id }; ScriptDraftStore.save(context, scriptDrafts) }
+                )
+                5 -> AccountScreen()
             }
         }
     }
