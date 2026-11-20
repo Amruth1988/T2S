@@ -367,16 +367,19 @@ fun SpeechStudioScreen(
 
     fun previewPurohitPreset(preset: PurohitPreset) {
         val engine = ttsEngine
-        // Purohit presets are delivery styles, not gender filters. Use the selected
-        // Telugu system voice (including female voices), or the first installed Telugu voice.
-        val purohitTeluguVoice = selectedPurohitVoice?.takeIf { it.locale.language == "te" }
-            ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" }
+        // Purohit preview must never silently fall back to a female/unknown voice.
+        // Use only a Telugu voice explicitly identified or user-marked as male.
+        val purohitTeluguVoice = selectedPurohitVoice?.takeIf {
+            it.locale.language == "te" && genderForVoice(it) == "Male"
+        } ?: engine?.voices.orEmpty().firstOrNull {
+            it.locale.language == "te" && genderForVoice(it) == "Male"
+        }
         if (engine == null || !engineReady) {
             statusMessage = "Android speech engine is still starting. Try the preview again."
             return
         }
         if (purohitTeluguVoice == null) {
-            statusMessage = "No Telugu system voice is installed. Install Telugu speech data in Android speech settings, then retry."
+            statusMessage = "No male Telugu system voice is selected. Choose a Telugu voice marked Male in the voice list, then preview again."
             return
         }
         stopVoicePreview()
@@ -396,14 +399,14 @@ fun SpeechStudioScreen(
         engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             private val main = Handler(Looper.getMainLooper())
             override fun onStart(utteranceId: String?) {
-                main.post { isPlaying = true; statusMessage = "Playing ${preset.name} style preview using ${purohitTeluguVoice.name}." }
+                main.post { isPlaying = true; statusMessage = "Playing" }
             }
             override fun onDone(utteranceId: String?) {
                 main.post {
                     isPlaying = false
                     isPreviewing = false
                     activePreviewKey = null
-                    statusMessage = "${preset.name} style preview finished. This uses the installed Android voice, not a dedicated priest-recitation model."
+                    statusMessage = "Playback finished"
                 }
             }
             @Deprecated("Deprecated in Java")
@@ -1020,17 +1023,21 @@ fun SpeechStudioScreen(
                                 selectedPurohitPreset = preset
                                 isPurohitMode = true
                                 val engine = ttsEngine
-                                selectedPurohitVoice = selectedPurohitVoice?.takeIf { it.locale.language == "te" }
-                                    ?: availableVoices.firstOrNull { it.locale.language == "te" }
-                                    ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" }
+                                selectedPurohitVoice = selectedPurohitVoice?.takeIf {
+                                    it.locale.language == "te" && genderForVoice(it) == "Male"
+                                } ?: availableVoices.firstOrNull {
+                                    it.locale.language == "te" && genderForVoice(it) == "Male"
+                                } ?: engine?.voices.orEmpty().firstOrNull {
+                                    it.locale.language == "te" && genderForVoice(it) == "Male"
+                                }
                                 engine?.let {
                                     it.setLanguage(Locale("te", "IN"))
                                     selectedPurohitVoice?.let { voice -> it.voice = voice }
                                 }
                                 statusMessage = if (selectedPurohitVoice == null) {
-                                    "${preset.name} selected, but no Telugu system voice is installed. Install Telugu speech data in Android settings."
+                                    "${preset.name} selected. No male Telugu voice was detected; choose or mark a Telugu voice as Male in the voice list."
                                 } else {
-                                    "${preset.name} selected with Telugu voice ${selectedPurohitVoice?.name}. Any installed voice can be used; preview it before generating audio."
+                                    "${preset.name} selected with male Telugu voice ${selectedPurohitVoice?.name}."
                                 }
                             },
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(13.dp),
@@ -1066,7 +1073,7 @@ fun SpeechStudioScreen(
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
                         ) {
-                            Text(if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) "Preview playing…" else "▶ Preview")
+                            Text(if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) "Playing" else "▶ Preview")
                         }
                         androidx.compose.material3.OutlinedButton(
                             onClick = {
