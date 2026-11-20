@@ -25,10 +25,6 @@ object TeluguVoicePacks {
             id = "padmavathi", displayName = "Padmavathi", group = TeluguVoiceGroup.FEMALE,
             modelFile = "te_IN-padmavathi-medium.onnx"
         ),
-        TeluguVoicePack(
-            id = "maya", displayName = "Maya", group = TeluguVoiceGroup.FEMALE,
-            modelFile = "te_IN-maya-medium.onnx"
-        )
     )
 
     data class InstalledConvertedVoice(
