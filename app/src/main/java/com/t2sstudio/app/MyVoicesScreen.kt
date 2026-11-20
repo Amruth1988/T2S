@@ -251,7 +251,7 @@ fun MyVoicesScreen() {
             }
         }
         if (busy) CircularProgressIndicator()
-        Text(message, color = T2SSecondaryText, fontSize = 12.sp)
+        Text(message, color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 14.sp)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text("Saved voice profiles", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
             TextButton(onClick = { loadVoices() }, enabled = !busy, modifier = Modifier.padding(0.dp)) { Text("↻ Refresh") }
