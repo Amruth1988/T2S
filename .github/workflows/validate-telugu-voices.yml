@@ -83,7 +83,7 @@ jobs:
           for voice in venkatesh padmavathi; do
             dir="build/telugu-voices/$voice"
             archive="build/t2s-telugu-$voice-v1.zip"
-            (cd build/telugu-voices && zip -qr "../$archive" "$voice")
+            (cd build/telugu-voices && zip -qr "../$(basename "$archive")" "$voice")
             sha256sum "$archive" > "$archive.sha256"
             test -s "$archive"
             test -s "$archive.sha256"
