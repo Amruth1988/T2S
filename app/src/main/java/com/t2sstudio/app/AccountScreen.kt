@@ -55,6 +55,19 @@ fun AccountScreen() {
     var showApiSettings by remember { mutableStateOf(false) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
+    androidx.compose.runtime.LaunchedEffect(user?.uid) {
+        val uid = user?.uid ?: return@LaunchedEffect
+        val syncRepository = com.t2sstudio.app.data.firebase.T2SFirestoreRepository()
+        ProjectStore.load(context).forEach { project ->
+            syncRepository.saveProject(
+                uid = uid,
+                projectId = project.id,
+                name = project.name,
+                createdAt = project.createdAt
+            ) { /* Local data remains authoritative if sync is unavailable. */ }
+        }
+    }
+
     if (showApiSettings) {
         ApiKeySettingsScreen()
         OutlinedButton(onClick = { showApiSettings = false }, modifier = Modifier.padding(horizontal = 24.dp)) {
