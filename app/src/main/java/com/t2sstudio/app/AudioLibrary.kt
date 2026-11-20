@@ -107,7 +107,10 @@ data class AudioRecord(
     val createdAt: Long,
     val projectId: String = "",
     val projectName: String = "Unassigned",
-    val scriptContent: String = ""
+    val scriptContent: String = "",
+    val voiceSource: String = "Standard",
+    val voiceName: String = "",
+    val voiceGender: String = ""
 )
 
 object AudioHistoryStore {
@@ -129,7 +132,10 @@ object AudioHistoryStore {
                     createdAt = item.optLong("createdAt"),
                     projectId = item.optString("projectId", ""),
                     projectName = item.optString("projectName", "Unassigned"),
-                    scriptContent = item.optString("scriptContent", item.optString("textPreview", ""))
+                    scriptContent = item.optString("scriptContent", item.optString("textPreview", "")),
+                    voiceSource = item.optString("voiceSource", "Standard"),
+                    voiceName = item.optString("voiceName", ""),
+                    voiceGender = item.optString("voiceGender", "")
                 )
             }.filter { it.id.isNotBlank() && it.filePath.isNotBlank() }
                 .filter { File(it.filePath).exists() }
@@ -149,6 +155,9 @@ object AudioHistoryStore {
                 put("projectId", record.projectId)
                 put("projectName", record.projectName)
                 put("scriptContent", record.scriptContent)
+                put("voiceSource", record.voiceSource)
+                put("voiceName", record.voiceName)
+                put("voiceGender", record.voiceGender)
             })
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -219,6 +228,13 @@ fun SavedAudioScreen(
                                 "${record.language} • ${record.projectName} • " + SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(record.createdAt)),
                                 color = T2SSecondaryText, fontSize = 11.sp
                             )
+                            if (record.voiceSource == "My Voice") {
+                                Text(
+                                    "🎙 My Voice • ${record.voiceName.ifBlank { "Saved voice" }}"
+                                        + if (record.voiceGender.isNotBlank()) " • ${record.voiceGender}" else "",
+                                    color = T2SOrange, fontSize = 11.sp, fontWeight = FontWeight.SemiBold
+                                )
+                            }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Button(
                                     onClick = {
