@@ -820,9 +820,9 @@ fun SpeechStudioScreen(
             }
             val allInstalledForLanguage = availableVoices.toList()
             val genderMatches = allInstalledForLanguage.filter { voice -> selectedGender == "All" || voiceGender(voice.name) == selectedGender }
-            val installedPool = if (genderMatches.isNotEmpty()) genderMatches else allInstalledForLanguage
+            val installedPool = genderMatches
             val onlineGenderMatches = onlineVoices.filter { voice -> selectedGender == "All" || voice.gender.equals(selectedGender, true) }
-            val onlinePool = if (onlineGenderMatches.isNotEmpty()) onlineGenderMatches else onlineVoices.toList()
+            val onlinePool = onlineGenderMatches
             val searchTerm = voiceSearch.trim().lowercase(Locale.ROOT)
             val searchedInstalled = installedPool.filter { voice ->
                 "${voice.name} ${voice.locale.displayName} ${voice.locale.toLanguageTag()}".lowercase(Locale.ROOT).contains(searchTerm)
@@ -851,7 +851,7 @@ fun SpeechStudioScreen(
                     leadingIcon = { Text("⌕", fontSize = 25.sp, color = T2SOrange, fontWeight = FontWeight.Bold) },
                     trailingIcon = {
                         if (voiceSearch.isNotBlank()) {
-                            TextButton(onClick = { voiceSearch = ""; voiceSearchExpanded = false }) { Text("✕ Clear") }
+                            TextButton(onClick = { voiceSearch = ""; }) { Text("✕ Clear") }
                         }
                     }
                 )
@@ -899,9 +899,8 @@ fun SpeechStudioScreen(
                                     isPurohitMode = false
                                     selectedVoice = voice
                                     selectedOnlineVoice = null
-                                    selectedMyVoice = null
                                     voiceSearch = voice.name
-                                                ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
+                                    ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
                                     statusMessage = "${voice.name} selected."
                                 },
                                 trailingIcon = {
@@ -988,7 +987,6 @@ fun SpeechStudioScreen(
                                     isPurohitMode = false
                                     selectedOnlineVoice = voice
                                     selectedVoice = null
-                                    selectedMyVoice = null
                                     voiceSearch = voice.name
                                     statusMessage = voice.name + " selected. Voice licence: " + voice.licence + ". " + voice.attribution
                                 }) {
@@ -1010,15 +1008,7 @@ fun SpeechStudioScreen(
                         )
                         filteredPersonal.forEach { voice ->
                             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Column(Modifier.weight(1f).clickable {
-                                    isPurohitMode = false
-                                    selectedMyVoice = voice
-                                    selectedVoice = null
-                                    selectedOnlineVoice = null
-                                    voiceSearch = voice.name
-                                    voiceSearchExpanded = false
-                                    statusMessage = voice.name + " recording selected for preview. It is a saved sample, not an AI clone."
-                                }) {
+                                Column(Modifier.weight(1f)) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
                                     Text("Saved sample • " + voice.language.uppercase(), color = T2SSecondaryText, fontSize = 11.sp)
                                 }
@@ -1144,7 +1134,6 @@ fun SpeechStudioScreen(
                         }
                         var onlineSuccess = false
                         val chosenOnlineVoice = selectedOnlineVoice
-                        val chosenMyVoice = selectedMyVoice
                         val voiceId = chosenOnlineVoice?.id
                         if (onlineLanguage != null && voiceId != null && textToSpeak.length <= 3000) {
                             val onlineResult = runCatching {
