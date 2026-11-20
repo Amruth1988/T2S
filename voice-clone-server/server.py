@@ -9,6 +9,7 @@ import io
 import os
 import threading
 import tempfile
+import subprocess
 from typing import Optional
 
 import soundfile as sf
@@ -77,14 +78,31 @@ async def clone_tts(
     try:
         model = get_model()
         suffix = os.path.splitext(audio.filename or "reference.wav")[1] or ".wav"
-        with tempfile.NamedTemporaryFile(suffix=suffix) as reference_file:
+        with tempfile.NamedTemporaryFile(suffix=suffix) as reference_file, \
+             tempfile.NamedTemporaryFile(suffix=".wav") as normalized_file:
             reference_file.write(reference)
             reference_file.flush()
+            try:
+                subprocess.run(
+                    [
+                        "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+                        "-i", reference_file.name, "-vn", "-ac", "1", "-ar", "24000",
+                        "-c:a", "pcm_s16le", normalized_file.name,
+                    ],
+                    check=True,
+                    capture_output=True,
+                    timeout=30,
+                )
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as exc:
+                detail = getattr(exc, "stderr", b"") or b""
+                raise HTTPException(400, "Could not decode the reference recording. Upload a clear WAV, MP3, M4A, or FLAC audio file.") from exc
+            if os.path.getsize(normalized_file.name) < 1024:
+                raise HTTPException(400, "Reference recording has no usable audio.")
             with _generation_lock:
                 kwargs = {
                     "text": clean_text,
                     "language": SUPPORTED_LANGUAGES[lang],
-                    "ref_audio": reference_file.name,
+                    "ref_audio": normalized_file.name,
                 }
                 if ref_text and ref_text.strip():
                     kwargs["ref_text"] = ref_text.strip()
