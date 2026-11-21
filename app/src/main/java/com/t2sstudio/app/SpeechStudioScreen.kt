@@ -135,7 +135,7 @@ fun SpeechStudioScreen(
     onAudioGenerated: (AudioRecord) -> Unit,
     initialScriptText: String?,
     onInitialScriptTextConsumed: () -> Unit,
-    onSaveDraft: (String, String, String, String) -> T2SScriptDraft
+    onSaveDraft: (String, String, String, String, (Result<T2SScriptDraft>) -> Unit) -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -164,6 +164,7 @@ fun SpeechStudioScreen(
     var speechPitch by remember { mutableFloatStateOf(1f) }
     var engineReady by remember { mutableStateOf(false) }
     var isGenerating by remember { mutableStateOf(false) }
+    var isSavingDraft by remember { mutableStateOf(false) }
     var generatedFile by remember { mutableStateOf<File?>(null) }
     var statusMessage by remember { mutableStateOf("Enter text to create your first voice recording.") }
     LaunchedEffect(initialScriptText) {
@@ -569,13 +570,28 @@ fun SpeechStudioScreen(
                     Text("${inputText.length} / $inputCharacterLimit characters", fontSize = 11.sp, color = if (inputText.length >= inputCharacterLimit) T2SOrange else T2SSecondaryText)
                     OutlinedButton(
                         onClick = {
-                            runCatching {
-                                val draft = onSaveDraft(inputText, selectedLanguage, selectedProject?.id.orEmpty(), selectedProject?.name ?: "Unassigned")
-                                statusMessage = "Draft saved: ${draft.title}"
-                            }.onFailure { statusMessage = it.localizedMessage ?: "Could not save draft." }
+                            if (isSavingDraft) return@OutlinedButton
+                            isSavingDraft = true
+                            statusMessage = "Saving draft to your Firebase account…"
+                            onSaveDraft(inputText, selectedLanguage, selectedProject?.id.orEmpty(), selectedProject?.name ?: "Unassigned") { result ->
+                                isSavingDraft = false
+                                result.onSuccess { draft ->
+                                    statusMessage = "✓ Draft saved to Firebase: ${draft.title}"
+                                    android.widget.Toast.makeText(context, "Draft saved successfully", android.widget.Toast.LENGTH_SHORT).show()
+                                }.onFailure { error ->
+                                    statusMessage = "Draft could not be synced: ${error.localizedMessage ?: "Check your connection and sign-in."}"
+                                    android.widget.Toast.makeText(context, "Draft save failed", android.widget.Toast.LENGTH_LONG).show()
+                                }
+                            }
                         },
-                        enabled = inputText.isNotBlank() && !isGenerating
-                    ) { Text("Save draft") }
+                        enabled = inputText.isNotBlank() && !isGenerating && !isSavingDraft
+                    ) {
+                        if (isSavingDraft) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(6.dp))
+                            Text("Saving…")
+                        } else Text("Save draft")
+                    }
                 }
             }
         }
