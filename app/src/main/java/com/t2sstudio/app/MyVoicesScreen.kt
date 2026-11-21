@@ -65,6 +65,9 @@ fun MyVoicesScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var voiceName by remember { mutableStateOf("My Voice") }
+    var showAddVoiceOptions by remember { mutableStateOf(false) }
+    var showSarvamForm by remember { mutableStateOf(false) }
+    var showVoltSettings by remember { mutableStateOf(false) }
     var cloneServerUrl by remember { mutableStateOf(VoiceCloneServerSettings.get(context)) }
     var checkingSarvam by remember { mutableStateOf(false) }
     var sarvamMessage by remember {
@@ -141,63 +144,77 @@ fun MyVoicesScreen() {
     ) {
         Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
         Text("Save and manage reusable voice recordings on this device. Local profiles remain available after reopening the app.", color = T2SSecondaryText, fontSize = 14.sp)
-        Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text("Sarvam AI voice cloning", fontWeight = FontWeight.SemiBold, color = T2SText)
-                Text("T2S uses the centrally managed Sarvam key. You do not need to enter or store an API key on this device. Your voice sample is sent securely through T2S to Sarvam only when you register it.", color = T2SSecondaryText, fontSize = 12.sp)
-                TextButton(onClick = {
-                    checkingSarvam = true
-                    scope.launch {
-                        val result = runCatching { withContext(Dispatchers.IO) { SarvamVoiceCloneClient.testCentralConnection() } }
-                        sarvamMessage = result.getOrElse { "Shared Sarvam service: ${it.message ?: it.javaClass.simpleName}" }
-                        checkingSarvam = false
-                    }
-                }, enabled = !checkingSarvam && !busy) {
-                    if (checkingSarvam) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                    else Text("Test shared Sarvam service")
-                }
-                Text(sarvamMessage, color = T2SText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                Text("Voice cloning may consume the shared provider account's paid allowance. Daily limits apply. Only upload your own voice or a recording whose speaker has explicitly consented.", color = T2SSecondaryText, fontSize = 11.sp)
-            }
-        }
-        Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text("Self-hosted Volt-TTS server", fontWeight = FontWeight.SemiBold, color = T2SText)
-                Text("Connect your own T2S Volt-TTS server to generate new Telugu or English speech from your saved voice sample. The sample is uploaded only when you tap Generate Speech.", color = T2SSecondaryText, fontSize = 12.sp)
-                OutlinedTextField(
-                    value = cloneServerUrl,
-                    onValueChange = { cloneServerUrl = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("Server URL") },
-                    placeholder = { Text("https://your-private-server:8080") }
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
+        Text("Your saved voices", color = T2SSecondaryText, fontSize = 14.sp)
+        Button(
+            onClick = { showAddVoiceOptions = !showAddVoiceOptions },
+            enabled = !busy && !recording,
+            modifier = Modifier.fillMaxWidth()
+        ) { Text(if (showAddVoiceOptions) "Close Add Voice" else "+ Add Voice") }
+
+        if (showAddVoiceOptions) {
+            Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Choose how to add a voice", fontWeight = FontWeight.SemiBold, color = T2SText)
                     Button(
                         onClick = {
-                            runCatching { VoiceCloneServerSettings.save(context, cloneServerUrl) }
-                                .onSuccess { message = "Voice-cloning server URL saved." }
-                                .onFailure { message = it.message ?: "Invalid server URL." }
+                            showSarvamForm = true
+                            showVoltSettings = false
+                            showAddVoiceOptions = false
                         },
-                        enabled = !checkingCloneServer
-                    ) { Text("Save URL") }
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Create an AI voice") }
                     TextButton(
                         onClick = {
-                            checkingCloneServer = true
-                            scope.launch {
-                                val result = runCatching { withContext(Dispatchers.IO) { VoiceCloneClient.checkServer(cloneServerUrl) } }
-                                message = result.getOrElse { "Server check failed: " + (it.message ?: "connection error") }
-                                checkingCloneServer = false
-                            }
+                            showVoltSettings = true
+                            showSarvamForm = false
+                            showAddVoiceOptions = false
                         },
-                        enabled = !checkingCloneServer && cloneServerUrl.isNotBlank()
-                    ) {
-                        if (checkingCloneServer) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                        else Text("Test connection")
-                    }
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Use my own voice server") }
                 }
-                Text("The service requires your own NVIDIA CUDA host with about 8 GB VRAM. No paid TTS API or cloud account is configured by T2S.", color = T2SSecondaryText, fontSize = 11.sp)
-                Text("Only use your own voice or a recording whose speaker has explicitly consented. Remote servers must use HTTPS.", color = T2SSecondaryText, fontSize = 11.sp)
+            }
+        }
+
+        if (showVoltSettings) {
+            if (showSarvamForm) {
+        Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("Voice server settings", fontWeight = FontWeight.SemiBold, color = T2SText)
+                    OutlinedTextField(
+                        value = cloneServerUrl,
+                        onValueChange = { cloneServerUrl = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Server URL") },
+                        placeholder = { Text("https://your-private-server:8080") }
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                runCatching { VoiceCloneServerSettings.save(context, cloneServerUrl) }
+                                    .onSuccess { message = "Voice server settings saved." }
+                                    .onFailure { message = it.message ?: "Invalid server URL." }
+                            },
+                            enabled = !checkingCloneServer
+                        ) { Text("Save") }
+                        TextButton(
+                            onClick = {
+                                checkingCloneServer = true
+                                scope.launch {
+                                    val result = runCatching { withContext(Dispatchers.IO) { VoiceCloneClient.checkServer(cloneServerUrl) } }
+                                    message = result.getOrElse { "Connection failed: " + (it.message ?: "Please try again.") }
+                                    checkingCloneServer = false
+                                }
+                            },
+                            enabled = !checkingCloneServer && cloneServerUrl.isNotBlank()
+                        ) {
+                            if (checkingCloneServer) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            else Text("Test connection")
+                        }
+                    }
+                    TextButton(onClick = { showVoltSettings = false }) { Text("Done") }
+                }
             }
         }
         Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
@@ -248,7 +265,7 @@ fun MyVoicesScreen() {
                         )
                     }
                 }
-                Text("Your recording and profile details are stored locally. Connect your own Volt-TTS server above to generate new Telugu or English speech in this voice. The recording is sent only when you request cloned generation.", fontSize = 12.sp, color = T2SSecondaryText)
+                Text("Record or upload a sample to create your AI voice.", fontSize = 12.sp, color = T2SSecondaryText)
                 Text("Record your voice directly here, or select an existing file. Speak naturally in a quiet room for 10–30 seconds.", fontSize = 12.sp, color = T2SSecondaryText)
                 Card(
                     colors = CardDefaults.cardColors(containerColor = T2SCream),
@@ -423,11 +440,13 @@ fun MyVoicesScreen() {
                         }
                     },
                     enabled = !busy && !recording && pickedUri != null && consentConfirmed && voiceName.trim().length in 2..40 && voiceGender in listOf("Male", "Female") && cloneLanguage in listOf("en", "te", "hi")
-                ) { Text("Save voice profile") }
+                ) { Text("Create voice") }
             }
         }
+            TextButton(onClick = { showSarvamForm = false }) { Text("Cancel") }
+        }
         if (busy) CircularProgressIndicator()
-        Card(
+        if (busy || messageIsError) Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
