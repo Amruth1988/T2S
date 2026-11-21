@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -167,73 +168,12 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
                 }
             }
 
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp),
-                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Row(
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(11.dp)
-                ) {
-                    androidx.compose.foundation.layout.Box(
-                        modifier = Modifier.size(42.dp)
-                            .background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.RoundedCornerShape(10.dp)),
-                        contentAlignment = androidx.compose.ui.Alignment.Center
-                    ) {
-                        Text(
-                            "T2S",
-                            color = com.t2sstudio.app.ui.theme.T2SOrangeDark,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 17.sp,
-                            letterSpacing = (-1.1).sp,
-                            style = androidx.compose.ui.text.TextStyle(
-                                shadow = androidx.compose.ui.graphics.Shadow(
-                                    color = T2SOrange.copy(alpha = 0.42f),
-                                    offset = androidx.compose.ui.geometry.Offset(1.2f, 2.0f),
-                                    blurRadius = 2.8f
-                                )
-                            )
-                        )
-                    }
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.dp)) {
-                        Text(
-                            "Studi",
-                            color = T2SOrange,
-                            fontSize = 19.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        androidx.compose.foundation.layout.Box(
-                            modifier = Modifier.padding(start = 3.dp)
-                                .size(23.dp)
-                                .clip(androidx.compose.foundation.shape.CircleShape)
-                                .background(androidx.compose.ui.graphics.Color.White),
-                            contentAlignment = androidx.compose.ui.Alignment.Center
-                        ) {
-                            androidx.compose.material3.Icon(
-                                androidx.compose.material.icons.Icons.Filled.Mic,
-                                contentDescription = "Microphone",
-                                tint = T2SOrange,
-                                modifier = Modifier.size(15.dp)
-                            )
-                        }
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    listOf("WRITE", "CREATE", "SPEAK").forEach { word ->
-                        Text(
-                            word,
-                            color = T2SOrange,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp,
-                            modifier = Modifier
-                                .background(T2SOrange.copy(alpha = 0.10f), androidx.compose.foundation.shape.RoundedCornerShape(50))
-                                .padding(horizontal = 14.dp, vertical = 8.dp)
-                        )
-                    }
-                }
-            }
+            Image(
+                painter = painterResource(id = R.drawable.app_logo),
+                contentDescription = "T2S Studio — Text to Speech",
+                modifier = Modifier.fillMaxWidth().height(112.dp).padding(horizontal = 8.dp),
+                contentScale = ContentScale.Fit
+            )
 
             androidx.compose.material3.Card(
                 modifier = Modifier.fillMaxWidth(),
