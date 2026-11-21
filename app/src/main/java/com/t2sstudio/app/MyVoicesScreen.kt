@@ -500,6 +500,23 @@ fun MyVoicesScreen() {
                                                     sample, voice.name, voice.language, voice.gender
                                                 )
                                                 MyVoicesClient.attachSarvamVoiceId(context, voice.id, sarvamId)
+                                                val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                                    ?: error("Sign in to T2S before syncing voice metadata.")
+                                                suspendCancellableCoroutine<Unit> { continuation ->
+                                                    com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveVoiceMetadata(
+                                                        uid = uid,
+                                                        voiceId = voice.id,
+                                                        name = voice.name,
+                                                        gender = voice.gender,
+                                                        language = voice.language,
+                                                        sarvamVoiceId = sarvamId
+                                                    ) { cloudResult ->
+                                                        if (continuation.isActive) cloudResult.fold(
+                                                            onSuccess = { continuation.resume(Unit) },
+                                                            onFailure = { continuation.resumeWithException(it) }
+                                                        )
+                                                    }
+                                                }
                                                 MyVoicesClient.list(context).first { it.id == voice.id }
                                             }
                                         }
@@ -507,7 +524,8 @@ fun MyVoicesScreen() {
                                             loadVoices()
                                             message = "${registered.name} registered with Sarvam successfully."
                                         }.onFailure { error ->
-                                            message = "Registration failed for ${voice.name}: ${error.message ?: error.javaClass.simpleName}"
+                                            loadVoices()
+                                            message = "Not fully saved for ${voice.name}: ${error.message ?: error.javaClass.simpleName}. If Sarvam returned an ID, use Sync metadata to Firebase."
                                         }
                                         busy = false
                                     }
