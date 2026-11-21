@@ -560,7 +560,9 @@ fun MyVoicesScreen() {
                                                 )
                                             }
                                         }
+                                        MyVoicesClient.markFirebaseSynced(context, voice.id)
                                     }
+                                    result.onSuccess { loadVoices() }
                                     message = result.fold(
                                         { "${voice.name} Saved successfully. Sarvam voice ID: ${voice.sarvamVoiceId}" },
                                         { "Firebase metadata sync failed: ${it.localizedMessage ?: "try again"}" }
