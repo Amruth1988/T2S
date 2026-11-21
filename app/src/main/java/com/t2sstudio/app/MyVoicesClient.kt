@@ -69,12 +69,12 @@ object MyVoicesClient {
             list(context).filterNot { it.id == id }.forEach { existing ->
                 profiles.put(JSONObject().apply {
                     put("id", existing.id); put("name", existing.name); put("language", existing.language); put("gender", existing.gender)
-                    put("localSamplePath", existing.localSamplePath)
+                    put("localSamplePath", existing.localSamplePath); put("sarvamVoiceId", existing.sarvamVoiceId)
                 })
             }
             profiles.put(JSONObject().apply {
                 put("id", voice.id); put("name", voice.name); put("language", voice.language); put("gender", voice.gender)
-                put("localSamplePath", voice.localSamplePath)
+                put("localSamplePath", voice.localSamplePath); put("sarvamVoiceId", voice.sarvamVoiceId)
             })
             localProfilesFile(context).writeText(profiles.toString())
             return voice
