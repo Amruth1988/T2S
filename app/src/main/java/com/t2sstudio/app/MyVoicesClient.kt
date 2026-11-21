@@ -187,7 +187,15 @@ object MyVoicesClient {
 
     fun createLocal(context: Context, name: String, audioUri: Uri, language: String, gender: String): SavedUserVoice {
         val cleanName = name.trim()
-        require(cleanName.isNotEmpty()) { "Enter a name for this voice profile." }
+        require(cleanName.length in 2..40) { "Voice name must be between 2 and 40 characters." }
+        require(cleanName.none { it.isISOControl() }) { "Voice name contains invalid characters." }
+        val cleanLanguage = language.trim().lowercase()
+        require(cleanLanguage in setOf("en", "te", "hi")) { "Select the voice sample language: English, Telugu or Hindi." }
+        val cleanGender = gender.trim()
+        require(cleanGender in setOf("Male", "Female", "Other")) { "Select a valid voice gender." }
+        require(list(context).none { it.name.trim().equals(cleanName, ignoreCase = true) }) {
+            "A voice profile with this name already exists. Choose a different name."
+        }
         val sampleDir = File(context.filesDir, "voice_samples").apply { mkdirs() }
         val id = "local-" + UUID.randomUUID().toString()
         val mime = context.contentResolver.getType(audioUri).orEmpty()
@@ -217,8 +225,7 @@ object MyVoicesClient {
             } ?: error("Could not read the selected recording.")
             require(sample.length() >= 1024L) { "The recording is empty or too short." }
 
-            val cleanGender = gender.trim().also { require(it == "Male" || it == "Female" || it == "Other") { "Select a valid voice gender." } }
-            val voice = SavedUserVoice(id, cleanName, sample.absolutePath, language, cleanGender)
+            val voice = SavedUserVoice(id, cleanName, sample.absolutePath, cleanLanguage, cleanGender)
             val profiles = JSONArray()
             list(context).filterNot { it.id == id }.forEach { existing ->
                 profiles.put(JSONObject().apply {
