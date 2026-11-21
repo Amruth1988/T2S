@@ -272,15 +272,23 @@ fun SpeechStudioScreen(
             "Telugu" -> "te"
             else -> "en"
         }
-        onlineCatalogueStatus = "Loading online " + selectedLanguage + " voices…"
-        runCatching { withContext(Dispatchers.IO) { TtsAiClient.listVoices(languageCode) } }
-            .onSuccess { voices ->
-                onlineVoices.addAll(voices)
-                selectedOnlineVoice = voices.firstOrNull { selectedGender == "All" || it.gender.equals(selectedGender, ignoreCase = true) }
-                onlineCatalogueStatus = if (voices.isEmpty()) "No online " + selectedLanguage + " voices are currently available. Check your connection and retry."
-                    else voices.size.toString() + " online " + selectedLanguage + " voices available."
-            }
-            .onFailure { onlineCatalogueStatus = "Online " + selectedLanguage + " voice catalogue unavailable. Check your connection and retry; offline voices are not available in online-only mode." }
+        onlineCatalogueStatus = "Loading free online " + selectedLanguage + " voices…"
+        val indiaResult = runCatching { withContext(Dispatchers.IO) { TtsAiClient.listVoices(languageCode) } }
+        val indiaVoices = indiaResult.getOrDefault(emptyList())
+        val vakyamKey = VakyamApiKeyStore.get(context)
+        val vakyamResult = if (!vakyamKey.isNullOrBlank()) {
+            runCatching { withContext(Dispatchers.IO) { VakyamTtsClient.listVoices(languageCode, vakyamKey) } }
+        } else null
+        val vakyamVoices = vakyamResult?.getOrDefault(emptyList()).orEmpty()
+        onlineVoices.addAll(indiaVoices + vakyamVoices)
+        selectedOnlineVoice = onlineVoices.firstOrNull { selectedGender == "All" || onlineVoiceGender(it) == selectedGender }
+            ?: onlineVoices.firstOrNull()
+        onlineCatalogueStatus = buildString {
+            if (onlineVoices.isNotEmpty()) append("${onlineVoices.size} free online voices available • India API: ${indiaVoices.size} • Vakyam: ${if (vakyamKey.isNullOrBlank()) "connect key" else vakyamVoices.size}")
+            else append("No online ${selectedLanguage} voices loaded. Check internet or connect a free Vakyam key in Profile → Online TTS access.")
+            if (indiaResult.isFailure && indiaVoices.isEmpty()) append(" • India API: ${indiaResult.exceptionOrNull()?.message ?: "unavailable"}")
+            if (vakyamResult?.isFailure == true) append(" • Vakyam: ${vakyamResult.exceptionOrNull()?.message ?: "unavailable"}")
+        }
     }
 
     DisposableEffect(Unit) {
@@ -299,7 +307,7 @@ fun SpeechStudioScreen(
         activePreviewKey = null
     }
 
-    fun previewOnlineVoice(voiceId: String, previewKey: String = voiceId, localSamplePath: String? = null, languageOverride: String? = null) {
+    fun previewOnlineVoice(voiceId: String, previewKey: String = voiceId, localSamplePath: String? = null, languageOverride: String? = null, provider: String = "India API") {
         if (isPreviewing && activePreviewKey == previewKey) { stopVoicePreview(); statusMessage = "Preview stopped."; return }
         stopVoicePreview()
         val localSample = localSamplePath?.let { File(it) }?.takeIf { it.exists() && it.length() > 1024L }
@@ -318,7 +326,7 @@ fun SpeechStudioScreen(
                 withContext(Dispatchers.IO) {
                     when {
                         localSample != null -> localSample.copyTo(previewFile, overwrite = true)
-                        else -> TtsAiClient.generate(sample, voiceId, 1f, previewFile, format = "mp3", apiKey = IndiaApiKeyStore.get(context))
+                        else -> if (provider == "Vakyam") VakyamTtsClient.generate(sample, voiceId, languageCode, 1f, previewFile, VakyamApiKeyStore.get(context).orEmpty()) else TtsAiClient.generate(sample, voiceId, 1f, previewFile, format = "mp3", apiKey = IndiaApiKeyStore.get(context))
                     }
                 }
             }
@@ -1015,8 +1023,8 @@ fun SpeechStudioScreen(
                                         }
                                     }
                                 }
-                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.id}") }) {
-                                    Text(if (activePreviewKey == "online:${voice.id}" && isPreviewing) "■ Stop" else "▶ Play", color = Color(0xFFF47721), fontWeight = FontWeight.Bold)
+                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.provider}:${voice.id}", provider = voice.provider) }) {
+                                    Text(if (activePreviewKey == "online:${voice.provider}:${voice.id}" && isPreviewing) "■ Stop" else "▶ Play", color = Color(0xFFF47721), fontWeight = FontWeight.Bold)
                                 }
                               }
                             }
@@ -1185,10 +1193,19 @@ fun SpeechStudioScreen(
                                             language = languageCode,
                                             output = output
                                         )
+                                    } else if (onlineVoice!!.provider == "Vakyam") {
+                                        VakyamTtsClient.generate(
+                                            textToSpeak,
+                                            onlineVoice.id,
+                                            languageCode,
+                                            speechRate,
+                                            output,
+                                            VakyamApiKeyStore.get(context).orEmpty()
+                                        )
                                     } else {
                                         TtsAiClient.generate(
                                             textToSpeak,
-                                            onlineVoice!!.id,
+                                            onlineVoice.id,
                                             speechRate,
                                             output,
                                             format = outputFormatForRequest,
