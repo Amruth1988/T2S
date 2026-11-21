@@ -20,6 +20,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +43,17 @@ import com.t2sstudio.app.ui.theme.T2SText
 
 @Composable
 fun AccountPageScreen(onBack: () -> Unit, onSignIn: () -> Unit) {
+    var showOnlineTtsSettings by remember { mutableStateOf(false) }
+    if (showOnlineTtsSettings) {
+        Column(modifier = Modifier.fillMaxSize().background(T2SBackground)) {
+            ApiKeySettingsScreen()
+            androidx.compose.material3.OutlinedButton(
+                onClick = { showOnlineTtsSettings = false },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp)
+            ) { Text("Back to Account", color = T2SText) }
+        }
+        return
+    }
     val auth = remember { FirebaseAuth.getInstance() }
     var user by remember { mutableStateOf(auth.currentUser) }
     DisposableEffect(auth) {
@@ -84,6 +98,12 @@ fun AccountPageScreen(onBack: () -> Unit, onSignIn: () -> Unit) {
                     colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground)
                 ) {
                     Text(if (user == null) "Sign in / Create account" else "Account sign-in options")
+                }
+                androidx.compose.material3.OutlinedButton(
+                    onClick = { showOnlineTtsSettings = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Online TTS access", color = T2SText)
                 }
             }
         }
