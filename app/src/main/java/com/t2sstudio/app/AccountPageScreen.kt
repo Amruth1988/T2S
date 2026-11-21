@@ -43,6 +43,13 @@ fun AccountPageScreen(onBack: () -> Unit, onSignIn: () -> Unit) {
     var showSettingsHub by remember { mutableStateOf(false) }
     var showOnlineTtsSettings by remember { mutableStateOf(false) }
     var showCentralKeys by remember { mutableStateOf(false) }
+    val auth = remember { FirebaseAuth.getInstance() }
+    var user by remember { mutableStateOf(auth.currentUser) }
+    DisposableEffect(auth) {
+        val listener = FirebaseAuth.AuthStateListener { user = it.currentUser }
+        auth.addAuthStateListener(listener)
+        onDispose { auth.removeAuthStateListener(listener) }
+    }
     if (showSettingsHub) {
         Column(modifier = Modifier.fillMaxSize().background(T2SBackground)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -75,16 +82,9 @@ fun AccountPageScreen(onBack: () -> Unit, onSignIn: () -> Unit) {
             androidx.compose.material3.OutlinedButton(
                 onClick = { showOnlineTtsSettings = false },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp)
-            ) { Text("Back to Account", color = T2SText) }
+            ) { Text("Back to Settings", color = T2SText) }
         }
         return
-    }
-    val auth = remember { FirebaseAuth.getInstance() }
-    var user by remember { mutableStateOf(auth.currentUser) }
-    DisposableEffect(auth) {
-        val listener = FirebaseAuth.AuthStateListener { user = it.currentUser }
-        auth.addAuthStateListener(listener)
-        onDispose { auth.removeAuthStateListener(listener) }
     }
     Column(
         modifier = Modifier.fillMaxSize().background(T2SBackground).padding(20.dp),
