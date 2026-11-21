@@ -49,7 +49,7 @@ function create_(uid,b){
  if(!["audio/wav","audio/mpeg","audio/flac","audio/aac","audio/opus","audio/mulaw","audio/alaw","audio/linear16"].includes(mime)||enc.length>8*1024*1024)throw new Error("Unsupported or oversized audio sample. Convert the recording to WAV, MP3, FLAC or AAC.");
  const bytes=Utilities.base64Decode(enc);if(bytes.length<1024||bytes.length>MAX_SAMPLE_BYTES)throw new Error("Sample must be 1 KB–6 MB.");
  quota_(uid,"create",0);
- const ext={"audio/wav":"wav","audio/mpeg":"mp3","audio/flac":"flac","audio/mp4":"m4a","audio/aac":"aac"};
+ const ext={"audio/wav":"wav","audio/mpeg":"mp3","audio/flac":"flac","audio/aac":"aac","audio/opus":"opus","audio/mulaw":"mulaw","audio/alaw":"alaw","audio/linear16":"pcm"};
  const form={name:name,language:lang,remove_background_noise:"true",file:Utilities.newBlob(bytes,mime,"sample."+ext[mime])};
  if(gender==="male"||gender==="female")form.gender=gender;
  const r=UrlFetchApp.fetch(SARVAM_BASE+"/voices/create",{method:"post",headers:{"api-subscription-key":key_(),Accept:"application/json"},payload:form,muteHttpExceptions:true});
