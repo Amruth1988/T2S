@@ -63,6 +63,7 @@ fun MyVoicesScreen() {
     var voiceName by remember { mutableStateOf("My Voice") }
     var cloneServerUrl by remember { mutableStateOf(VoiceCloneServerSettings.get(context)) }
     var sarvamApiKey by remember { mutableStateOf("") }
+    var checkingSarvam by remember { mutableStateOf(false) }
     var checkingCloneServer by remember { mutableStateOf(false) }
     var cloneLanguage by remember { mutableStateOf("en") }
     var voiceGender by remember { mutableStateOf("Male") }
@@ -112,6 +113,17 @@ fun MyVoicesScreen() {
                         .onSuccess { sarvamApiKey = ""; message = "Sarvam API key encrypted and saved on this device." }
                         .onFailure { message = it.message ?: "Could not save Sarvam API key." }
                 }, enabled = sarvamApiKey.isNotBlank() && !busy) { Text("Save Sarvam key") }
+                TextButton(onClick = {
+                    checkingSarvam = true
+                    scope.launch {
+                        val result = runCatching { withContext(Dispatchers.IO) { SarvamVoiceCloneClient.testConnection(context) } }
+                        message = result.getOrElse { "Sarvam test failed: ${it.message}" }
+                        checkingSarvam = false
+                    }
+                }, enabled = !checkingSarvam && !busy) {
+                    if (checkingSarvam) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    else Text("Test Sarvam API")
+                }
                 Text("The app never requests a top-up. If Sarvam returns HTTP 402, the request stops. A key stored in a mobile app is not fully secret from a determined device owner; a private backend is safer for production.", color = T2SSecondaryText, fontSize = 11.sp)
                 Text("Only upload your own voice or a recording with the speaker’s explicit consent.", color = T2SSecondaryText, fontSize = 11.sp)
             }
@@ -381,7 +393,7 @@ fun MyVoicesScreen() {
                         ) { Text("🎙️", fontSize = 23.sp) }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(voice.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("${voice.gender} • ${voice.language.uppercase()} • Sarvam registered", color = T2SSecondaryText, fontSize = 12.sp)
+                            Text("${voice.gender} • ${voice.language.uppercase()} • " + if (voice.sarvamVoiceId.isNotBlank()) "Sarvam registered" else "Local only", color = T2SSecondaryText, fontSize = 12.sp)
                         }
                         Text("SAVED", color = T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
                             modifier = Modifier.background(T2SCream, androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 6.dp))
