@@ -3,6 +3,7 @@ package com.t2sstudio.app
 import android.Manifest
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
+import android.widget.Toast
 import androidx.media3.common.AudioAttributes as Media3AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -84,6 +85,25 @@ fun MyVoicesScreen() {
     var recordingStartedAt by remember { mutableStateOf(0L) }
     var hasMicPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
     var message by remember { mutableStateOf("Add a clear recording of your own voice to create a reusable voice profile.") }
+    var lastToastMessage by remember { mutableStateOf(message) }
+    val messageIsError = message.contains("failed", ignoreCase = true) ||
+        message.contains("error", ignoreCase = true) ||
+        message.contains("could not", ignoreCase = true) ||
+        message.contains("not fully saved", ignoreCase = true) ||
+        message.contains("required", ignoreCase = true) ||
+        message.contains("must be", ignoreCase = true) ||
+        message.contains("missing", ignoreCase = true) ||
+        message.contains("invalid", ignoreCase = true)
+    LaunchedEffect(message) {
+        if (message != lastToastMessage) {
+            Toast.makeText(
+                context,
+                message,
+                if (messageIsError) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
+            ).show()
+            lastToastMessage = message
+        }
+    }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> hasMicPermission = granted; message = if (granted) "Microphone ready. Tap Start recording." else "Microphone permission is required." }
     var busy by remember { mutableStateOf(false) }
     var consentConfirmed by remember { mutableStateOf(false) }
@@ -452,7 +472,25 @@ fun MyVoicesScreen() {
             }
         }
         if (busy) CircularProgressIndicator()
-        Text(message, color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 14.sp)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (messageIsError)
+                    androidx.compose.material3.MaterialTheme.colorScheme.errorContainer
+                else T2SCream
+            )
+        ) {
+            Text(
+                message,
+                modifier = Modifier.padding(12.dp),
+                color = if (messageIsError)
+                    androidx.compose.material3.MaterialTheme.colorScheme.onErrorContainer
+                else T2SText,
+                fontSize = 13.sp,
+                lineHeight = 18.sp
+            )
+        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text("Voice profiles", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
             TextButton(onClick = { loadVoices() }, enabled = !busy, modifier = Modifier.padding(0.dp)) { Text("↻ Refresh") }
