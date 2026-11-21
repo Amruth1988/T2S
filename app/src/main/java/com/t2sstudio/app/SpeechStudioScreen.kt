@@ -587,7 +587,7 @@ fun SpeechStudioScreen(
                             onSaveDraft(inputText, selectedLanguage, selectedProject?.id.orEmpty(), selectedProject?.name ?: "Unassigned") { result ->
                                 isSavingDraft = false
                                 result.onSuccess { draft ->
-                                    statusMessage = "✓ Draft saved to Firebase: ${draft.title}"
+                                    statusMessage = "✓ Draft saved on this device: ${draft.title}. Cloud sync will continue in the background."
                                     android.widget.Toast.makeText(context, "Draft saved successfully", android.widget.Toast.LENGTH_SHORT).show()
                                 }.onFailure { error ->
                                     statusMessage = "Draft could not be synced: ${error.localizedMessage ?: "Check your connection and sign-in."}"
