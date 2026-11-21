@@ -1516,8 +1516,8 @@ fun SpeechStudioScreen(
                         statusMessage = "This saved voice is marked ${savedLanguage}. Select ${savedLanguage} to generate with this sample."
                     } else if (reference == null || !reference.isFile) {
                         statusMessage = "Saved voice recording is missing. Please add the voice again in My Voices."
-                    } else if (serverUrl.isBlank()) {
-                        statusMessage = "Connect your self-hosted Volt-TTS server in My Voices to generate new speech in this saved voice. Previewing the saved recording still works offline."
+                    } else if (savedVoice?.sarvamVoiceId.isNullOrBlank() && serverUrl.isBlank()) {
+                        statusMessage = "This voice is not registered with Sarvam. Save it again in My Voices with your Sarvam key, or configure your Volt-TTS server."
                     } else {
                         val audioDirectory = File(
                             context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
@@ -1527,11 +1527,11 @@ fun SpeechStudioScreen(
                         isGenerating = true
                         generatedFile = null
                         stopVoicePreview()
-                        statusMessage = "Cloning your saved voice and generating " + selectedLanguage + " speech…"
+                        statusMessage = "Generating " + selectedLanguage + " speech with your saved voice…"
                         coroutineScope.launch {
                             val result = runCatching {
                                 withContext(Dispatchers.IO) {
-                                    VoiceCloneClient.generate(serverUrl, textToSpeak, cloneLanguage, reference, output)
+                                    if (!savedVoice?.sarvamVoiceId.isNullOrBlank()) SarvamVoiceCloneClient.generate(context, savedVoice.sarvamVoiceId, textToSpeak, cloneLanguage, output) else VoiceCloneClient.generate(serverUrl, textToSpeak, cloneLanguage, reference, output)
                                 }
                             }
                             result.onSuccess {
