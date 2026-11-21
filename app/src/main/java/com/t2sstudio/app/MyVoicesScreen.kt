@@ -627,10 +627,10 @@ fun MyVoicesScreen() {
                     if (!sampleAvailable) {
                         Text(
                             if (voice.sarvamVoiceId.startsWith("svc-"))
-                                "Original sample is not stored on this device. You can still generate speech using this registered Sarvam cloud voice."
+                                "Cloud voice ready. You can generate speech with this voice; the original recording is not needed."
                             else
-                                "Original recording is missing on this device. Restore the sample to preview it or register this voice with a cloud provider.",
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                                "Original recording is not available on this device. Restore the sample to preview or register this voice.",
+                            color = T2SSecondaryText,
                             fontSize = 11.sp,
                             lineHeight = 14.sp
                         )
@@ -760,7 +760,9 @@ fun MyVoicesScreen() {
                 }
             }
         }
-        Text("These recordings are stored locally as audio samples. They do not create new speech in your recorded voice.", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
+        if (voices.any { it.sarvamVoiceId.isBlank() }) {
+            Text("Local recordings are stored on this device as audio samples. Register a recording with a cloud provider to generate speech in that voice.", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
+        }
         
     }
 }
