@@ -69,7 +69,7 @@ fun CentralApiKeyAdminScreen() {
             } else {
                 functions.getHttpsCallable("getCentralProviderStatus").call()
                     .addOnSuccessListener { result ->
-                        val root = result.data as? Map<*, *> ?: emptyMap<Any, Any>()
+                        val root = result.getData() as? Map<*, *> ?: emptyMap<Any, Any>()
                         val data = root["providers"] as? Map<*, *> ?: emptyMap<Any, Any>()
                         providers = listOf("sarvam", "vakyam", "india").mapNotNull { id ->
                             val item = data[id] as? Map<*, *> ?: return@mapNotNull null
@@ -156,7 +156,7 @@ fun CentralApiKeyAdminScreen() {
                     status = "Encrypting and saving key…"
                     functions.getHttpsCallable("getProviderEncryptionPublicKey").call()
                         .addOnSuccessListener { publicKeyResult ->
-                            val publicKey = (publicKeyResult.data as? Map<*, *>)?.get("publicKey")?.toString()
+                            val publicKey = (publicKeyResult.getData() as? Map<*, *>)?.get("publicKey")?.toString()
                             if (publicKey.isNullOrBlank()) {
                                 status = "Could not obtain the encryption public key."
                                 loading = false
