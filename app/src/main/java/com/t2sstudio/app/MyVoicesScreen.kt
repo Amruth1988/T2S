@@ -229,28 +229,6 @@ fun MyVoicesScreen() {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("Add a voice", fontWeight = FontWeight.SemiBold, color = T2SText)
                 OutlinedTextField(value = voiceName, onValueChange = { voiceName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Voice name") }, singleLine = true)
-                Text("Voice gender", color = T2SText, fontSize = 13.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Male", "Female", "Other").forEach { gender ->
-                        androidx.compose.material3.FilterChip(
-                            selected = voiceGender == gender,
-                            onClick = { voiceGender = gender },
-                            label = { Text(gender) },
-                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = T2SOrange,
-                                selectedLabelColor = androidx.compose.ui.graphics.Color.White,
-                                containerColor = T2SBackground,
-                                labelColor = T2SText
-                            ),
-                            border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = voiceGender == gender,
-                                borderColor = T2SOrange.copy(alpha = 0.45f),
-                                selectedBorderColor = T2SOrange
-                            )
-                        )
-                    }
-                }
                 Text("Voice sample language", color = T2SText, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("en" to "English", "te" to "Telugu", "hi" to "Hindi").forEach { (code, label) ->
@@ -393,7 +371,6 @@ fun MyVoicesScreen() {
                         if (uri == null) message = "Record or select an audio file first."
                         else if (!consentConfirmed) message = "Confirm that this is your voice or that you have permission to use it."
                         else if (voiceName.trim().length !in 2..40) message = "Voice name must be between 2 and 40 characters."
-                        else if (voiceGender !in listOf("Male", "Female", "Other")) message = "Select the voice gender from My Voices."
                         else if (cloneLanguage !in listOf("en", "te", "hi")) message = "Select the voice sample language from My Voices."
                         else {
                             busy = true
@@ -447,7 +424,7 @@ fun MyVoicesScreen() {
                             }
                         }
                     },
-                    enabled = !busy && !recording && pickedUri != null && consentConfirmed && voiceName.trim().length in 2..40 && voiceGender in listOf("Male", "Female", "Other") && cloneLanguage in listOf("en", "te", "hi")
+                    enabled = !busy && !recording && pickedUri != null && consentConfirmed && voiceName.trim().length in 2..40 && cloneLanguage in listOf("en", "te", "hi")
                 ) { Text("Save voice profile") }
             }
         }
