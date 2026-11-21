@@ -1201,7 +1201,8 @@ fun SpeechStudioScreen(
                                             languageCode,
                                             speechRate,
                                             output,
-                                            VakyamApiKeyStore.get(context).orEmpty()
+                                            VakyamApiKeyStore.get(context).orEmpty(),
+                                            format = outputFormatForRequest
                                         )
                                     } else {
                                         TtsAiClient.generate(
