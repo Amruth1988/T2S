@@ -143,8 +143,6 @@ fun MyVoicesScreen() {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
-        Text("Save and manage reusable voice recordings on this device. Local profiles remain available after reopening the app.", color = T2SSecondaryText, fontSize = 14.sp)
-        Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
         Text("Your saved voices", color = T2SSecondaryText, fontSize = 14.sp)
         Button(
             onClick = { showAddVoiceOptions = !showAddVoiceOptions },
@@ -466,7 +464,7 @@ fun MyVoicesScreen() {
             )
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Text("Voice profiles", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+            Text("My saved voices", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
             TextButton(onClick = { loadVoices() }, enabled = !busy, modifier = Modifier.padding(0.dp)) { Text("↻ Refresh") }
         }
         val orderedVoices = voices.sortedBy { voice ->
