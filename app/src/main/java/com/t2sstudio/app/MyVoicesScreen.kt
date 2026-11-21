@@ -66,8 +66,8 @@ fun MyVoicesScreen() {
     var checkingSarvam by remember { mutableStateOf(false) }
     var sarvamMessage by remember { mutableStateOf("Enter your Sarvam API key, save it, then test the connection.") }
     var checkingCloneServer by remember { mutableStateOf(false) }
-    var cloneLanguage by remember { mutableStateOf("en") }
-    var voiceGender by remember { mutableStateOf("Male") }
+    var cloneLanguage by remember { mutableStateOf("") }
+    var voiceGender by remember { mutableStateOf("") }
     var pickedUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var pickedLabel by remember { mutableStateOf("No audio selected") }
     var recording by remember { mutableStateOf(false) }
@@ -393,7 +393,9 @@ fun MyVoicesScreen() {
                         val uri = pickedUri
                         if (uri == null) message = "Record or select an audio file first."
                         else if (!consentConfirmed) message = "Confirm that this is your voice or that you have permission to use it."
-                        else if (voiceName.isBlank()) message = "Enter a name for this voice profile."
+                        else if (voiceName.trim().length !in 2..40) message = "Voice name must be between 2 and 40 characters."
+                        else if (voiceGender !in listOf("Male", "Female", "Other")) message = "Select the voice gender from My Voices."
+                        else if (cloneLanguage !in listOf("en", "te", "hi")) message = "Select the voice sample language from My Voices."
                         else {
                             busy = true
                             scope.launch {
@@ -420,8 +422,8 @@ fun MyVoicesScreen() {
                                 }.onSuccess { (saved, registrationMessage) ->
                                     loadVoices()
                                     voiceName = "My Voice"
-                                    voiceGender = "Male"
-                                    cloneLanguage = "en"
+                                    voiceGender = ""
+                                    cloneLanguage = ""
                                     pickedUri = null
                                     pickedLabel = "No audio selected"
                                     consentConfirmed = false
@@ -454,7 +456,7 @@ fun MyVoicesScreen() {
                             }
                         }
                     },
-                    enabled = !busy && !recording && pickedUri != null && consentConfirmed && voiceName.isNotBlank()
+                    enabled = !busy && !recording && pickedUri != null && consentConfirmed && voiceName.trim().length in 2..40 && voiceGender in listOf("Male", "Female", "Other") && cloneLanguage in listOf("en", "te", "hi")
                 ) { Text("Save voice profile") }
             }
         }
