@@ -343,19 +343,25 @@ fun MyVoicesScreen() {
                             scope.launch {
                                 runCatching {
                                     withContext(Dispatchers.IO) {
-                                        require(SarvamVoiceCloneClient.hasApiKey(context)) { "Save your Sarvam API key above before registering a voice." }
+                                        // Persist locally first. A remote API/key/network failure must
+                                        // never delete the user's only local copy.
                                         val saved = MyVoicesClient.createLocal(context, voiceName, uri, cloneLanguage, voiceGender)
-                                        try {
-                                            val sample = saved.localSamplePath?.let(::File) ?: error("Saved recording could not be read.")
-                                            val sarvamId = SarvamVoiceCloneClient.createVoice(context, sample, saved.name, saved.language, saved.gender)
+                                        val registrationMessage = runCatching {
+                                            require(SarvamVoiceCloneClient.hasApiKey(context)) {
+                                                "No Sarvam API key is saved. Add it later to register this voice."
+                                            }
+                                            val sample = saved.localSamplePath?.let(::File)
+                                                ?: error("Saved recording could not be read.")
+                                            val sarvamId = SarvamVoiceCloneClient.createVoice(
+                                                context, sample, saved.name, saved.language, saved.gender
+                                            )
                                             MyVoicesClient.attachSarvamVoiceId(context, saved.id, sarvamId)
-                                            MyVoicesClient.list(context).first { it.id == saved.id }
-                                        } catch (error: Exception) {
-                                            MyVoicesClient.deleteLocal(context, saved.id)
-                                            throw error
-                                        }
+                                            null
+                                        }.exceptionOrNull()?.message
+                                        val latest = MyVoicesClient.list(context).first { it.id == saved.id }
+                                        latest to registrationMessage
                                     }
-                                }.onSuccess { saved ->
+                                }.onSuccess { (saved, registrationMessage) ->
                                     loadVoices()
                                     voiceName = "My Voice"
                                     voiceGender = "Male"
@@ -363,8 +369,12 @@ fun MyVoicesScreen() {
                                     pickedUri = null
                                     pickedLabel = "No audio selected"
                                     consentConfirmed = false
-                                    message = "${saved.name} registered with Sarvam and saved on this device."
-                                }.onFailure { message = "Voice registration failed: ${it.message}" }
+                                    message = if (saved.sarvamVoiceId.isNotBlank()) {
+                                        "${saved.name} registered with Sarvam and saved on this device."
+                                    } else {
+                                        "${saved.name} saved on this device. Sarvam registration is pending: ${registrationMessage ?: "try again later"}"
+                                    }
+                                }.onFailure { message = "Could not save voice profile: ${it.message}" }
                                 busy = false
                             }
                         }
