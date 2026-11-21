@@ -25,7 +25,7 @@ function key_(){const k=PropertiesService.getScriptProperties().getProperty("SAR
 function quota_(uid,kind,n){
  const l=LockService.getScriptLock();l.waitLock(15000);
  try{
-  const d=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),k="quota:"+d+":"+uid,c=JSON.parse(p.getProperty(k)||"{}");
+  const d=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),k="quota:"+d+":"+uid,c=JSON.parse(p.getProperty(k)||"{}");\n  p.getKeys().filter(x=>x.indexOf("quota:")===0 && x.indexOf(":"+d+":")<0).forEach(x=>p.deleteProperty(x));
   if(kind==="generate"){if((c.calls||0)>=10||(c.chars||0)+n>10000)throw new Error("Daily limit reached: 10 generations or 10,000 characters.");c.calls=(c.calls||0)+1;c.chars=(c.chars||0)+n;}
   else{if((c.creates||0)>=3)throw new Error("Daily voice-registration limit reached (3).");c.creates=(c.creates||0)+1;}
   p.setProperty(k,JSON.stringify(c));
