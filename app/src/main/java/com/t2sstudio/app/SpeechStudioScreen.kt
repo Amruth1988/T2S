@@ -255,9 +255,12 @@ fun SpeechStudioScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        runCatching { withContext(Dispatchers.IO) { MyVoicesClient.list(context) } }
-            .onSuccess { saved -> myVoices.clear(); myVoices.addAll(saved) }
+    LaunchedEffect(voiceLibraryTab) {
+        if (voiceLibraryTab == "My Voices") {
+            runCatching { withContext(Dispatchers.IO) { MyVoicesClient.list(context) } }
+                .onSuccess { saved -> myVoices.clear(); myVoices.addAll(saved) }
+                .onFailure { statusMessage = "Could not load My Voices: ${it.message ?: "unknown error"}" }
+        }
     }
 
     LaunchedEffect(selectedLanguage) {
@@ -817,7 +820,7 @@ fun SpeechStudioScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf("Online").forEach { tab ->
+                    listOf("Online", "My Voices").forEach { tab ->
                         FilterChip(
                             modifier = Modifier.weight(1f),
                             selected = voiceLibraryTab == tab,
@@ -1019,9 +1022,9 @@ fun SpeechStudioScreen(
                             }
                         }
                     }
-                    if (voiceLibraryTab == "My Voice" && filteredPersonal.isNotEmpty()) {
+                    if (voiceLibraryTab == "My Voices" && filteredPersonal.isNotEmpty()) {
                         DropdownMenuItem(
-                            text = { Text("MY SAVED VOICE SAMPLES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                            text = { Text("MY VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
                             onClick = {},
                             enabled = false
                         )
@@ -1056,7 +1059,7 @@ fun SpeechStudioScreen(
                             }
                         }
                     }
-                    if ((voiceLibraryTab == "Installed" && filteredInstalled.isEmpty()) || (voiceLibraryTab == "Online" && filteredOnline.isEmpty()) || (voiceLibraryTab == "My Voice" && filteredPersonal.isEmpty())) {
+                    if ((voiceLibraryTab == "Installed" && filteredInstalled.isEmpty()) || (voiceLibraryTab == "Online" && filteredOnline.isEmpty()) || (voiceLibraryTab == "My Voices" && filteredPersonal.isEmpty())) {
                         DropdownMenuItem(
                             text = { Text(when (voiceLibraryTab) { "Installed" -> if (filteredInstalled.isEmpty()) "No installed voices match this search and language." else ""; "Online" -> if (onlineCatalogueStatus.startsWith("Loading")) "Loading online voices…" else "No online voices match this search and language."; else -> "No saved voices match this search." }, color = T2SSecondaryText) },
                             onClick = {},
@@ -1133,61 +1136,90 @@ fun SpeechStudioScreen(
                     "Telugu" -> "te"
                     else -> ""
                 }
-                val voice = selectedOnlineVoice
-                if (textToSpeak.isBlank()) {
-                    statusMessage = "Please enter some text first."
-                } else if (textToSpeak.length > 3000) {
-                    statusMessage = "Online TTS supports up to 3,000 characters per request. Shorten your text and try again."
-                } else if (languageCode.isBlank()) {
-                    statusMessage = "This language is not supported by the online speech service."
-                } else if (voice == null || !voice.language.substringBefore('-').equals(languageCode, ignoreCase = true)) {
-                    statusMessage = "Choose an online ${selectedLanguage} voice before generating speech."
-                } else {
-                    val directory = File(
-                        context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
-                        "T2SStudio"
-                    ).apply { mkdirs() }
-                    val output = File(directory, "speech_" + System.currentTimeMillis() + "." + outputFormat.lowercase(Locale.ROOT))
-                    isGenerating = true
-                    generatedFile = null
-                    stopVoicePreview()
-                    statusMessage = "Generating ${selectedLanguage} speech online…"
-                    coroutineScope.launch {
-                        val result = runCatching {
-                            withContext(Dispatchers.IO) {
-                                TtsAiClient.generate(
-                                    textToSpeak,
-                                    voice.id,
-                                    speechRate,
-                                    output,
-                                    format = outputFormat.lowercase(Locale.ROOT),
-                                    apiKey = IndiaApiKeyStore.get(context)
-                                )
-                            }
-                        }
-                        if (result.isSuccess && output.isFile && output.length() > 1024L) {
-                            isGenerating = false
-                            generatedFile = output
-                            onAudioGenerated(
-                                AudioRecord(
-                                    id = java.util.UUID.randomUUID().toString(),
-                                    filePath = output.absolutePath,
-                                    textPreview = textToSpeak.take(180),
-                                    language = selectedLanguage,
-                                    createdAt = System.currentTimeMillis(),
-                                    projectId = selectedProject?.id.orEmpty(),
-                                    projectName = selectedProject?.name ?: "Unassigned",
-                                    scriptContent = textToSpeak
-                                )
-                            )
-                            statusMessage = "Online speech audio is ready and saved in T2S Studio."
-                            if (autoPlayAfterGeneration) playGeneratedFile(output)
+                val personalVoice = selectedSavedVoice
+                val onlineVoice = selectedOnlineVoice
+                val usingPersonalVoice = personalVoice != null
+                val outputFormatForRequest = if (usingPersonalVoice) "wav" else outputFormat.lowercase(Locale.ROOT)
+                val directory = File(
+                    context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
+                    "T2SStudio"
+                ).apply { mkdirs() }
+                val output = File(directory, "speech_" + System.currentTimeMillis() + "." + outputFormatForRequest)
+                when {
+                    textToSpeak.isBlank() -> statusMessage = "Please enter some text first."
+                    languageCode.isBlank() -> statusMessage = "This language is not supported by the speech service."
+                    personalVoice != null && languageCode !in setOf("te", "en") ->
+                        statusMessage = "My Voices generation currently supports Telugu and English. Choose one of those languages."
+                    personalVoice != null && personalVoice.language.substringBefore('-').lowercase(Locale.ROOT) !in setOf(languageCode, "telugu".takeIf { languageCode == "te" }, "english".takeIf { languageCode == "en" })) ->
+                        statusMessage = "The selected My Voice profile language does not match the script language."
+                    personalVoice != null && personalVoice.sarvamVoiceId.isBlank() ->
+                        statusMessage = "${personalVoice.name} is saved locally but is not registered with Sarvam yet. Open My Voices and complete voice registration before generating."
+                    personalVoice != null && textToSpeak.length > 1000 ->
+                        statusMessage = "My Voices supports up to 1,000 characters per generation. Shorten your text and try again."
+                    personalVoice == null && textToSpeak.length > 3000 ->
+                        statusMessage = "Online TTS supports up to 3,000 characters per request. Shorten your text and try again."
+                    personalVoice == null && (onlineVoice == null || !onlineVoice.language.substringBefore('-').equals(languageCode, ignoreCase = true)) ->
+                        statusMessage = "Choose an online ${selectedLanguage} voice before generating speech."
+                    else -> {
+                        isGenerating = true
+                        generatedFile = null
+                        stopVoicePreview()
+                        statusMessage = if (personalVoice != null) {
+                            "Generating speech with your voice: ${personalVoice.name}…"
                         } else {
-                            output.delete()
-                            isGenerating = false
-                            statusMessage = "Online TTS failed: " +
-                                (result.exceptionOrNull()?.message ?: "The service returned invalid audio.") +
-                                " Check your internet connection or try again. No offline fallback was used."
+                            "Generating ${selectedLanguage} speech online…"
+                        }
+                        coroutineScope.launch {
+                            val result = runCatching {
+                                withContext(Dispatchers.IO) {
+                                    if (personalVoice != null) {
+                                        SarvamVoiceCloneClient.generate(
+                                            context = context,
+                                            voiceId = personalVoice.sarvamVoiceId,
+                                            text = textToSpeak,
+                                            language = languageCode,
+                                            output = output
+                                        )
+                                    } else {
+                                        TtsAiClient.generate(
+                                            textToSpeak,
+                                            onlineVoice!!.id,
+                                            speechRate,
+                                            output,
+                                            format = outputFormatForRequest,
+                                            apiKey = IndiaApiKeyStore.get(context)
+                                        )
+                                    }
+                                }
+                            }
+                            if (result.isSuccess && output.isFile && output.length() > 1024L) {
+                                isGenerating = false
+                                generatedFile = output
+                                onAudioGenerated(
+                                    AudioRecord(
+                                        id = java.util.UUID.randomUUID().toString(),
+                                        filePath = output.absolutePath,
+                                        textPreview = textToSpeak.take(180),
+                                        language = selectedLanguage,
+                                        createdAt = System.currentTimeMillis(),
+                                        projectId = selectedProject?.id.orEmpty(),
+                                        projectName = selectedProject?.name ?: "Unassigned",
+                                        scriptContent = textToSpeak
+                                    )
+                                )
+                                statusMessage = if (personalVoice != null) {
+                                    "Speech generated with ${personalVoice.name}. Your audio is ready in Preview."
+                                } else {
+                                    "Online speech audio is ready and saved in T2S Studio."
+                                }
+                                if (autoPlayAfterGeneration || personalVoice != null) playGeneratedFile(output)
+                            } else {
+                                output.delete()
+                                isGenerating = false
+                                statusMessage = (if (personalVoice != null) "My Voice generation failed: " else "Online TTS failed: ") +
+                                    (result.exceptionOrNull()?.message ?: "The service returned invalid audio.") +
+                                    " Check the selected voice and try again."
+                            }
                         }
                     }
                 }
