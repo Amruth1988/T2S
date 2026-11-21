@@ -458,30 +458,15 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
                 modifier = Modifier.weight(1.28f).fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        modifier = Modifier.size((116f * logoScale).dp)
-                            .shadow(16.dp, RoundedCornerShape(28.dp))
-                            .clip(RoundedCornerShape(28.dp))
-                            .background(Brush.linearGradient(listOf(orange, T2SOrangeDark)))
-                            .padding(8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp))
-                                .background(paper),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("T2S", color = T2SOrangeDark, fontSize = 38.sp,
-                                fontWeight = FontWeight.Black)
-                        }
-                    }
-                    Text("STUDIO", color = Color.White, fontSize = 17.sp,
-                        fontWeight = FontWeight.ExtraBold, letterSpacing = 5.sp,
-                        modifier = Modifier.padding(top = 10.dp))
-                    Text("TEXT  •  CREATE  •  SPEAK", color = Color(0xFFFFE3C9), fontSize = 9.sp,
-                        letterSpacing = 1.4.sp, modifier = Modifier.padding(top = 5.dp))
-                }
+                Image(
+                    painter = painterResource(id = R.drawable.app_logo),
+                    contentDescription = "T2S Studio — Text to Speech",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height((112f * logoScale).dp)
+                        .padding(horizontal = 4.dp),
+                    contentScale = ContentScale.Fit
+                )
 
                 val glyphs = listOf("A", "త", "♪", "మ")
                 glyphs.forEachIndexed { index, glyph ->
