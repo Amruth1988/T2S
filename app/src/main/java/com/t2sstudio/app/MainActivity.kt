@@ -115,19 +115,6 @@ private fun T2SApp() {
     var showLoginPage by remember {
         mutableStateOf(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser == null)
     }
-    // Start provisioning the Purohit Telugu voice immediately after the splash screen,
-    // including before sign-in. The local install check prevents repeat downloads.
-    LaunchedEffect(Unit) {
-        val installed = TeluguVoicePacks.installedConverted(context)
-            .any { it.id == "venkatesh" && it.group == TeluguVoiceGroup.MALE }
-        if (showLoginPage && !installed) {
-            runCatching {
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    TeluguVoicePacks.downloadAndInstallVenkatesh(context) { }
-                }
-            }
-        }
-    }
     var selectedDestination by remember { mutableIntStateOf(0) }
     val destinationBackStack = remember { mutableStateListOf<Int>() }
     var showAccountPage by remember { mutableStateOf(false) }
