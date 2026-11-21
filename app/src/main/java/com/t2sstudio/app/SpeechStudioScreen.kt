@@ -617,7 +617,7 @@ fun SpeechStudioScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.Bottom
           ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(modifier = Modifier.weight(0.78f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Language", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 var languageMenuExpanded by remember { mutableStateOf(false) }
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -711,7 +711,39 @@ fun SpeechStudioScreen(
                     }
                 }
             }
-
+            Column(modifier = Modifier.weight(1.22f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("Gender", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf("All", "Male", "Female").forEach { gender ->
+                        FilterChip(
+                            modifier = Modifier.weight(1f).height(36.dp),
+                            selected = selectedGender == gender,
+                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFF47721),
+                                selectedLabelColor = Color.White,
+                                selectedLeadingIconColor = Color.White,
+                                selectedTrailingIconColor = Color.White,
+                                containerColor = Color(0xFFFFF7F0),
+                                labelColor = Color(0xFF6B5546)
+                            ),
+                            border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = selectedGender == gender,
+                                borderColor = Color(0xFFE6CDB8),
+                                selectedBorderColor = Color(0xFFF47721)
+                            ),
+                            onClick = {
+                                selectedGender = gender
+                                selectedVoice = availableVoices.firstOrNull()
+                                selectedOnlineVoice = onlineVoices.firstOrNull { voice ->
+                                    gender == "All" || onlineVoiceGender(voice) == gender
+                                }
+                            },
+                            label = { Text(gender, fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                        )
+                    }
+                }
+            }
           }
         }
 
