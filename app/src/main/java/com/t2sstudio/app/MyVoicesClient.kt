@@ -19,12 +19,13 @@ object MyVoicesClient {
         return (0 until array.length()).mapNotNull { index ->
             val item = array.optJSONObject(index) ?: return@mapNotNull null
             val id = item.optString("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            val sample = item.optString("localSamplePath").takeIf { it.isNotBlank() }?.let(::File)
-            if (sample == null || !sample.exists() || sample.length() <= 1024L) return@mapNotNull null
+            val samplePath = item.optString("localSamplePath").takeIf { it.isNotBlank() }
+            // Keep profile metadata visible even when its recording is missing.
+            // Hiding it here made profiles disappear without explaining why.
             SavedUserVoice(
                 id = id,
                 name = item.optString("name", "My Voice"),
-                localSamplePath = sample.absolutePath,
+                localSamplePath = samplePath?.let { File(it).absolutePath },
                 language = item.optString("language", "en").ifBlank { "en" },
                 gender = item.optString("gender", "Unknown").ifBlank { "Unknown" },
                 sarvamVoiceId = item.optString("sarvamVoiceId", "")
