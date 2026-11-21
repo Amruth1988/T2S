@@ -274,20 +274,23 @@ private fun T2SApp() {
                                 ScriptDraftStore.create(cleanText, language, projectId, projectName)
                                     .also { scriptDrafts.add(0, it) }
                             }
-                            // Keep a local recovery copy, but report success only after
-                            // Firestore acknowledges the cloud write.
+                            // Save locally first so Firebase latency or a temporary
+                            // cloud error never blocks the editor's Save Draft action.
                             ScriptDraftStore.save(context, scriptDrafts)
+                            onComplete(Result.success(draft))
+
+                            // Cloud sync is attempted independently after the local save.
+                            // A cloud failure must not roll back or hide the local draft.
                             val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-                                ?: error("Sign in to save drafts to Firebase.")
-                            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveDraftMetadata(
-                                uid = uid,
-                                draftId = draft.id,
-                                projectId = projectId.takeIf { it.isNotBlank() },
-                                title = draft.title,
-                                content = draft.content.take(180_000),
-                                language = draft.language
-                            ) { result ->
-                                onComplete(result.map { draft })
+                            if (uid != null) {
+                                com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveDraftMetadata(
+                                    uid = uid,
+                                    draftId = draft.id,
+                                    projectId = projectId.takeIf { it.isNotBlank() },
+                                    title = draft.title,
+                                    content = draft.content.take(180_000),
+                                    language = draft.language
+                                ) { /* Local draft is already safely saved; cloud sync is best-effort. */ }
                             }
                         }.onFailure { onComplete(Result.failure(it)) }
                     }
