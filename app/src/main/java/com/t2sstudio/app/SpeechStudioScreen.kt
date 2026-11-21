@@ -52,6 +52,9 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
@@ -1335,7 +1338,17 @@ fun SpeechStudioScreen(
                 Spacer(Modifier.width(10.dp))
                 Text("✨ Creating your audio…", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             } else {
-                Text("🎙️  Generate Speech  ✨", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Mic,
+                        contentDescription = "Generate speech",
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text("Generate Speech", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                }
             }
         }
 
