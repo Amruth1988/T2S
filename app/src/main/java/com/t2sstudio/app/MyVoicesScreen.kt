@@ -517,6 +517,41 @@ fun MyVoicesScreen() {
                             modifier = Modifier.fillMaxWidth()
                         ) { Text(if (busy) "Registering…" else "Register existing voice with Sarvam") }
                     }
+                    if (voice.sarvamVoiceId.isNotBlank()) {
+                        TextButton(
+                            onClick = {
+                                busy = true
+                                scope.launch {
+                                    val result = runCatching {
+                                        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                            ?: error("Sign in to T2S before syncing voice metadata.")
+                                        suspendCancellableCoroutine<Unit> { continuation ->
+                                            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveVoiceMetadata(
+                                                uid = uid,
+                                                voiceId = voice.id,
+                                                name = voice.name,
+                                                gender = voice.gender,
+                                                language = voice.language,
+                                                sarvamVoiceId = voice.sarvamVoiceId
+                                            ) { cloudResult ->
+                                                if (continuation.isActive) cloudResult.fold(
+                                                    onSuccess = { continuation.resume(Unit) },
+                                                    onFailure = { continuation.resumeWithException(it) }
+                                                )
+                                            }
+                                        }
+                                    }
+                                    message = result.fold(
+                                        { "${voice.name} Saved successfully. Sarvam voice ID: ${voice.sarvamVoiceId}" },
+                                        { "Firebase metadata sync failed: ${it.localizedMessage ?: "try again"}" }
+                                    )
+                                    busy = false
+                                }
+                            },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Sync metadata to Firebase") }
+                    }
                     if (!sampleAvailable) {
                         Text(
                             "Original recording is missing on this device. This profile is retained, but local preview and sample-based cloning are unavailable. Restore a backup recording to use those features.",
