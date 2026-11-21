@@ -40,8 +40,8 @@ import com.t2sstudio.app.ui.theme.T2SText
 
 @Composable
 fun AccountPageScreen(onBack: () -> Unit, onSignIn: () -> Unit) {
-    var showOnlineTtsSettings by remember { mutableStateOf(false) }
-    if (showOnlineTtsSettings) {
+    var showOnlineTtsSettings by remember { mutableStateOf(false) }\n    var showCentralKeys by remember { mutableStateOf(false) }
+    if (showCentralKeys) {\n        Column(modifier = Modifier.fillMaxSize().background(T2SBackground)) {\n            CentralApiKeyAdminScreen()\n            androidx.compose.material3.OutlinedButton(onClick = { showCentralKeys = false }, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp)) { Text("Back to Account", color = T2SText) }\n        }\n        return\n    }\n    if (showOnlineTtsSettings) {
         Column(modifier = Modifier.fillMaxSize().background(T2SBackground)) {
             ApiKeySettingsScreen()
             androidx.compose.material3.OutlinedButton(
