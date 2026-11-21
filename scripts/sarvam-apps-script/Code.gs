@@ -40,16 +40,18 @@ function sarvam_(method,path,payload){
  return JSON.parse(r.getContentText());
 }
 function create_(uid,b){
- const name=String(b.name||"").trim(),lang=String(b.language||""),gender=String(b.gender||""),mime=String(b.mimeType||""),enc=String(b.sampleBase64||"");
+ const name=String(b.name||"").trim(),lang=String(b.language||""),gender=String(b.gender||"").trim().toLowerCase(),mime=String(b.mimeType||""),enc=String(b.sampleBase64||"");
  if(name.length<2||name.length>100)throw new Error("Voice name must be 2–100 characters.");
  if(!["te-IN","en-IN","hi-IN"].includes(lang))throw new Error("Unsupported sample language.");
- if(!["Male","Female","Other"].includes(gender))throw new Error("Select a valid gender.");
- if(!["audio/wav","audio/mpeg","audio/flac","audio/mp4","audio/aac"].includes(mime)||enc.length>8*1024*1024)throw new Error("Unsupported or oversized audio sample.");
+ // Sarvam gender is optional and only accepts male/female. Legacy local profiles
+ // may contain Other/Unknown or an empty value; omit those instead of rejecting.
+ if(gender && !["male","female","other","unknown"].includes(gender))throw new Error("Invalid gender value.");
+ if(!["audio/wav","audio/mpeg","audio/flac","audio/aac","audio/opus","audio/mulaw","audio/alaw","audio/linear16"].includes(mime)||enc.length>8*1024*1024)throw new Error("Unsupported or oversized audio sample. Convert the recording to WAV, MP3, FLAC or AAC.");
  const bytes=Utilities.base64Decode(enc);if(bytes.length<1024||bytes.length>MAX_SAMPLE_BYTES)throw new Error("Sample must be 1 KB–6 MB.");
  quota_(uid,"create",0);
  const ext={"audio/wav":"wav","audio/mpeg":"mp3","audio/flac":"flac","audio/mp4":"m4a","audio/aac":"aac"};
  const form={name:name,language:lang,remove_background_noise:"true",file:Utilities.newBlob(bytes,mime,"sample."+ext[mime])};
- if(gender!=="Other")form.gender=gender.toLowerCase();
+ if(gender==="male"||gender==="female")form.gender=gender;
  const r=UrlFetchApp.fetch(SARVAM_BASE+"/voices/create",{method:"post",headers:{"api-subscription-key":key_(),Accept:"application/json"},payload:form,muteHttpExceptions:true});
  const c=r.getResponseCode();if(c<200||c>=300){const body=String(r.getContentText()||"").slice(0,700);throw new Error("Sarvam voice registration failed (HTTP "+c+"): "+body); }
  const d=JSON.parse(r.getContentText()),id=d.data&&d.data.voice_id;
