@@ -232,7 +232,7 @@ object SarvamVoiceCloneClient {
         val result = centralCall("generateCentralSarvamClone", mapOf(
             "voiceId" to voiceId,
             "text" to text,
-            "language" to if (language == "te") "te-IN" else "en-IN"
+            "language" to when (language) { "te" -> "te-IN"; "hi" -> "hi-IN"; else -> "en-IN" }
         ))
         val encoded = result["audioBase64"]?.toString().orEmpty()
         require(encoded.isNotBlank()) { "T2S server returned no audio." }
