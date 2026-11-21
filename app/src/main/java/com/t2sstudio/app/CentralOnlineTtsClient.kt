@@ -9,6 +9,16 @@ import java.net.URL
 import java.net.URLEncoder
 import java.util.Locale
 
+data class OnlineTtsVoice(
+    val id: String,
+    val name: String,
+    val language: String,
+    val gender: String,
+    val licence: String,
+    val attribution: String,
+    val provider: String
+)
+
 /**
  * Authenticated client for centrally managed India and Vakyam credentials.
  * Provider secrets stay in Cloudflare Worker secrets and are never sent to Android.
