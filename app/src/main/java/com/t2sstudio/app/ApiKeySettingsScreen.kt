@@ -40,6 +40,8 @@ fun ApiKeySettingsScreen() {
     var apiKey by remember { mutableStateOf("") }
     var configured by remember { mutableStateOf(IndiaApiKeyStore.get(context) != null) }
     var status by remember { mutableStateOf("") }
+    var vakyamKey by remember { mutableStateOf("") }
+    var vakyamConfigured by remember { mutableStateOf(VakyamApiKeyStore.get(context) != null) }
 
     Column(
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -106,6 +108,50 @@ fun ApiKeySettingsScreen() {
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground)
             ) { Text("How to get a key") }
+        }
+        Text("Vakyam Raaga — additional online voices", color = T2SText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text(
+            "Optional provider. Its Free plan currently includes 10,000 characters per month (about 13 minutes), with 16 published voices available across Telugu, Hindi and Indian English. Usage is subject to the provider's limits; no paid upgrade is required to use the free allowance.",
+            color = T2SSecondaryText, fontSize = 13.sp, lineHeight = 19.sp
+        )
+        Text(
+            if (vakyamConfigured) "Vakyam key is encrypted on this device." else "Vakyam is not connected. Add your own free-plan key to load its voice catalogue.",
+            color = if (vakyamConfigured) T2SOrange else T2SSecondaryText,
+            fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+        )
+        OutlinedTextField(
+            value = vakyamKey,
+            onValueChange = { vakyamKey = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Vakyam API key") },
+            placeholder = { Text("vak_live_…") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            shape = RoundedCornerShape(12.dp)
+        )
+        Button(
+            onClick = {
+                runCatching { VakyamApiKeyStore.save(context, vakyamKey) }
+                    .onSuccess { vakyamConfigured = true; vakyamKey = ""; status = "Vakyam key saved securely. Reopen Voice Search to load its voices." }
+                    .onFailure { status = it.message ?: "Could not save the Vakyam key." }
+            },
+            enabled = vakyamKey.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground)
+        ) { Text("Save Vakyam key", fontWeight = FontWeight.Bold) }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(
+                onClick = { VakyamApiKeyStore.clear(context); vakyamConfigured = false; vakyamKey = ""; status = "Vakyam key removed from this device." },
+                enabled = vakyamConfigured,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = T2SBackground, contentColor = T2SText)
+            ) { Text("Remove Vakyam key") }
+            Button(
+                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://dashboard.vakyam.ai/api-keys"))) },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground)
+            ) { Text("Get free key") }
         }
         if (status.isNotBlank()) {
             Spacer(Modifier.height(2.dp))
