@@ -1,5 +1,9 @@
 package com.t2sstudio.app.data.firebase
 
+import android.os.Handler
+import android.os.Looper
+import java.util.concurrent.atomic.AtomicBoolean
+
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -170,19 +174,40 @@ class T2SFirestoreRepository(
         language: String,
         onComplete: (Result<Unit>) -> Unit
     ) {
-        val data = mapOf(
-            "projectId" to projectId,
-            "title" to title,
-            "content" to content,
-            "language" to language,
-            "isDraft" to true,
-            "isDeleted" to false,
-            "updatedAt" to FieldValue.serverTimestamp()
-        )
-        userCollection(uid, "scripts").document(draftId)
-            .set(data, SetOptions.merge())
-            .addOnSuccessListener { onComplete(Result.success(Unit)) }
-            .addOnFailureListener { onComplete(Result.failure(it)) }
+        val mainHandler = Handler(Looper.getMainLooper())
+        val completed = AtomicBoolean(false)
+        fun finish(result: Result<Unit>) {
+            if (completed.compareAndSet(false, true)) {
+                mainHandler.removeCallbacksAndMessages(draftId)
+                mainHandler.post { onComplete(result) }
+            }
+        }
+        val timeout = Runnable {
+            finish(Result.failure(
+                java.util.concurrent.TimeoutException(
+                    "Firebase draft save timed out. Your local draft is still saved; check your internet connection and try again."
+                )
+            ))
+        }
+        mainHandler.postAtTime(timeout, draftId, android.os.SystemClock.uptimeMillis() + 20_000L)
+
+        try {
+            val data = mapOf(
+                "projectId" to projectId,
+                "title" to title,
+                "content" to content,
+                "language" to language,
+                "isDraft" to true,
+                "isDeleted" to false,
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+            userCollection(uid, "scripts").document(draftId)
+                .set(data, SetOptions.merge())
+                .addOnSuccessListener { finish(Result.success(Unit)) }
+                .addOnFailureListener { finish(Result.failure(it)) }
+        } catch (error: Exception) {
+            finish(Result.failure(error))
+        }
     }
 
     fun saveVoiceMetadata(
