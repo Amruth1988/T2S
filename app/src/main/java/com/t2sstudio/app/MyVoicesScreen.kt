@@ -496,6 +496,39 @@ fun MyVoicesScreen() {
                         Text(if (voice.sarvamVoiceId.isNotBlank()) "Sarvam cloud voice" else "Local recording only", color = T2SText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Text("Voice ID  •  ${voice.sarvamVoiceId.ifBlank { voice.id }}", color = T2SSecondaryText, fontSize = 10.sp, maxLines = 1)
+                    if (voice.sarvamVoiceId.isBlank() && sampleAvailable) {
+                        Button(
+                            onClick = {
+                                if (!SarvamVoiceCloneClient.hasApiKey(context)) {
+                                    message = "Sarvam API key is missing. Save and test it in My Voices first."
+                                } else {
+                                    busy = true
+                                    scope.launch {
+                                        val result = runCatching {
+                                            withContext(Dispatchers.IO) {
+                                                val sample = voice.localSamplePath?.let(::File)
+                                                    ?: error("Saved voice sample is missing.")
+                                                val sarvamId = SarvamVoiceCloneClient.createVoice(
+                                                    context, sample, voice.name, voice.language, voice.gender
+                                                )
+                                                MyVoicesClient.attachSarvamVoiceId(context, voice.id, sarvamId)
+                                                MyVoicesClient.list(context).first { it.id == voice.id }
+                                            }
+                                        }
+                                        result.onSuccess { registered ->
+                                            loadVoices()
+                                            message = "${registered.name} registered with Sarvam successfully."
+                                        }.onFailure { error ->
+                                            message = "Registration failed for ${voice.name}: ${error.message ?: error.javaClass.simpleName}"
+                                        }
+                                        busy = false
+                                    }
+                                }
+                            },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(if (busy) "Registering…" else "Register existing voice with Sarvam") }
+                    }
                     if (!sampleAvailable) {
                         Text(
                             "Original recording is missing on this device. This profile is retained, but local preview and sample-based cloning are unavailable. Restore a backup recording to use those features.",
