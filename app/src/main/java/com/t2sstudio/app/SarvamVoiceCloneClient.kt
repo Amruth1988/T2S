@@ -120,12 +120,13 @@ object SarvamVoiceCloneClient {
                     break
                 }
             }
-            require(track >= 0 && inputFormat != null) { "The selected recording contains no decodable audio track." }
+            require(track >= 0) { "The selected recording contains no decodable audio track." }
+            val audioFormat = inputFormat ?: error("The selected recording contains no decodable audio track.")
             extractor.selectTrack(track)
-            sampleRate = inputFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-            channels = inputFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
-            decoder = MediaCodec.createDecoderByType(inputFormat.getString(MediaFormat.KEY_MIME)!!)
-            decoder.configure(inputFormat, null, null, 0)
+            sampleRate = audioFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            channels = audioFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+            decoder = MediaCodec.createDecoderByType(audioFormat.getString(MediaFormat.KEY_MIME)!!)
+            decoder.configure(audioFormat, null, null, 0)
             decoder.start()
             val info = MediaCodec.BufferInfo()
             var iterations = 0
