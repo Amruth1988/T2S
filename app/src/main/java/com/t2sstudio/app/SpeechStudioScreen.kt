@@ -276,7 +276,7 @@ fun SpeechStudioScreen(
                 onlineCatalogueStatus = if (voices.isEmpty()) "No online " + selectedLanguage + " voices are currently available. Check your connection and retry."
                     else voices.size.toString() + " online " + selectedLanguage + " voices available."
             }
-            .onFailure { onlineCatalogueStatus = "Online " + selectedLanguage + " voice catalogue unavailable. Showing installed voices where available." }
+            .onFailure { onlineCatalogueStatus = "Online " + selectedLanguage + " voice catalogue unavailable. Check your connection and retry; offline voices are not available in online-only mode." }
     }
 
     DisposableEffect(Unit) {
