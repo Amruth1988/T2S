@@ -454,10 +454,50 @@ fun MyVoicesScreen() {
         if (busy) CircularProgressIndicator()
         Text(message, color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 14.sp)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Text("Saved voice profiles", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+            Text("Voice profiles", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
             TextButton(onClick = { loadVoices() }, enabled = !busy, modifier = Modifier.padding(0.dp)) { Text("↻ Refresh") }
         }
-        voices.forEach { voice ->
+        val orderedVoices = voices.sortedBy { voice ->
+            when {
+                voice.firebaseSynced -> 0
+                voice.sarvamVoiceId.isNotBlank() -> 1
+                else -> 2
+            }
+        }
+        orderedVoices.forEachIndexed { voiceIndex, voice ->
+            val groupKey = when {
+                voice.firebaseSynced -> 0
+                voice.sarvamVoiceId.isNotBlank() -> 1
+                else -> 2
+            }
+            val previousGroupKey = if (voiceIndex > 0) {
+                val previous = orderedVoices[voiceIndex - 1]
+                when {
+                    previous.firebaseSynced -> 0
+                    previous.sarvamVoiceId.isNotBlank() -> 1
+                    else -> 2
+                }
+            } else -1
+            if (groupKey != previousGroupKey) {
+                Text(
+                    when (groupKey) {
+                        0 -> "Registered cloud voices"
+                        1 -> "Cloud voices awaiting Firebase sync"
+                        else -> "Local recordings — registration incomplete"
+                    },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = T2SText,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                if (groupKey == 2) {
+                    Text(
+                        "These recordings are kept on this device. They are not registered cloud voices.",
+                        fontSize = 12.sp,
+                        color = T2SSecondaryText
+                    )
+                }
+            }
             val sampleFileForStatus = voice.localSamplePath?.let(::File)
             val sampleAvailable = sampleFileForStatus != null &&
                 sampleFileForStatus.exists() && sampleFileForStatus.length() > 1024L
