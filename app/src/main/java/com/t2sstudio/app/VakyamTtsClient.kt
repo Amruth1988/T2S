@@ -76,14 +76,25 @@ object VakyamTtsClient {
             val code = connection.responseCode
             if (code !in 200..299) error(errorMessage(connection, code))
             val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-            val encoded = json.optString("audio")
+            val data = json.optJSONObject("data")
+            val encoded = json.optString("audio").ifBlank {
+                json.optString("audio_base64").ifBlank { data?.optString("audio").orEmpty() }
+            }
             require(encoded.isNotBlank()) { "Vakyam returned an empty audio response." }
             val bytes = Base64.decode(encoded, Base64.DEFAULT)
             val isWav = format.equals("wav", ignoreCase = true) &&
                 bytes.size > 44 && String(bytes, 0, 4, Charsets.US_ASCII) == "RIFF" &&
                 String(bytes, 8, 4, Charsets.US_ASCII) == "WAVE"
-            val isMp3 = bytes.size > 1024 && bytes[0] == 0x49.toByte() && bytes[1] == 0x44.toByte() && bytes[2] == 0x33.toByte()
-            require(bytes.size > 1024 && (isWav || isMp3)) { "Vakyam returned invalid audio for the requested format." }
+            // MP3 may contain an ID3 tag, or begin directly with an MPEG frame.
+            val hasId3 = bytes.size > 3 && bytes[0] == 0x49.toByte() &&
+                bytes[1] == 0x44.toByte() && bytes[2] == 0x33.toByte()
+            val hasMpegFrame = bytes.size > 2 &&
+                (bytes[0].toInt() and 0xFF) == 0xFF &&
+                (bytes[1].toInt() and 0xE0) == 0xE0
+            val isMp3 = format.equals("mp3", ignoreCase = true) && (hasId3 || hasMpegFrame)
+            require(bytes.size > 1024 && (isWav || isMp3)) {
+                "Vakyam returned invalid audio for the requested format (" + bytes.size + " bytes)."
+            }
             output.parentFile?.mkdirs()
             output.writeBytes(bytes)
         } catch (error: Exception) {
