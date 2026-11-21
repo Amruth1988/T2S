@@ -1218,8 +1218,7 @@ fun SpeechStudioScreen(
                             val result = runCatching {
                                 withContext(Dispatchers.IO) {
                                     if (personalVoice != null) {
-                                        SarvamVoiceCloneClient.generate(
-                                            context = context,
+                                        SarvamVoiceCloneClient.generateCentral(
                                             voiceId = personalVoice.sarvamVoiceId,
                                             text = textToSpeak,
                                             language = languageCode,
