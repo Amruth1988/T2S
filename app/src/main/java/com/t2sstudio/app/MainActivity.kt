@@ -139,7 +139,20 @@ private fun T2SApp() {
     }
 
     var pendingScriptText by remember { mutableStateOf<String?>(null) }
-    val scriptDrafts = remember { mutableStateListOf<T2SScriptDraft>().apply { addAll(ScriptDraftStore.load(context)) } }
+    val scriptDrafts = remember { mutableStateListOf<T2SScriptDraft>() }
+    val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+    LaunchedEffect(currentUid, selectedDestination) {
+        if (currentUid != null && selectedDestination == 4) {
+            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().loadDrafts(currentUid) { result ->
+                result.onSuccess { cloudDrafts ->
+                    scriptDrafts.clear()
+                    scriptDrafts.addAll(cloudDrafts)
+                }
+            }
+        } else if (currentUid == null) {
+            scriptDrafts.clear()
+        }
+    }
 
     BackHandler(enabled = showLoginPage || showAccountPage || destinationBackStack.isNotEmpty()) {
         if (showLoginPage) {
@@ -266,35 +279,19 @@ private fun T2SApp() {
                             val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
                                 ?: throw IllegalStateException("Please sign in again before saving a draft to your Firebase account.")
 
-                            val existingIndex = scriptDrafts.indexOfFirst { draft ->
+                            val existing = scriptDrafts.firstOrNull { draft ->
                                 draft.content.trim() == cleanText &&
                                     draft.language.equals(language, ignoreCase = true) &&
                                     draft.projectId == projectId
                             }
-                            val draft = if (existingIndex >= 0) {
-                                scriptDrafts[existingIndex].copy(
-                                    title = cleanText.lineSequence().firstOrNull().orEmpty()
-                                        .take(64).ifBlank { "Untitled draft" },
-                                    content = cleanText,
-                                    language = language,
-                                    projectName = projectName,
-                                    updatedAt = System.currentTimeMillis()
-                                )
-                            } else {
-                                ScriptDraftStore.create(cleanText, language, projectId, projectName)
-                            }
-
-                            // Keep a local recovery copy, but do not report success until
-                            // Firestore confirms that the document has been written.
-                            val previous = if (existingIndex >= 0) scriptDrafts[existingIndex] else null
-                            if (existingIndex >= 0) scriptDrafts[existingIndex] = draft else scriptDrafts.add(0, draft)
-                            try {
-                                ScriptDraftStore.save(context, scriptDrafts)
-                            } catch (localError: Exception) {
-                                if (existingIndex >= 0 && previous != null) scriptDrafts[existingIndex] = previous
-                                else scriptDrafts.removeAll { it.id == draft.id }
-                                throw IllegalStateException("Could not save the local recovery copy: ${localError.localizedMessage}", localError)
-                            }
+                            val draft = existing?.copy(
+                                title = cleanText.lineSequence().firstOrNull().orEmpty()
+                                    .take(64).ifBlank { "Untitled draft" },
+                                content = cleanText,
+                                language = language,
+                                projectName = projectName,
+                                updatedAt = System.currentTimeMillis()
+                            ) ?: ScriptDraftStore.create(cleanText, language, projectId, projectName)
 
                             com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveDraftMetadata(
                                 uid = user.uid,
@@ -305,11 +302,13 @@ private fun T2SApp() {
                                 language = draft.language
                             ) { cloudResult ->
                                 cloudResult.onSuccess {
+                                    val index = scriptDrafts.indexOfFirst { it.id == draft.id }
+                                    if (index >= 0) scriptDrafts[index] = draft else scriptDrafts.add(0, draft)
                                     onComplete(Result.success(draft))
                                 }.onFailure { cloudError ->
                                     onComplete(Result.failure(
                                         IllegalStateException(
-                                            "Firebase did not save this draft (${cloudError.localizedMessage ?: cloudError.javaClass.simpleName}). A local recovery copy was kept on this device. Check your connection and try Save draft again.",
+                                            "Firebase did not save this draft (${cloudError.localizedMessage ?: cloudError.javaClass.simpleName}). Please check your connection and try again.",
                                             cloudError
                                         )
                                     ))
@@ -395,10 +394,10 @@ private fun T2SApp() {
                     drafts = scriptDrafts,
                     onOpen = { draft -> pendingScriptText = draft.content; selectedProjectId = draft.projectId.takeIf { it.isNotBlank() }; selectedDestination = 0 },
                     onDelete = { draft ->
-                        scriptDrafts.removeAll { it.id == draft.id }
-                        ScriptDraftStore.save(context, scriptDrafts)
                         com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
-                            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().archiveScript(uid, draft.id) { /* Keep local deletion independent of cloud availability. */ }
+                            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().archiveScript(uid, draft.id) { result ->
+                                result.onSuccess { scriptDrafts.removeAll { it.id == draft.id } }
+                            }
                         }
                     },
                     onCreateDraft = { selectedDestination = 0 }
