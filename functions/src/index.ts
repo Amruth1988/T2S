@@ -1,13 +1,14 @@
-import { KeyManagementServiceClient } from "@google-cloud/kms";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { defineSecret, defineString } from "firebase-functions/params";
+import { constants, privateDecrypt } from "node:crypto";
 
 initializeApp();
 const db = getFirestore();
-const kms = new KeyManagementServiceClient();
 const REGION = "asia-south1";
-const KMS_KEY_NAME = process.env.T2S_KMS_KEY_NAME ?? "";
+const PRIVATE_KEY = defineSecret("T2S_PROVIDER_PRIVATE_KEY");
+const PUBLIC_KEY = defineString("T2S_PROVIDER_PUBLIC_KEY");
 
 const PROVIDERS = {
   sarvam: { name: "Sarvam AI", keyPrefix: "" },
@@ -33,27 +34,7 @@ function parseProvider(value: unknown): Provider {
   return value as Provider;
 }
 
-function requireKmsKey(): string {
-  if (!KMS_KEY_NAME) {
-    throw new HttpsError("failed-precondition", "Server encryption is not configured. Set T2S_KMS_KEY_NAME before deployment.");
-  }
-  return KMS_KEY_NAME;
-}
-
-/** Encrypts with Cloud KMS. Plaintext is never written to Firestore or logs. */
-async function encryptProviderKey(apiKey: string): Promise<{ ciphertext: string; keyVersion: string }> {
-  const [result] = await kms.encrypt({
-    name: requireKmsKey(),
-    plaintext: Buffer.from(apiKey, "utf8"),
-  });
-  if (!result.ciphertext) throw new Error("KMS returned no ciphertext.");
-  return {
-    ciphertext: Buffer.from(result.ciphertext as Uint8Array).toString("base64"),
-    keyVersion: result.name ?? KMS_KEY_NAME,
-  };
-}
-
-/** Backend-only helper for provider proxy functions. Never expose this via a callable. */
+/** Decrypt only inside trusted Functions runtime. Private PEM is a Secret Manager secret. */
 export async function decryptProviderKey(provider: Provider): Promise<string> {
   const snapshot = await providerRef(provider).get();
   if (!snapshot.exists || snapshot.get("isActive") !== true) {
@@ -63,34 +44,38 @@ export async function decryptProviderKey(provider: Provider): Promise<string> {
   if (typeof ciphertext !== "string" || !ciphertext) {
     throw new HttpsError("failed-precondition", `${PROVIDERS[provider].name} key is missing.`);
   }
-  const [result] = await kms.decrypt({
-    name: requireKmsKey(),
-    ciphertext: Buffer.from(ciphertext, "base64"),
-  });
-  if (!result.plaintext) throw new Error("KMS returned no plaintext.");
-  return Buffer.from(result.plaintext as Uint8Array).toString("utf8");
+  const plaintext = privateDecrypt({
+    key: PRIVATE_KEY.value(),
+    padding: constants.RSA_PKCS1_OAEP_PADDING,
+    oaepHash: "sha256",
+  }, Buffer.from(ciphertext, "base64"));
+  return plaintext.toString("utf8");
 }
+
+/** Public key can be distributed safely; it cannot decrypt stored credentials. */
+export const getProviderEncryptionPublicKey = onCall({ region: REGION, enforceAppCheck: true }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in is required.");
+  const publicKey = PUBLIC_KEY.value().replace(/\\n/g, "\n");
+  if (!publicKey.includes("BEGIN PUBLIC KEY")) {
+    throw new HttpsError("failed-precondition", "Provider encryption public key is not configured.");
+  }
+  return { publicKey, algorithm: "RSA-OAEP-SHA256" };
+});
 
 export const saveCentralProviderKey = onCall({ region: REGION, enforceAppCheck: true }, async (request) => {
   const uid = requireAdmin(request);
   const provider = parseProvider(request.data?.provider);
-  const apiKey = request.data?.apiKey;
-  if (typeof apiKey !== "string" || apiKey.trim().length < 8 || apiKey.length > 4096) {
-    throw new HttpsError("invalid-argument", "Enter a valid provider key.");
+  const ciphertext = request.data?.encryptedKey;
+  if (typeof ciphertext !== "string" || ciphertext.length < 100 || ciphertext.length > 8192) {
+    throw new HttpsError("invalid-argument", "Submit a valid app-encrypted provider key.");
   }
-  const cleanKey = apiKey.trim();
-  const prefix = PROVIDERS[provider].keyPrefix;
-  if (prefix && !cleanKey.startsWith(prefix)) {
-    throw new HttpsError("invalid-argument", `The ${PROVIDERS[provider].name} key format is invalid.`);
-  }
-
-  let encrypted: { ciphertext: string; keyVersion: string };
+  // Validate ciphertext before persisting; decryption is deliberately backend-only.
   try {
-    encrypted = await encryptProviderKey(cleanKey);
-  } catch (error) {
-    console.error("Provider key encryption failed", { provider, adminUid: uid });
-    if (error instanceof HttpsError) throw error;
-    throw new HttpsError("failed-precondition", "Could not encrypt the provider key. Check Cloud KMS configuration and permissions.");
+    const decoded = Buffer.from(ciphertext, "base64");
+    if (decoded.length !== 256) throw new Error("Invalid RSA ciphertext length.");
+    privateDecrypt({ key: PRIVATE_KEY.value(), padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" }, decoded);
+  } catch {
+    throw new HttpsError("invalid-argument", "Provider key encryption could not be verified. Refresh and try again.");
   }
 
   const ref = providerRef(provider);
@@ -99,9 +84,8 @@ export const saveCentralProviderKey = onCall({ region: REGION, enforceAppCheck: 
   await ref.set({
     providerId: provider,
     providerName: PROVIDERS[provider].name,
-    encryptedKey: encrypted.ciphertext,
-    encryption: "CLOUD_KMS",
-    kmsKeyVersion: encrypted.keyVersion,
+    encryptedKey: ciphertext,
+    encryption: "RSA_OAEP_SHA256",
     isActive: true,
     addedBy: existing.exists ? existing.get("addedBy") : uid,
     updatedBy: uid,
