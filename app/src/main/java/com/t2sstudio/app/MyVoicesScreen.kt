@@ -86,6 +86,42 @@ fun MyVoicesScreen() {
         pickedUri = uri
         pickedLabel = if (uri == null) "No audio selected" else uri.lastPathSegment ?: "Audio sample selected"
     }
+    val exportBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        if (uri != null) {
+            busy = true
+            scope.launch {
+                val result = runCatching {
+                    withContext(Dispatchers.IO) { MyVoicesClient.exportBackup(context, uri) }
+                }
+                message = result.fold(
+                    { "Backup created with ${it} voice profile(s). Keep the ZIP file somewhere safe." },
+                    { "Backup export failed: ${it.message ?: "unknown error"}" }
+                )
+                busy = false
+            }
+        }
+    }
+    val importBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            busy = true
+            scope.launch {
+                val result = runCatching {
+                    withContext(Dispatchers.IO) { MyVoicesClient.importBackup(context, uri) }
+                }
+                result.onSuccess { (imported, skipped) ->
+                    loadVoices()
+                    message = "Restored ${imported} voice profile(s). Skipped ${skipped} duplicate profile(s)."
+                }.onFailure {
+                    message = "Backup import failed: ${it.message ?: "unknown error"}"
+                }
+                busy = false
+            }
+        }
+    }
 
     fun loadVoices() {
         runCatching { MyVoicesClient.list(context) }
@@ -104,6 +140,25 @@ fun MyVoicesScreen() {
         ExternalMediaCatalogueCard()
         Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
         Text("Save and manage reusable voice recordings on this device. Local profiles remain available after reopening the app.", color = T2SSecondaryText, fontSize = 14.sp)
+        Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("My Voices backup", fontWeight = FontWeight.SemiBold, color = T2SText)
+                Text(
+                    "Export profiles and available recordings to a ZIP file. After reinstalling T2S, choose Import backup and select that ZIP. Import merges profiles and does not replace existing ones. Backups stay in your chosen location; nothing is uploaded by this feature.",
+                    color = T2SSecondaryText, fontSize = 12.sp
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { exportBackupLauncher.launch("T2S_MyVoices_Backup.zip") },
+                        enabled = !busy && !recording
+                    ) { Text("Export backup") }
+                    TextButton(
+                        onClick = { importBackupLauncher.launch(arrayOf("application/zip", "application/octet-stream")) },
+                        enabled = !busy && !recording
+                    ) { Text("Import backup") }
+                }
+            }
+        }
         Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("Sarvam AI voice cloning", fontWeight = FontWeight.SemiBold, color = T2SText)
