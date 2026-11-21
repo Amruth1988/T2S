@@ -46,7 +46,7 @@ object VakyamTtsClient {
         } finally { connection.disconnect() }
     }
 
-    fun generate(text: String, voice: String, language: String, speed: Float, output: File, apiKey: String) {
+    fun generate(text: String, voice: String, language: String, speed: Float, output: File, apiKey: String, format: String = "mp3") {
         require(text.isNotBlank()) { "Enter text to generate speech." }
         require(text.length <= 3000) { "Vakyam free TTS supports up to 3,000 characters per request." }
         require(apiKey.startsWith("vak_live_")) { "Add your Vakyam API key in Profile → Online TTS access." }
@@ -60,7 +60,7 @@ object VakyamTtsClient {
             put("model_id", "raaga-v1")
             put("voice", voice)
             put("language", locale)
-            put("output_format", "mp3")
+            put("output_format", if (format.equals("wav", ignoreCase = true)) "wav" else "mp3")
             put("speed", speed.coerceIn(0.5f, 2f).toDouble())
         }
         val connection = URL("$BASE/tts/generate").openConnection() as HttpURLConnection
@@ -79,9 +79,11 @@ object VakyamTtsClient {
             val encoded = json.optString("audio")
             require(encoded.isNotBlank()) { "Vakyam returned an empty audio response." }
             val bytes = Base64.decode(encoded, Base64.DEFAULT)
-            require(bytes.size > 1024 && bytes[0] == 0x49.toByte() && bytes[1] == 0x44.toByte() && bytes[2] == 0x33.toByte()) {
-                "Vakyam returned invalid MP3 audio."
-            }
+            val isWav = format.equals("wav", ignoreCase = true) &&
+                bytes.size > 44 && String(bytes, 0, 4, Charsets.US_ASCII) == "RIFF" &&
+                String(bytes, 8, 4, Charsets.US_ASCII) == "WAVE"
+            val isMp3 = bytes.size > 1024 && bytes[0] == 0x49.toByte() && bytes[1] == 0x44.toByte() && bytes[2] == 0x33.toByte()
+            require(bytes.size > 1024 && (isWav || isMp3)) { "Vakyam returned invalid audio for the requested format." }
             output.parentFile?.mkdirs()
             output.writeBytes(bytes)
         } catch (error: Exception) {
