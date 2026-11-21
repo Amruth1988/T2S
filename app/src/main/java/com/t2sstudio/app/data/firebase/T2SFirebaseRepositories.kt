@@ -277,7 +277,7 @@ class T2SFirestoreRepository(
             "sarvamVoiceId" to sarvamVoiceId,
             "updatedAt" to FieldValue.serverTimestamp()
         )
-        userCollection(uid, "voices").document(voiceId)
+        userCollection(uid, "voiceProfiles").document(voiceId)
             .set(data, SetOptions.merge())
             .addOnSuccessListener { onComplete(Result.success(Unit)) }
             .addOnFailureListener { onComplete(Result.failure(it)) }
