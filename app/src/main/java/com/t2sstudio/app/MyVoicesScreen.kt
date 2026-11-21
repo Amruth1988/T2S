@@ -427,6 +427,7 @@ fun MyVoicesScreen() {
                                                 )
                                             }
                                         }
+                                        MyVoicesClient.markFirebaseSynced(context, saved.id)
                                         MyVoicesClient.list(context).first { it.id == saved.id }
                                     }
                                 }.onSuccess { saved ->
@@ -475,9 +476,9 @@ fun MyVoicesScreen() {
                         ) { Text("🎙️", fontSize = 23.sp) }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(voice.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("${voice.gender} • ${voice.language.uppercase()} • " + if (voice.sarvamVoiceId.isNotBlank()) "Sarvam registered" else "Local only", color = T2SSecondaryText, fontSize = 12.sp)
+                            Text("${voice.gender} • ${voice.language.uppercase()} • " + when { voice.firebaseSynced -> "Saved to Firebase"; voice.sarvamVoiceId.isNotBlank() -> "Firebase sync pending"; else -> "Local only" }, color = T2SSecondaryText, fontSize = 12.sp)
                         }
-                        Text("SAVED", color = T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                        Text(if (voice.firebaseSynced) "SAVED" else "PENDING", color = T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
                             modifier = Modifier.background(T2SCream, androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 6.dp))
                     }
                     androidx.compose.material3.HorizontalDivider(color = T2SOrange.copy(alpha = 0.16f))
@@ -517,12 +518,13 @@ fun MyVoicesScreen() {
                                                         )
                                                     }
                                                 }
+                                                MyVoicesClient.markFirebaseSynced(context, voice.id)
                                                 MyVoicesClient.list(context).first { it.id == voice.id }
                                             }
                                         }
                                         result.onSuccess { registered ->
                                             loadVoices()
-                                            message = "${registered.name} registered with Sarvam successfully."
+                                            message = "${registered.name} Saved successfully. Sarvam voice ID: ${registered.sarvamVoiceId}"
                                         }.onFailure { error ->
                                             loadVoices()
                                             message = "Not fully saved for ${voice.name}: ${error.message ?: error.javaClass.simpleName}. If Sarvam returned an ID, use Sync metadata to Firebase."
