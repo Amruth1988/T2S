@@ -143,7 +143,6 @@ fun MyVoicesScreen() {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
-        Text("Your saved voices", color = T2SSecondaryText, fontSize = 14.sp)
         Button(
             onClick = { showAddVoiceOptions = !showAddVoiceOptions },
             enabled = !busy && !recording,
