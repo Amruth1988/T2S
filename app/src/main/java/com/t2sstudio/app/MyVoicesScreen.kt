@@ -401,9 +401,6 @@ fun MyVoicesScreen() {
                                         // never delete the user's only local copy.
                                         val saved = MyVoicesClient.createLocal(context, voiceName, uri, cloneLanguage, voiceGender)
                                         val registrationMessage = runCatching {
-                                            require(false) {
-                                                "No Sarvam API key is saved. Add it later to register this voice."
-                                            }
                                             val sample = saved.localSamplePath?.let(::File)
                                                 ?: error("Saved recording could not be read.")
                                             val sarvamId = SarvamVoiceCloneClient.createCentralVoice(
