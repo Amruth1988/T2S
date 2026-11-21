@@ -90,7 +90,7 @@ fun ScriptDraftsScreen(
                             Spacer(Modifier.width(8.dp))
                             Text("Create a script", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                         }
-                        Text("Drafts are saved on this device", color = T2SSecondaryText, fontSize = 11.sp)
+                        Text("Drafts sync to Firebase when you are signed in", color = T2SSecondaryText, fontSize = 11.sp)
                     }
                 }
             }
