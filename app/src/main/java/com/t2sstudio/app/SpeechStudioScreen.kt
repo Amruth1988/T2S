@@ -617,7 +617,7 @@ fun SpeechStudioScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.Bottom
           ) {
-            Column(modifier = Modifier.weight(0.78f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Language", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 var languageMenuExpanded by remember { mutableStateOf(false) }
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -711,39 +711,7 @@ fun SpeechStudioScreen(
                     }
                 }
             }
-            Column(modifier = Modifier.weight(1.22f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text("Gender", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    listOf("All", "Male", "Female").forEach { gender ->
-                        FilterChip(
-                            modifier = Modifier.weight(1f).height(36.dp),
-                            selected = selectedGender == gender,
-                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFF47721),
-                                selectedLabelColor = Color.White,
-                                selectedLeadingIconColor = Color.White,
-                                selectedTrailingIconColor = Color.White,
-                                containerColor = Color(0xFFFFF7F0),
-                                labelColor = Color(0xFF6B5546)
-                            ),
-                            border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = selectedGender == gender,
-                                borderColor = Color(0xFFE6CDB8),
-                                selectedBorderColor = Color(0xFFF47721)
-                            ),
-                            onClick = {
-                                selectedGender = gender
-                                selectedVoice = availableVoices.firstOrNull()
-                                selectedOnlineVoice = onlineVoices.firstOrNull { voice ->
-                                    gender == "All" || onlineVoiceGender(voice) == gender
-                                }
-                            },
-                            label = { Text(gender, fontSize = 12.sp, maxLines = 1, softWrap = false) }
-                        )
-                    }
-                }
-            }
+
           }
         }
 
@@ -985,41 +953,6 @@ fun SpeechStudioScreen(
                                     statusMessage = voice.name + " selected from " + voice.provider + ". Voice licence: " + voice.licence + ". " + voice.attribution
                                 }) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
-                                    Text(voice.provider, color = T2SSecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Medium)
-                                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                        TextButton(onClick = { genderMenuVoiceKey = "online|" + voice.provider + "|" + voice.id }) {
-                                            Text("Gender: " + (onlineVoiceGender(voice) ?: "Not set") + " ▾", fontSize = 11.sp)
-                                        }
-                                        DropdownMenu(
-                                            expanded = genderMenuVoiceKey == "online|" + voice.provider + "|" + voice.id,
-                                            onDismissRequest = { genderMenuVoiceKey = null }
-                                        ) {
-                                            listOf("Male", "Female", "Unknown").forEach { genderOption ->
-                                                DropdownMenuItem(
-                                                    text = {
-                                                        Card(
-                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                                                            shape = RoundedCornerShape(9.dp),
-                                                            colors = CardDefaults.cardColors(containerColor = if (onlineVoiceGender(voice) == genderOption) Color(0xFFFFEBDD) else Color(0xFFFFF7F0)),
-                                                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                                                            border = androidx.compose.foundation.BorderStroke(1.dp, if (onlineVoiceGender(voice) == genderOption) T2SOrange else Color(0xFFF0D7C2))
-                                                        ) {
-                                                            Text(
-                                                                genderOption,
-                                                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-                                                                color = T2SText,
-                                                                fontWeight = if (onlineVoiceGender(voice) == genderOption) FontWeight.Bold else FontWeight.Medium
-                                                            )
-                                                        }
-                                                    },
-                                                    onClick = {
-                                                        saveGenderOverride("online|" + voice.provider + "|" + voice.id, voice.name, genderOption)
-                                                        genderMenuVoiceKey = null
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
                                 }
                                 TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.provider}:${voice.id}", provider = voice.provider) }) {
                                     Text(if (activePreviewKey == "online:${voice.provider}:${voice.id}" && isPreviewing) "■ Stop" else "▶ Play", color = Color(0xFFF47721), fontWeight = FontWeight.Bold)
