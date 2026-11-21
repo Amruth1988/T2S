@@ -22,7 +22,7 @@ object SarvamVoiceCloneClient {
 
     fun saveApiKey(context: Context, value: String) {
         val key = value.trim()
-        require(key.startsWith("sk_") && key.length >= 20) { "Enter a valid Sarvam API key." }
+        require(key.length >= 8) { "Enter the complete Sarvam API key from your Sarvam dashboard." }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, keystoreKey()) }
         val encrypted = cipher.doFinal(key.toByteArray(Charsets.UTF_8))
         val packed = Base64.encodeToString(cipher.iv + encrypted, Base64.NO_WRAP)
