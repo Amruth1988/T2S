@@ -59,6 +59,7 @@ object MyVoicesClient {
                         put("language", voice.language)
                         put("gender", voice.gender)
                         put("sarvamVoiceId", voice.sarvamVoiceId)
+                        put("firebaseSynced", voice.firebaseSynced)
                         put("sampleEntry", entryName ?: JSONObject.NULL)
                     })
                     if (entryName != null && sample != null) {
