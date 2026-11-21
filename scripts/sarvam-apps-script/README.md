@@ -17,3 +17,7 @@ Only clone a voice with its speaker's explicit consent. Never share Script Prope
 ## Updating an existing deployment
 
 When `scripts/sarvam-apps-script/Code.gs` changes, the repository commit does not update the separately deployed Google Apps Script automatically. Open the existing Apps Script project, replace `Code.gs` with the current repository version, save, then Deploy → Manage deployments → Edit the web-app deployment → select **New version** → Deploy. Keep the existing `/exec` deployment URL and Script Properties (`SARVAM_API_KEY`, `FIREBASE_WEB_API_KEY`) unchanged. Do not create a new project or expose Script Properties.
+
+## Recovering a user's exhausted registration allowance
+
+The gateway counts only successful provider registrations/generations in the latest code. Older versions counted failed attempts too. To restore one user's registration allowance immediately, find that user's Firebase Authentication UID in Firebase Console → Authentication → Users. In the Apps Script editor, select and run `adminResetVoiceRegistrationQuota` after temporarily adding a one-line wrapper with that UID, for example `function runOneTimeQuotaReset(){ adminResetVoiceRegistrationQuota("FIREBASE_UID_HERE"); }`. Run it as the script owner, then remove the temporary wrapper and save. This resets only that user's current UTC day's registration count; it does not clear API keys or generation counters. Never publish the UID or share editor access.
