@@ -151,6 +151,63 @@ async function reserveSarvamUsage(uid: string, characters: number): Promise<void
   });
 }
 
+/** Registers a consented voice sample using the central Sarvam credential. */
+export const createCentralSarvamVoice = onCall({
+  region: REGION, enforceAppCheck: true, secrets: [PRIVATE_KEY], timeoutSeconds: 120,
+}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in is required.");
+  const name = request.data?.name;
+  const language = request.data?.language;
+  const gender = request.data?.gender;
+  const sampleBase64 = request.data?.sampleBase64;
+  const mimeType = request.data?.mimeType;
+  if (typeof name !== "string" || name.trim().length < 2 || name.length > 100) {
+    throw new HttpsError("invalid-argument", "Voice name must be 2–100 characters.");
+  }
+  if (!["te-IN", "en-IN", "hi-IN"].includes(language)) {
+    throw new HttpsError("invalid-argument", "Unsupported voice sample language.");
+  }
+  if (!["Male", "Female", "Other"].includes(gender)) {
+    throw new HttpsError("invalid-argument", "Select a valid voice gender.");
+  }
+  if (typeof sampleBase64 !== "string" || sampleBase64.length > 8_000_000 ||
+      !/^[A-Za-z0-9+/]*={0,2}$/.test(sampleBase64)) {
+    throw new HttpsError("invalid-argument", "Audio sample is missing or exceeds the 6 MB limit.");
+  }
+  const audio = Buffer.from(sampleBase64, "base64");
+  if (audio.length < 1024 || audio.length > 6_000_000) {
+    throw new HttpsError("invalid-argument", "Audio sample must be between 1 KB and 6 MB.");
+  }
+  const allowedMime = ["audio/wav", "audio/mpeg", "audio/flac", "audio/mp4", "audio/aac"];
+  if (typeof mimeType !== "string" || !allowedMime.includes(mimeType)) {
+    throw new HttpsError("invalid-argument", "Unsupported audio format.");
+  }
+  const apiKey = await decryptProviderKey("sarvam");
+  const form = new FormData();
+  form.append("name", name.trim());
+  form.append("language", language);
+  if (gender !== "Other") form.append("gender", gender.toLowerCase());
+  form.append("remove_background_noise", "true");
+  form.append("file", new Blob([audio], { type: mimeType }), `sample.${mimeType === "audio/wav" ? "wav" : mimeType === "audio/mpeg" ? "mp3" : mimeType === "audio/flac" ? "flac" : mimeType === "audio/mp4" ? "m4a" : "aac"}`);
+  const response = await fetch("https://api.sarvam.ai/voices/create", {
+    method: "POST",
+    headers: { "api-subscription-key": apiKey, "Accept": "application/json" },
+    body: form,
+    signal: AbortSignal.timeout(110000),
+  });
+  const body = await response.text();
+  if (!response.ok) throw new HttpsError(response.status === 429 ? "resource-exhausted" : "unavailable", `Sarvam voice registration failed (HTTP ${response.status}).`);
+  let payload: Record<string, unknown>;
+  try { payload = JSON.parse(body) as Record<string, unknown>; }
+  catch { throw new HttpsError("unavailable", "Sarvam returned an invalid voice response."); }
+  const data = payload.data as Record<string, unknown> | undefined;
+  const voiceId = typeof data?.voice_id === "string" ? data.voice_id : "";
+  if (!/^svc-[A-Za-z0-9_-]{3,100}$/.test(voiceId)) {
+    throw new HttpsError("unavailable", "Sarvam did not return a valid saved voice ID.");
+  }
+  return { voiceId };
+});
+
 /** Lists workspace voices without ever returning the provider credential. */
 export const listCentralSarvamVoices = onCall({
   region: REGION, enforceAppCheck: true, secrets: [PRIVATE_KEY],
