@@ -141,7 +141,7 @@ fun SpeechStudioScreen(
     val coroutineScope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
     var isRegisteredUser by remember { mutableStateOf(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) }
-    val inputCharacterLimit = if (isRegisteredUser) 5000 else 2000
+    val inputCharacterLimit = if (isRegisteredUser) 3000 else 2000
     DisposableEffect(Unit) {
         val firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
         val listener = com.google.firebase.auth.FirebaseAuth.AuthStateListener { authState ->
@@ -273,7 +273,7 @@ fun SpeechStudioScreen(
             .onSuccess { voices ->
                 onlineVoices.addAll(voices)
                 selectedOnlineVoice = voices.firstOrNull { selectedGender == "All" || it.gender.equals(selectedGender, ignoreCase = true) }
-                onlineCatalogueStatus = if (voices.isEmpty()) "No online " + selectedLanguage + " voices returned. Select an online voice to generate speech."
+                onlineCatalogueStatus = if (voices.isEmpty()) "No online " + selectedLanguage + " voices are currently available. Check your connection and retry."
                     else voices.size.toString() + " online " + selectedLanguage + " voices available."
             }
             .onFailure { onlineCatalogueStatus = "Online " + selectedLanguage + " voice catalogue unavailable. Showing installed voices where available." }
