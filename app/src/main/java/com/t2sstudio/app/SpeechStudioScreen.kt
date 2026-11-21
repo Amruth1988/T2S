@@ -765,18 +765,7 @@ fun SpeechStudioScreen(
                     value = voiceSearch,
                     onValueChange = { query ->
                         voiceSearch = query
-                        val term = query.trim().lowercase(Locale.ROOT)
-                        if (term.isNotBlank()) {
-                            val installedMatch = installedPool.any { v -> "${v.name} ${v.locale.displayName} ${v.locale.toLanguageTag()}".lowercase(Locale.ROOT).contains(term) }
-                            val onlineMatch = onlinePool.any { v -> "${v.name} ${v.language}".lowercase(Locale.ROOT).contains(term) }
-                            val personalMatch = myVoices.any { v -> v.name.lowercase(Locale.ROOT).contains(term) }
-                            voiceLibraryTab = when {
-                                installedMatch -> "Installed"
-                                onlineMatch -> "Online"
-                                personalMatch -> "My Voice"
-                                else -> voiceLibraryTab
-                            }
-                        }
+                        // Search only filters the Online catalogue; it must never expose local Android voices.
                     },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
