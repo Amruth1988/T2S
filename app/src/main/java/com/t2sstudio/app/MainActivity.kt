@@ -389,28 +389,6 @@ private fun T2SApp() {
 @Composable
 private fun T2SSplashScreen(onFinished: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    DisposableEffect(context) {
-        var tts: TextToSpeech? = null
-        var ready = false
-        val engine = TextToSpeech(context.applicationContext) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                tts?.language = Locale.ENGLISH
-                ready = true
-                tts?.setSpeechRate(0.92f)
-                tts?.speak(
-                    "T2S Studio ki swagatam. From your words to a voice that speaks.",
-                    TextToSpeech.QUEUE_FLUSH,
-                    null,
-                    "t2s-splash-intro"
-                )
-            }
-        }
-        tts = engine
-        onDispose {
-            if (ready) engine.stop()
-            engine.shutdown()
-        }
-    }
     LaunchedEffect(Unit) {
         delay(8_000)
         onFinished()
