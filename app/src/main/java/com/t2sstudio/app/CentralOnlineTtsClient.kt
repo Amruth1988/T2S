@@ -1,6 +1,7 @@
 package com.t2sstudio.app
 
 import android.util.Base64
+import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.FirebaseAuth
 import java.io.File
 import java.net.HttpURLConnection
@@ -18,7 +19,7 @@ object CentralOnlineTtsClient {
     private fun authorizationHeader(): String {
         val user = FirebaseAuth.getInstance().currentUser
             ?: error("Sign in to T2S Studio to use online TTS.")
-        val token = user.getIdToken(false).result?.token
+        val token = Tasks.await(user.getIdToken(false)).token
             ?: error("Could not verify your T2S sign-in. Please sign in again.")
         return "Bearer $token"
     }
