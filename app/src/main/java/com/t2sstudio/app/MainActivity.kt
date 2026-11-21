@@ -274,24 +274,20 @@ private fun T2SApp() {
                                 ScriptDraftStore.create(cleanText, language, projectId, projectName)
                                     .also { scriptDrafts.add(0, it) }
                             }
-                            // Persist locally first so a Firestore network wait can never
-                            // leave the Save Draft button spinning or lose the user's text.
+                            // Keep a local recovery copy, but report success only after
+                            // Firestore acknowledges the cloud write.
                             ScriptDraftStore.save(context, scriptDrafts)
-                            onComplete(Result.success(draft))
-
-                            // Firestore sync is best-effort and must not block the editor.
-                            // Firestore can queue this write while offline; local draft remains usable.
-                            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
-                                runCatching {
-                                    com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveDraftMetadata(
-                                        uid = uid,
-                                        draftId = draft.id,
-                                        projectId = projectId.takeIf { it.isNotBlank() },
-                                        title = draft.title,
-                                        content = draft.content.take(180_000),
-                                        language = draft.language
-                                    ) { /* Local save already completed; cloud sync is best-effort. */ }
-                                }
+                            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                ?: error("Sign in to save drafts to Firebase.")
+                            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveDraftMetadata(
+                                uid = uid,
+                                draftId = draft.id,
+                                projectId = projectId.takeIf { it.isNotBlank() },
+                                title = draft.title,
+                                content = draft.content.take(180_000),
+                                language = draft.language
+                            ) { result ->
+                                onComplete(result.map { draft })
                             }
                         }.onFailure { onComplete(Result.failure(it)) }
                     }
