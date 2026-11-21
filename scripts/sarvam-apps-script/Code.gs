@@ -51,7 +51,7 @@ function create_(uid,b){
  const form={name:name,language:lang,remove_background_noise:"true",file:Utilities.newBlob(bytes,mime,"sample."+ext[mime])};
  if(gender!=="Other")form.gender=gender.toLowerCase();
  const r=UrlFetchApp.fetch(SARVAM_BASE+"/voices/create",{method:"post",headers:{"api-subscription-key":key_(),Accept:"application/json"},payload:form,muteHttpExceptions:true});
- const c=r.getResponseCode();if(c<200||c>=300)throw new Error("Voice registration failed (HTTP "+c+").");
+ const c=r.getResponseCode();if(c<200||c>=300){const body=String(r.getContentText()||"").slice(0,700);throw new Error("Sarvam voice registration failed (HTTP "+c+"): "+body); }
  const d=JSON.parse(r.getContentText()),id=d.data&&d.data.voice_id;
  if(typeof id!=="string"||!/^svc-[A-Za-z0-9_-]{3,100}$/.test(id))throw new Error("Sarvam returned an invalid voice ID.");
  return {voiceId:id};
