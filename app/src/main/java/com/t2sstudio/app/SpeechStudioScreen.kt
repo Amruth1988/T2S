@@ -228,7 +228,7 @@ fun SpeechStudioScreen(
         saveGenderOverride(installedVoiceKey(voice), voice.name, gender)
 
     fun onlineVoiceGender(voice: OnlineTtsVoice): String? {
-        return when (voiceGenderOverrides["online|"+voice.id]) {
+        return when (voiceGenderOverrides["online|"+voice.provider+"|"+voice.id]) {
             "Male" -> "Male"
             "Female" -> "Female"
             "Unknown" -> null
@@ -987,11 +987,11 @@ fun SpeechStudioScreen(
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
                                     Text(voice.provider, color = T2SSecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Medium)
                                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                        TextButton(onClick = { genderMenuVoiceKey = "online|" + voice.id }) {
+                                        TextButton(onClick = { genderMenuVoiceKey = "online|" + voice.provider + "|" + voice.id }) {
                                             Text("Gender: " + (onlineVoiceGender(voice) ?: "Not set") + " ▾", fontSize = 11.sp)
                                         }
                                         DropdownMenu(
-                                            expanded = genderMenuVoiceKey == "online|" + voice.id,
+                                            expanded = genderMenuVoiceKey == "online|" + voice.provider + "|" + voice.id,
                                             onDismissRequest = { genderMenuVoiceKey = null }
                                         ) {
                                             listOf("Male", "Female", "Unknown").forEach { genderOption ->
@@ -1013,7 +1013,7 @@ fun SpeechStudioScreen(
                                                         }
                                                     },
                                                     onClick = {
-                                                        saveGenderOverride("online|" + voice.id, voice.name, genderOption)
+                                                        saveGenderOverride("online|" + voice.provider + "|" + voice.id, voice.name, genderOption)
                                                         genderMenuVoiceKey = null
                                                     }
                                                 )
