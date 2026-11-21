@@ -402,7 +402,13 @@ private fun T2SApp() {
                 4 -> ScriptDraftsScreen(
                     drafts = scriptDrafts,
                     onOpen = { draft -> pendingScriptText = draft.content; selectedProjectId = draft.projectId.takeIf { it.isNotBlank() }; selectedDestination = 0 },
-                    onDelete = { draft -> scriptDrafts.removeAll { it.id == draft.id }; ScriptDraftStore.save(context, scriptDrafts) },
+                    onDelete = { draft ->
+                        scriptDrafts.removeAll { it.id == draft.id }
+                        ScriptDraftStore.save(context, scriptDrafts)
+                        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+                            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().archiveScript(uid, draft.id) { /* Keep local deletion independent of cloud availability. */ }
+                        }
+                    },
                     onCreateDraft = { selectedDestination = 0 }
                 )
             }
