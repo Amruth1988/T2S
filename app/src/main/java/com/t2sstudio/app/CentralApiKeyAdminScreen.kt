@@ -105,7 +105,7 @@ fun CentralApiKeyAdminScreen() {
     ) {
         Text("Central API keys", color = T2SText, fontSize = 24.sp)
         Text(
-            "Keys are encrypted by Cloud KMS before being saved in Firebase. The Android app never downloads or displays the decrypted keys.",
+            "The app encrypts keys with the backend public key before saving. Only the backend can decrypt them; Firebase never stores plaintext.",
             color = T2SSecondaryText, fontSize = 13.sp
         )
         Text(status, color = T2SOrange, fontSize = 13.sp)
@@ -154,14 +154,28 @@ fun CentralApiKeyAdminScreen() {
                 onClick = {
                     loading = true
                     status = "Encrypting and saving key…"
-                    functions.getHttpsCallable("saveCentralProviderKey")
-                        .call(mapOf("provider" to provider, "apiKey" to apiKey.trim()))
-                        .addOnSuccessListener {
+                    functions.getHttpsCallable("getProviderEncryptionPublicKey").call()
+                        .addOnSuccessListener { publicKeyResult ->
+                            val publicKey = (publicKeyResult.data as? Map<*, *>)?.get("publicKey")?.toString()
+                            if (publicKey.isNullOrBlank()) {
+                                status = "Could not obtain the encryption public key."
+                                loading = false
+                                return@addOnSuccessListener
+                            }
+                            val encryptedKey = runCatching { ProviderKeyEncryptor.encrypt(apiKey, publicKey) }
+                                .getOrElse { status = it.message ?: "Could not encrypt key."; loading = false; return@addOnSuccessListener }
+                            functions.getHttpsCallable("saveCentralProviderKey")
+                                .call(mapOf("provider" to provider, "encryptedKey" to encryptedKey))
+                                .addOnSuccessListener {
                             apiKey = ""
                             status = "Encrypted key saved in Firebase. Refreshing dates…"
                             refreshStatus()
+                                }.addOnFailureListener {
+                                    status = it.localizedMessage ?: "Could not save central key."
+                                    loading = false
+                                }
                         }.addOnFailureListener {
-                            status = it.localizedMessage ?: "Could not save central key."
+                            status = it.localizedMessage ?: "Could not get encryption public key."
                             loading = false
                         }
                 },
