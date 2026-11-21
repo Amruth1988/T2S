@@ -517,7 +517,7 @@ fun SpeechStudioScreen(
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp).padding(top = 10.dp, bottom = 36.dp),
+            .padding(horizontal = 16.dp).padding(top = 10.dp, bottom = 104.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (projects.isNotEmpty()) {
@@ -806,7 +806,7 @@ fun SpeechStudioScreen(
                                     gender == "All" || onlineVoiceGender(voice) == gender
                                 }
                             },
-                            label = { Text(gender, fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                            label = { Text(if (gender == "Female") "Fem." else gender, fontSize = 11.sp, maxLines = 1, softWrap = false) }
                         )
                     }
                 }
@@ -822,8 +822,13 @@ fun SpeechStudioScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("Voice library", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 }
+                val visibleVoiceCount = when (voiceLibraryTab) {
+                    "Online" -> onlineVoices.count { selectedGender == "All" || onlineVoiceGender(it) == selectedGender }
+                    "Installed" -> availableVoices.size
+                    else -> myVoices.size
+                }
                 Text(
-                    "${availableVoices.size + onlineVoices.size + myVoices.size} voices",
+                    "$visibleVoiceCount voices",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = T2SOrange
@@ -862,7 +867,7 @@ fun SpeechStudioScreen(
                     singleLine = true,
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                     placeholder = { Text("Search by voice name") },
-                    label = { Text("Voice Search") },
+                    
                     leadingIcon = { Text("⌕", fontSize = 25.sp, color = T2SOrange, fontWeight = FontWeight.Bold) },
                     trailingIcon = {
                         if (voiceSearch.isNotBlank()) {
