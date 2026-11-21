@@ -64,6 +64,7 @@ fun MyVoicesScreen() {
     var cloneServerUrl by remember { mutableStateOf(VoiceCloneServerSettings.get(context)) }
     var sarvamApiKey by remember { mutableStateOf("") }
     var checkingSarvam by remember { mutableStateOf(false) }
+    var sarvamMessage by remember { mutableStateOf("Enter your Sarvam API key, save it, then test the connection.") }
     var checkingCloneServer by remember { mutableStateOf(false) }
     var cloneLanguage by remember { mutableStateOf("en") }
     var voiceGender by remember { mutableStateOf("Male") }
@@ -110,20 +111,21 @@ fun MyVoicesScreen() {
                 OutlinedTextField(value = sarvamApiKey, onValueChange = { sarvamApiKey = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Sarvam API key") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                 Button(onClick = {
                     runCatching { SarvamVoiceCloneClient.saveApiKey(context, sarvamApiKey) }
-                        .onSuccess { sarvamApiKey = ""; message = "Sarvam API key encrypted and saved on this device." }
-                        .onFailure { message = it.message ?: "Could not save Sarvam API key." }
+                        .onSuccess { sarvamApiKey = ""; sarvamMessage = "Saved securely on this device. Now tap Test Sarvam API." }
+                        .onFailure { sarvamMessage = "Save failed: ${it.message ?: "Unknown error"}" }
                 }, enabled = sarvamApiKey.isNotBlank() && !busy) { Text("Save Sarvam key") }
                 TextButton(onClick = {
                     checkingSarvam = true
                     scope.launch {
                         val result = runCatching { withContext(Dispatchers.IO) { SarvamVoiceCloneClient.testConnection(context) } }
-                        message = result.getOrElse { "Sarvam test failed: ${it.message}" }
+                        sarvamMessage = result.getOrElse { "Sarvam test failed: ${it.message ?: it.javaClass.simpleName}" }
                         checkingSarvam = false
                     }
                 }, enabled = !checkingSarvam && !busy) {
                     if (checkingSarvam) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                     else Text("Test Sarvam API")
                 }
+                Text(sarvamMessage, color = T2SText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 Text("The app never requests a top-up. If Sarvam returns HTTP 402, the request stops. A key stored in a mobile app is not fully secret from a determined device owner; a private backend is safer for production.", color = T2SSecondaryText, fontSize = 11.sp)
                 Text("Only upload your own voice or a recording with the speaker’s explicit consent.", color = T2SSecondaryText, fontSize = 11.sp)
             }
