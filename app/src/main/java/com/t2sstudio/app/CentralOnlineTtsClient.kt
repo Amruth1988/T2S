@@ -3,7 +3,6 @@ package com.t2sstudio.app
 import android.util.Base64
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.functions.FirebaseFunctions
-import org.json.JSONObject
 import java.io.File
 import java.util.Locale
 
@@ -16,7 +15,7 @@ object CentralOnlineTtsClient {
 
     private fun call(name: String, data: Map<String, Any?>): Map<*, *> {
         val result = Tasks.await(functions.getHttpsCallable(name).call(data))
-        return result.data as? Map<*, *> ?: error("TTS backend returned an invalid response.")
+        return result.getData() as? Map<*, *> ?: error("TTS backend returned an invalid response.")
     }
 
     fun listVoices(provider: String, language: String): List<OnlineTtsVoice> {
