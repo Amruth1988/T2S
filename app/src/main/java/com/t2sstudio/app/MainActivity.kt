@@ -67,6 +67,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -174,51 +175,12 @@ private fun T2SApp() {
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier.size(42.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color.White),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "T2S",
-                                color = T2SOrangeDark,
-                                fontFamily = FontFamily.SansSerif,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 17.sp,
-                                letterSpacing = (-1.1).sp,
-                                style = TextStyle(
-                                    shadow = Shadow(
-                                        color = T2SOrange.copy(alpha = 0.42f),
-                                        offset = Offset(1.2f, 2.0f),
-                                        blurRadius = 2.8f
-                                    )
-                                )
-                            )
-                        }
-                        Spacer(Modifier.width(11.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.dp)) {
-                                Text("Studi", fontWeight = FontWeight.Bold, fontSize = 19.sp, color = Color.White)
-                                Box(
-                                    modifier = Modifier.padding(start = 3.dp)
-                                        .size(23.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Mic,
-                                        contentDescription = "Microphone",
-                                        tint = T2SOrange,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                }
-                            }
-                            Text("Text to Speech", fontSize = 10.sp, color = Color.White.copy(alpha = 0.92f), lineHeight = 11.sp)
-                        }
-                    }
+                    Image(
+                        painter = painterResource(id = R.drawable.app_logo),
+                        contentDescription = "T2S Studio — Text to Speech",
+                        modifier = Modifier.width(190.dp).height(58.dp),
+                        contentScale = ContentScale.Fit
+                    )
                 },
                 actions = {
                     Box(
