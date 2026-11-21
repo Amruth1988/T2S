@@ -26,7 +26,8 @@ object MyVoicesClient {
                 name = item.optString("name", "My Voice"),
                 localSamplePath = sample.absolutePath,
                 language = item.optString("language", "en").ifBlank { "en" },
-                gender = item.optString("gender", "Unknown").ifBlank { "Unknown" },\n                sarvamVoiceId = item.optString("sarvamVoiceId", "")
+                gender = item.optString("gender", "Unknown").ifBlank { "Unknown" },
+                sarvamVoiceId = item.optString("sarvamVoiceId", "")
             )
         }
     }
