@@ -10,7 +10,7 @@ import java.net.URL
 /** Sarvam Instant Voice Cloning client. Provider credentials remain in the authenticated Apps Script gateway. */
 object SarvamVoiceCloneClient {
     // Replace this placeholder with the deployed Google Apps Script /exec URL.
-    private const val SCRIPT_URL = "https://script.google.com/macros/s/PASTE_DEPLOYMENT_ID/exec"
+    private const val SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzreX70ong9CQwtGMZ4tcSSLLY3iZ28MFL0ny6L6pitmRLUq6duHCJXiYZ_O2Do8wPP/exec"
 
     private fun centralCall(name: String, data: Map<String, Any?> = emptyMap()): Map<*, *> {
         require(!SCRIPT_URL.contains("PASTE_DEPLOYMENT_ID")) {
