@@ -197,6 +197,7 @@ fun SpeechStudioScreen(
     val onlineVoices = remember { mutableStateListOf<OnlineTtsVoice>() }
     var selectedOnlineVoice by remember { mutableStateOf<OnlineTtsVoice?>(null) }
     var onlineCatalogueStatus by remember { mutableStateOf("Checking online voices…") }
+    var onlineCatalogueLanguage by remember { mutableStateOf<String?>(null) }
     val myVoices = remember { mutableStateListOf<SavedUserVoice>() }
     var selectedSavedVoice by remember { mutableStateOf<SavedUserVoice?>(null) }
 
@@ -263,30 +264,63 @@ fun SpeechStudioScreen(
         }
     }
 
-    LaunchedEffect(selectedLanguage) {
-        onlineVoices.clear()
-        selectedOnlineVoice = null
+    LaunchedEffect(selectedLanguage, voiceLibraryTab) {
+        if (voiceLibraryTab != "Online") return@LaunchedEffect
+
         val languageCode = when (selectedLanguage) {
             "English" -> "en"
             "Hindi" -> "hi"
             "Telugu" -> "te"
             else -> "en"
         }
+        val languageChanged = onlineCatalogueLanguage != selectedLanguage
+        if (languageChanged) {
+            onlineVoices.clear()
+            selectedOnlineVoice = null
+            onlineCatalogueLanguage = selectedLanguage
+        }
         onlineCatalogueStatus = "Loading free online " + selectedLanguage + " voices…"
-        val indiaResult = runCatching { withContext(Dispatchers.IO) { TtsAiClient.listVoices(languageCode) } }
-        val indiaVoices = indiaResult.getOrDefault(emptyList())
+
+        suspend fun <T> loadWithRetry(load: suspend () -> T): Result<T> {
+            var result = runCatching { load() }
+            if (result.isFailure) {
+                kotlinx.coroutines.delay(700)
+                result = runCatching { load() }
+            }
+            return result
+        }
+
+        val indiaResult = loadWithRetry {
+            withContext(Dispatchers.IO) { TtsAiClient.listVoices(languageCode) }
+        }
+        val indiaVoices = indiaResult.getOrNull()
         val vakyamKey = VakyamApiKeyStore.get(context)
         val vakyamResult = if (!vakyamKey.isNullOrBlank()) {
-            runCatching { withContext(Dispatchers.IO) { VakyamTtsClient.listVoices(languageCode, vakyamKey) } }
+            loadWithRetry {
+                withContext(Dispatchers.IO) { VakyamTtsClient.listVoices(languageCode, vakyamKey) }
+            }
         } else null
-        val vakyamVoices = vakyamResult?.getOrDefault(emptyList()).orEmpty()
-        onlineVoices.addAll(indiaVoices + vakyamVoices)
-        selectedOnlineVoice = onlineVoices.firstOrNull { selectedGender == "All" || onlineVoiceGender(it) == selectedGender }
+        val vakyamVoices = vakyamResult?.getOrNull()
+
+        // Replace only provider catalogues that loaded successfully. A temporary
+        // failure from one provider must not erase voices already loaded from another.
+        if (indiaVoices != null) {
+            onlineVoices.removeAll { it.provider != "Vakyam" }
+            onlineVoices.addAll(indiaVoices)
+        }
+        if (vakyamVoices != null) {
+            onlineVoices.removeAll { it.provider == "Vakyam" }
+            onlineVoices.addAll(vakyamVoices)
+        }
+        selectedOnlineVoice = selectedOnlineVoice?.let { selected ->
+            onlineVoices.firstOrNull { it.provider == selected.provider && it.id == selected.id }
+        } ?: onlineVoices.firstOrNull { selectedGender == "All" || onlineVoiceGender(it) == selectedGender }
             ?: onlineVoices.firstOrNull()
+
         onlineCatalogueStatus = buildString {
-            if (onlineVoices.isNotEmpty()) append("${onlineVoices.size} free online voices available • India API: ${indiaVoices.size} • Vakyam: ${if (vakyamKey.isNullOrBlank()) "connect key" else vakyamVoices.size}")
+            if (onlineVoices.isNotEmpty()) append("${onlineVoices.size} free online voices available • India API: ${onlineVoices.count { it.provider != "Vakyam" }} • Vakyam: ${if (vakyamKey.isNullOrBlank()) "connect key" else onlineVoices.count { it.provider == "Vakyam" }}")
             else append("No online ${selectedLanguage} voices loaded. Check internet or connect a free Vakyam key in Profile → Online TTS access.")
-            if (indiaResult.isFailure && indiaVoices.isEmpty()) append(" • India API: ${indiaResult.exceptionOrNull()?.message ?: "unavailable"}")
+            if (indiaResult.isFailure) append(" • India API: ${indiaResult.exceptionOrNull()?.message ?: "unavailable"}")
             if (vakyamResult?.isFailure == true) append(" • Vakyam: ${vakyamResult.exceptionOrNull()?.message ?: "unavailable"}")
         }
     }
