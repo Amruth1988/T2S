@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -102,10 +103,10 @@ fun ScriptDraftsScreen(
             ) {
                 items(drafts, key = { it.id }) { draft ->
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().shadow(2.dp, RoundedCornerShape(18.dp), clip = false),
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(
                             Modifier.fillMaxWidth().padding(15.dp),
@@ -120,10 +121,13 @@ fun ScriptDraftsScreen(
                                 fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Spacer(Modifier.weight(1f))
-                                TextButton(onClick = { onOpen(draft) }) {
-                                    Icon(Icons.Filled.Edit, contentDescription = null, tint = T2SOrange)
-                                    Spacer(Modifier.width(5.dp))
-                                    Text("Continue", color = T2SOrange)
+                                IconButton(onClick = { onOpen(draft) }) {
+                                    Icon(
+                                        Icons.Filled.Edit,
+                                        contentDescription = "Continue editing draft",
+                                        tint = T2SOrange,
+                                        modifier = Modifier.size(26.dp)
+                                    )
                                 }
                                 IconButton(onClick = { onDelete(draft) }) {
                                     Icon(Icons.Filled.Delete, contentDescription = "Delete draft", tint = T2SSecondaryText)
