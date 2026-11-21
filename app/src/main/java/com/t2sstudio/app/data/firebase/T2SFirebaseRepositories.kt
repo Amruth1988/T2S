@@ -261,6 +261,34 @@ class T2SFirestoreRepository(
         }
     }
 
+    fun loadVoiceMetadata(
+        uid: String,
+        onComplete: (Result<List<com.t2sstudio.app.SavedUserVoice>>) -> Unit
+    ) {
+        if (uid.isBlank()) {
+            onComplete(Result.failure(IllegalStateException("Sign in to load your saved voices.")))
+            return
+        }
+        userCollection(uid, "voiceProfiles").get()
+            .addOnSuccessListener { snapshot ->
+                val voices = snapshot.documents.mapNotNull { document ->
+                    val name = document.getString("name")?.trim().orEmpty()
+                    if (name.isBlank()) return@mapNotNull null
+                    com.t2sstudio.app.SavedUserVoice(
+                        id = document.id,
+                        name = name,
+                        localSamplePath = null,
+                        language = document.getString("language") ?: "en",
+                        gender = document.getString("gender") ?: "Unknown",
+                        sarvamVoiceId = document.getString("sarvamVoiceId").orEmpty(),
+                        firebaseSynced = true
+                    )
+                }.sortedBy { it.name.lowercase() }
+                onComplete(Result.success(voices))
+            }
+            .addOnFailureListener { onComplete(Result.failure(it)) }
+    }
+
     fun saveVoiceMetadata(
         uid: String,
         voiceId: String,
