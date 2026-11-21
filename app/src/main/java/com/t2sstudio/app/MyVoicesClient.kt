@@ -108,7 +108,7 @@ object MyVoicesClient {
         remaining.forEach { voice ->
             array.put(JSONObject().apply {
                 put("id", voice.id); put("name", voice.name); put("language", voice.language); put("gender", voice.gender)
-                put("localSamplePath", voice.localSamplePath)
+                put("localSamplePath", voice.localSamplePath); put("sarvamVoiceId", voice.sarvamVoiceId)
             })
         }
         localProfilesFile(context).writeText(array.toString())
