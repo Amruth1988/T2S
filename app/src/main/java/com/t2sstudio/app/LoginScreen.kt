@@ -1,6 +1,7 @@
 package com.t2sstudio.app
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +23,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -43,11 +46,19 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
 
     Column(
         modifier = Modifier.fillMaxSize().background(T2SBackground)
-            .verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 32.dp),
+            .verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 44.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Top
     ) {
-        Text("T2S Studio", color = T2SOrange, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(20.dp))
+        Image(
+            painter = painterResource(id = R.drawable.app_logo),
+            contentDescription = "T2S Studio — Text to Speech",
+            modifier = Modifier.fillMaxWidth().height(104.dp),
+            contentScale = ContentScale.Fit
+        )
+        Spacer(Modifier.height(20.dp))
+        Text("Welcome to T2S Studio", color = T2SOrange, fontSize = 25.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text(if (createAccount) "Create your account" else "Sign in to continue", color = T2SText, fontSize = 18.sp)
         Spacer(Modifier.height(28.dp))
