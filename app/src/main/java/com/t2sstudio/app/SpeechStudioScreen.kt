@@ -1150,7 +1150,12 @@ fun SpeechStudioScreen(
                     languageCode.isBlank() -> statusMessage = "This language is not supported by the speech service."
                     personalVoice != null && languageCode !in setOf("te", "en") ->
                         statusMessage = "My Voices generation currently supports Telugu and English. Choose one of those languages."
-                    personalVoice != null && personalVoice.language.substringBefore('-').lowercase(Locale.ROOT) !in setOf(languageCode, "telugu".takeIf { languageCode == "te" }, "english".takeIf { languageCode == "en" })) ->
+                    personalVoice != null && (when (personalVoice.language.lowercase(Locale.ROOT).substringBefore('-')) {
+                        "te", "telugu" -> "te"
+                        "en", "english" -> "en"
+                        "hi", "hindi" -> "hi"
+                        else -> ""
+                    }) != languageCode ->
                         statusMessage = "The selected My Voice profile language does not match the script language."
                     personalVoice != null && personalVoice.sarvamVoiceId.isBlank() ->
                         statusMessage = "${personalVoice.name} is saved locally but is not registered with Sarvam yet. Open My Voices and complete voice registration before generating."
