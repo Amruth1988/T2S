@@ -59,10 +59,10 @@ fun AccountPageScreen(onBack: () -> Unit, onSignIn: () -> Unit) {
                 Text("Settings", color = T2SText, fontSize = 23.sp, fontWeight = FontWeight.Bold)
             }
             Column(modifier = Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                androidx.compose.material3.OutlinedButton(onClick = { showOnlineTtsSettings = true }, modifier = Modifier.fillMaxWidth()) {
+                androidx.compose.material3.OutlinedButton(onClick = { showSettingsHub = false; showOnlineTtsSettings = true }, modifier = Modifier.fillMaxWidth()) {
                     Text("Online TTS access", color = T2SText)
                 }
-                if (user != null) androidx.compose.material3.OutlinedButton(onClick = { showCentralKeys = true }, modifier = Modifier.fillMaxWidth()) {
+                if (user != null) androidx.compose.material3.OutlinedButton(onClick = { showSettingsHub = false; showCentralKeys = true }, modifier = Modifier.fillMaxWidth()) {
                     Text("Central API keys (Admin)", color = T2SText)
                 }
             }
