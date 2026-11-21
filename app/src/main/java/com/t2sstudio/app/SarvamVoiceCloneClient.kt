@@ -56,11 +56,21 @@ object SarvamVoiceCloneClient {
                 }
                 val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
                     ?.bufferedReader()?.use { it.readText() }.orEmpty()
-                val result = runCatching { JSONObject(body) }.getOrElse {
-                    error("T2S gateway returned an invalid response (HTTP $status).")
+                val result = runCatching { JSONObject(body) }.getOrNull()
+                if (status !in 200..299) {
+                    // Preserve the provider/gateway validation response. A bare HTTP code
+                    // hides actionable 4xx details (for example invalid gender, locale,
+                    // audio MIME type, or a missing multipart field).
+                    val detail = result?.let { json ->
+                        sequenceOf("error", "message", "detail", "details", "messageText")
+                            .map { key -> json.optString(key).takeIf { it.isNotBlank() && it != "null" } }
+                            .firstOrNull { it != null }
+                    } ?: body.trim().take(1200).takeIf { it.isNotBlank() }
+                    val suffix = detail?.let { ": $it" }.orEmpty()
+                    error("T2S gateway request failed (HTTP $status)$suffix")
                 }
-                if (status !in 200..299) error("T2S gateway request failed (HTTP $status).")
-                if (result.has("error")) error(result.optString("error", "Shared Sarvam request failed."))
+                val parsed = result ?: error("T2S gateway returned an invalid response (HTTP $status).")
+                if (parsed.has("error")) error(parsed.optString("error", "Shared Sarvam request failed."))
                 val map = mutableMapOf<String, Any?>()
                 result.keys().forEach { key ->
                     map[key] = if (result.isNull(key)) null else result.get(key)
