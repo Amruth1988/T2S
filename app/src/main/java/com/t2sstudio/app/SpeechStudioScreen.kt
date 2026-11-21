@@ -294,9 +294,29 @@ fun SpeechStudioScreen(
 
     LaunchedEffect(voiceLibraryTab) {
         if (voiceLibraryTab == "My Voices") {
-            runCatching { withContext(Dispatchers.IO) { MyVoicesClient.list(context) } }
-                .onSuccess { saved -> myVoices.clear(); myVoices.addAll(saved) }
-                .onFailure { statusMessage = "Could not load My Voices: ${it.message ?: "unknown error"}" }
+            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            if (uid.isNullOrBlank()) {
+                myVoices.clear()
+                statusMessage = "Sign in to load your saved Firebase voices."
+            } else {
+                runCatching {
+                    kotlinx.coroutines.suspendCancellableCoroutine<List<SavedUserVoice>> { continuation ->
+                        com.t2sstudio.app.data.firebase.T2SFirestoreRepository().loadVoiceMetadata(uid) { result ->
+                            if (continuation.isActive) result.fold(
+                                onSuccess = { continuation.resume(it) },
+                                onFailure = { continuation.resumeWithException(it) }
+                            )
+                        }
+                    }
+                }.onSuccess { saved ->
+                    myVoices.clear()
+                    myVoices.addAll(saved)
+                    if (saved.isEmpty()) statusMessage = "No saved Firebase voices found."
+                }.onFailure { error ->
+                    myVoices.clear()
+                    statusMessage = "Could not load My Voices from Firebase: ${error.localizedMessage ?: "unknown error"}"
+                }
+            }
         }
     }
 
