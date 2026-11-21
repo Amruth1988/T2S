@@ -176,10 +176,9 @@ class T2SFirestoreRepository(
         }
         userCollection(uid, "scripts")
             .whereEqualTo("isDraft", true)
-            .whereEqualTo("isDeleted", false)
             .get()
             .addOnSuccessListener { snapshot ->
-                val drafts = snapshot.documents.mapNotNull { document ->
+                val drafts = snapshot.documents.filter { it.getBoolean("isDeleted") != true }.mapNotNull { document ->
                     val content = document.getString("content").orEmpty()
                     if (content.isBlank()) return@mapNotNull null
                     val projectId = document.getString("projectId").orEmpty()
