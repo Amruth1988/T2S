@@ -13,3 +13,7 @@ This keeps the Sarvam key server-side without deploying Firebase Cloud Functions
 The gateway verifies each Firebase ID token with Firebase Identity Toolkit before using the Sarvam key. The key is stored only in Script Properties, never in the APK or Firestore. Daily limits per Firebase user: 10 generations/10,000 characters and 3 voice registrations. Apps Script quotas still apply. Sarvam voice cloning can incur Sarvam charges; this does not change Firebase billing.
 
 Only clone a voice with its speaker's explicit consent. Never share Script Properties or grant script-editor access to app users.
+
+## Updating an existing deployment
+
+When `scripts/sarvam-apps-script/Code.gs` changes, the repository commit does not update the separately deployed Google Apps Script automatically. Open the existing Apps Script project, replace `Code.gs` with the current repository version, save, then Deploy → Manage deployments → Edit the web-app deployment → select **New version** → Deploy. Keep the existing `/exec` deployment URL and Script Properties (`SARVAM_API_KEY`, `FIREBASE_WEB_API_KEY`) unchanged. Do not create a new project or expose Script Properties.
