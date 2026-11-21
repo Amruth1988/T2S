@@ -807,7 +807,13 @@ fun SpeechStudioScreen(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("All", "Male", "Female").forEach { gender ->
                         FilterChip(
-                            modifier = Modifier.weight(if (gender == "Female") 1.45f else 0.78f).height(32.dp),
+                            modifier = Modifier.weight(
+                                 when (gender) {
+                                     "All" -> 0.78f
+                                     "Male" -> 1.05f
+                                     else -> 1.25f
+                                 }
+                             ).height(36.dp),
                             selected = selectedGender == gender,
                             colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color(0xFFF47721),
@@ -830,7 +836,7 @@ fun SpeechStudioScreen(
                                     gender == "All" || onlineVoiceGender(voice) == gender
                                 }
                             },
-                            label = { Text(gender, fontSize = 10.sp, maxLines = 1, softWrap = false) }
+                            label = { Text(gender, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false) }
                         )
                     }
                 }
