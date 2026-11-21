@@ -419,6 +419,17 @@ fun MyVoicesScreen() {
                                     }
                                 }.onSuccess { (saved, registrationMessage) ->
                                     loadVoices()
+                                    voiceName = "My Voice"
+                                    voiceGender = "Male"
+                                    cloneLanguage = "en"
+                                    pickedUri = null
+                                    pickedLabel = "No audio selected"
+                                    consentConfirmed = false
+                                    message = if (saved.sarvamVoiceId.isNotBlank()) {
+                                        "${saved.name} registered with Sarvam and saved on this device."
+                                    } else {
+                                        "${saved.name} saved on this device. Sarvam registration is pending: ${registrationMessage ?: "try again later"}"
+                                    }
                                     val signedInUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
                                     if (signedInUid != null) {
                                         com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveVoiceMetadata(
@@ -437,17 +448,6 @@ fun MyVoicesScreen() {
                                         }
                                     } else {
                                         message = "${saved.name} saved locally. Sign in to sync its name, gender and language to Firebase."
-                                    }
-                                    voiceName = "My Voice"
-                                    voiceGender = "Male"
-                                    cloneLanguage = "en"
-                                    pickedUri = null
-                                    pickedLabel = "No audio selected"
-                                    consentConfirmed = false
-                                    message = if (saved.sarvamVoiceId.isNotBlank()) {
-                                        "${saved.name} registered with Sarvam and saved on this device."
-                                    } else {
-                                        "${saved.name} saved on this device. Sarvam registration is pending: ${registrationMessage ?: "try again later"}"
                                     }
                                 }.onFailure { message = "Could not save voice profile: ${it.message}" }
                                 busy = false
