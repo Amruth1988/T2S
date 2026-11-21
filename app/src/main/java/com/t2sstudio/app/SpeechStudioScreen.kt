@@ -198,27 +198,6 @@ fun SpeechStudioScreen(
     var onlineCatalogueStatus by remember { mutableStateOf("Checking online voices…") }
     val myVoices = remember { mutableStateListOf<SavedUserVoice>() }
     var selectedSavedVoice by remember { mutableStateOf<SavedUserVoice?>(null) }
-    val convertedTeluguPacks = remember { mutableStateListOf<TeluguVoicePacks.InstalledConvertedVoice>().apply { addAll(TeluguVoicePacks.installedConverted(context)) } }
-    var selectedTeluguPackId by remember { mutableStateOf(convertedTeluguPacks.firstOrNull()?.id) }
-    var importingTeluguPacks by remember { mutableStateOf(false) }
-    var downloadingTeluguPack by remember { mutableStateOf(false) }
-    var teluguDownloadProgress by remember { mutableFloatStateOf(0f) }
-    var teluguDownloadFailed by remember { mutableStateOf(false) }
-    val importTeluguPackLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            importingTeluguPacks = true
-            coroutineScope.launch {
-                val result = runCatching { withContext(Dispatchers.IO) { TeluguVoicePacks.importConvertedArchive(context, uri) } }
-                result.onSuccess {
-                    convertedTeluguPacks.clear()
-                    convertedTeluguPacks.addAll(TeluguVoicePacks.installedConverted(context))
-                    selectedTeluguPackId = convertedTeluguPacks.firstOrNull()?.id
-                    statusMessage = "Imported " + convertedTeluguPacks.size + " converted Telugu voice pack(s)."
-                }.onFailure { statusMessage = "Voice-pack import failed: " + (it.message ?: "invalid archive") }
-                importingTeluguPacks = false
-            }
-        }
-    }
 
 
     val languages = listOf(
@@ -294,29 +273,16 @@ fun SpeechStudioScreen(
             .onSuccess { voices ->
                 onlineVoices.addAll(voices)
                 selectedOnlineVoice = voices.firstOrNull { selectedGender == "All" || it.gender.equals(selectedGender, ignoreCase = true) }
-                onlineCatalogueStatus = if (voices.isEmpty()) "No online " + selectedLanguage + " voices returned. Showing installed voices where available."
+                onlineCatalogueStatus = if (voices.isEmpty()) "No online " + selectedLanguage + " voices returned. Select an online voice to generate speech."
                     else voices.size.toString() + " online " + selectedLanguage + " voices available."
             }
             .onFailure { onlineCatalogueStatus = "Online " + selectedLanguage + " voice catalogue unavailable. Showing installed voices where available." }
     }
 
-    DisposableEffect(context) {
-        lateinit var engine: TextToSpeech
-        engine = TextToSpeech(context) { result ->
-            engineReady = result == TextToSpeech.SUCCESS
-            if (result == TextToSpeech.SUCCESS) {
-                refreshVoices(engine, languages.first { it.label == selectedLanguage }.locale)
-            } else {
-                statusMessage = "Text-to-speech engine could not start. Check Android speech settings."
-            }
-        }
-        ttsEngine = engine
+    DisposableEffect(Unit) {
         onDispose {
             mediaPlayer?.release()
             mediaPlayer = null
-            engine.stop()
-            engine.shutdown()
-            ttsEngine = null
         }
     }
 
@@ -324,7 +290,6 @@ fun SpeechStudioScreen(
         runCatching { mediaPlayer?.stop() }
         mediaPlayer?.release()
         mediaPlayer = null
-        ttsEngine?.stop()
         isPlaying = false
         isPreviewing = false
         activePreviewKey = null
@@ -403,122 +368,6 @@ fun SpeechStudioScreen(
                 previewFile.delete(); mediaPlayer?.release(); mediaPlayer = null
                 isPlaying = false; isPreviewing = false; activePreviewKey = null
                 statusMessage = "Preview playback error: ${it.message ?: "unknown error"}"
-            }
-        }
-    }
-
-    fun previewPurohitPreset(preset: PurohitPreset) {
-        // Every Purohit preset uses the dedicated Venkatesh model classified as MALE.
-        // Android system voices and female packs are never used for this feature.
-        val malePack = convertedTeluguPacks.firstOrNull { it.id == "venkatesh" && it.group == TeluguVoiceGroup.MALE }
-        if (malePack == null) {
-            statusMessage = "Purohit preview needs the Venkatesh (Male) Telugu voice pack. Import the male voice pack below; no female or Android system voice will be used."
-            return
-        }
-
-        stopVoicePreview()
-        val key = "purohit:" + preset.name
-        val previewFile = File(context.cacheDir, "purohit_preview_" + System.currentTimeMillis() + ".wav")
-        val previewText = "ఓం శ్రీ గణేశాయ నమః। నమస్కారం। ఇది తెలుగు పూజారి స్వర పరీక్ష। శుభం భవतु।"
-        activePreviewKey = key
-        isPreviewing = true
-        isPlaying = false
-        statusMessage = "Creating " + preset.name + " preview with " + malePack.displayName + " (Male Telugu model)…"
-
-        coroutineScope.launch {
-            val result = runCatching {
-                withContext(Dispatchers.IO) {
-                    TeluguOfflineTtsEngine(context, malePack.model, malePack.tokens).use { offlineEngine ->
-                        offlineEngine.synthesizeToWav(
-                            previewText,
-                            previewFile,
-                            (speechRate * preset.speedMultiplier).coerceIn(0.5f, 2f)
-                        )
-                    }
-                }
-            }
-            if (result.isFailure) {
-                previewFile.delete()
-                if (activePreviewKey == key) {
-                    isPlaying = false
-                    isPreviewing = false
-                    activePreviewKey = null
-                    statusMessage = "Purohit preview synthesis failed: " + (result.exceptionOrNull()?.message ?: "male voice model error")
-                }
-                return@launch
-            }
-            if (activePreviewKey != key) {
-                previewFile.delete()
-                return@launch
-            }
-            if (!previewFile.isFile || previewFile.length() <= 44L) {
-                previewFile.delete()
-                isPlaying = false
-                isPreviewing = false
-                activePreviewKey = null
-                statusMessage = "Purohit preview audio is empty. Re-import the Venkatesh male voice pack."
-                return@launch
-            }
-
-            runCatching {
-                val player = ExoPlayer.Builder(context).build()
-                mediaPlayer = player
-                player.setAudioAttributes(
-                    Media3AudioAttributes.Builder()
-                        .setUsage(C.USAGE_MEDIA)
-                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                        .build(),
-                    true
-                )
-                player.volume = 1f
-                player.setPlaybackParameters(
-                    androidx.media3.common.PlaybackParameters(
-                        1f,
-                        (speechPitch * preset.pitchMultiplier).coerceIn(0.72f, 0.95f)
-                    )
-                )
-                player.addListener(object : Player.Listener {
-                    override fun onPlaybackStateChanged(playbackState: Int) {
-                        when (playbackState) {
-                            Player.STATE_READY -> {
-                                if (activePreviewKey == key) {
-                                    player.play()
-                                    isPlaying = true
-                                    statusMessage = "Playing " + preset.name + " • " + malePack.displayName + " (Male Telugu)"
-                                }
-                            }
-                            Player.STATE_ENDED -> {
-                                player.release()
-                                if (mediaPlayer === player) mediaPlayer = null
-                                previewFile.delete()
-                                isPlaying = false
-                                isPreviewing = false
-                                activePreviewKey = null
-                                statusMessage = preset.name + " male Telugu preview finished."
-                            }
-                        }
-                    }
-
-                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                        player.release()
-                        if (mediaPlayer === player) mediaPlayer = null
-                        previewFile.delete()
-                        isPlaying = false
-                        isPreviewing = false
-                        activePreviewKey = null
-                        statusMessage = "Purohit preview playback failed: " + error.errorCodeName
-                    }
-                })
-                player.setMediaItem(MediaItem.fromUri(Uri.fromFile(previewFile)))
-                player.prepare()
-            }.onFailure {
-                previewFile.delete()
-                mediaPlayer?.release()
-                mediaPlayer = null
-                isPlaying = false
-                isPreviewing = false
-                activePreviewKey = null
-                statusMessage = "Could not play Purohit preview: " + (it.message ?: "audio player error")
             }
         }
     }
@@ -1215,138 +1064,6 @@ fun SpeechStudioScreen(
         }
         }
 
-        if (selectedLanguage == "Telugu") {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = T2SCream),
-                border = androidx.compose.foundation.BorderStroke(1.dp, T2SOrange.copy(alpha = 0.35f))
-            ) {
-                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Purohit-style voice presets", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
-                    Text(
-                        "Choose a male Telugu voice profile for Purohit-style delivery. Each preset adjusts speed and pitch; it is not a separately trained priest-recitation model.",
-                        fontSize = 11.sp,
-                        color = T2SSecondaryText
-                    )
-                    val configuredMalePurohitPack = convertedTeluguPacks.firstOrNull {
-                        it.id == "venkatesh" && it.group == TeluguVoiceGroup.MALE
-                    }
-                    if (downloadingTeluguPack) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            Text("Setting up Telugu voice • " + teluguDownloadProgress.toInt() + "%", color = T2SSecondaryText, fontSize = 11.sp)
-                        }
-                        LinearProgressIndicator(
-                            progress = { teluguDownloadProgress / 100f },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = T2SOrange
-                        )
-                    } else if (configuredMalePurohitPack == null && teluguDownloadFailed) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Voice setup needs a retry.", color = Color(0xFFB45309), fontSize = 11.sp)
-                            TextButton(onClick = {
-                                if (!downloadingTeluguPack) {
-                                    downloadingTeluguPack = true
-                                    teluguDownloadFailed = false
-                                    teluguDownloadProgress = 0f
-                                    coroutineScope.launch {
-                                        val result = runCatching {
-                                            withContext(Dispatchers.IO) {
-                                                TeluguVoicePacks.downloadAndInstallVenkatesh(context) {
-                                                    teluguDownloadProgress = it.toFloat()
-                                                }
-                                            }
-                                        }
-                                        result.onSuccess { voice ->
-                                            convertedTeluguPacks.clear()
-                                            convertedTeluguPacks.addAll(TeluguVoicePacks.installedConverted(context))
-                                            selectedTeluguPackId = voice.id
-                                            statusMessage = "Telugu voice is ready. Purohit presets can now play offline."
-                                        }.onFailure {
-                                            teluguDownloadFailed = true
-                                            statusMessage = "Telugu voice setup failed. Check your connection and retry."
-                                        }
-                                        downloadingTeluguPack = false
-                                    }
-                                }
-                            }) { Text("Retry") }
-                        }
-                    }
-                    purohitPresets.forEach { preset ->
-                        val selected = isPurohitMode && selectedPurohitPreset?.name == preset.name
-                        Card(
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                stopVoicePreview()
-                                selectedPurohitPreset = preset
-                                isPurohitMode = true
-                                statusMessage = if (downloadingTeluguPack) {
-                                    preset.name + " selected. Telugu voice is preparing in the background."
-                                } else {
-                                    preset.name + " selected."
-                                }
-                            },
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(13.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (selected) Color(0xFFFFEBDD) else Color(0xFFFFFCF8)
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (selected) T2SOrange else Color(0xFFE5D6C8)
-                            )
-                        ) {
-                            Row(
-                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                            ) {
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(preset.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Text(preset.description, color = T2SSecondaryText, fontSize = 11.sp)
-                                }
-                                if (selected) Text("SELECTED", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 9.sp)
-                            }
-                        }
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = {
-                                if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) {
-                                    stopVoicePreview()
-                                    statusMessage = "Purohit preview stopped."
-                                } else {
-                                    val preset = selectedPurohitPreset.takeIf { isPurohitMode }
-                                    if (preset == null) statusMessage = "Select Purohit 1, 2 or 3 first."
-                                    else previewPurohitPreset(preset)
-                                }
-                            },
-                            enabled = isPurohitMode && selectedPurohitPreset != null && configuredMalePurohitPack != null && !downloadingTeluguPack && !importingTeluguPacks,
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
-                        ) {
-                            Text(if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) "■ Stop" else "▶ Play")
-                        }
-                        androidx.compose.material3.OutlinedButton(
-                            onClick = {
-                                stopVoicePreview()
-                                isPurohitMode = false
-                                statusMessage = "Purohit mode cleared. Your selected preset and voice-library choice are kept."
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Clear") }
-                    }
-                }
-            }
-        }
-
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1553,7 +1270,7 @@ fun SpeechStudioScreen(
 
         Text(statusMessage, fontSize = 13.sp, color = T2SSecondaryText)
         Text(
-            "Use free online Piper voices when available, or installed Android voices and imported Telugu offline packs. Online requests need internet; audio stays in app storage.",
+            "Online-only speech generation. An internet connection is required; generated audio is saved in app storage.",
             fontSize = 11.sp,
             color = T2SSecondaryText
         )
