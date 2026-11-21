@@ -64,7 +64,15 @@ fun MyVoicesScreen() {
     var cloneServerUrl by remember { mutableStateOf(VoiceCloneServerSettings.get(context)) }
     var sarvamApiKey by remember { mutableStateOf("") }
     var checkingSarvam by remember { mutableStateOf(false) }
-    var sarvamMessage by remember { mutableStateOf("Enter your Sarvam API key, save it, then test the connection.") }
+    var sarvamMessage by remember {
+        mutableStateOf(
+            if (SarvamVoiceCloneClient.hasApiKey(context)) {
+                "Sarvam API key is already saved securely on this device. You do not need to enter it again."
+            } else {
+                "No saved Sarvam key was found on this device. Add it once and it will be retained."
+            }
+        )
+    }
     var checkingCloneServer by remember { mutableStateOf(false) }
     var cloneLanguage by remember { mutableStateOf("") }
     var voiceGender by remember { mutableStateOf("") }
@@ -163,13 +171,13 @@ fun MyVoicesScreen() {
         Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("Sarvam AI voice cloning", fontWeight = FontWeight.SemiBold, color = T2SText)
-                Text("Save your voice to Sarvam when you tap Save voice profile, then reuse its voice ID for Telugu or English speech generation. Your recording is uploaded to Sarvam for processing.", color = T2SSecondaryText, fontSize = 12.sp)
-                OutlinedTextField(value = sarvamApiKey, onValueChange = { sarvamApiKey = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Sarvam API key") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                Text("Save your voice to Sarvam when you tap Save voice profile, then reuse its voice ID for Telugu or English speech generation. Your recording is uploaded to Sarvam for processing. Your API key is stored locally and should remain saved when you close or reopen T2S; clearing app data or uninstalling T2S removes it.", color = T2SSecondaryText, fontSize = 12.sp)
+                OutlinedTextField(value = sarvamApiKey, onValueChange = { sarvamApiKey = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(if (SarvamVoiceCloneClient.hasApiKey(context)) "Replace Sarvam API key (optional)" else "Sarvam API key") }, placeholder = { Text(if (SarvamVoiceCloneClient.hasApiKey(context)) "Already saved • leave blank to keep it" else "Paste your Sarvam API key") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                 Button(onClick = {
                     runCatching { SarvamVoiceCloneClient.saveApiKey(context, sarvamApiKey) }
                         .onSuccess { sarvamApiKey = ""; sarvamMessage = "Saved securely on this device. Now tap Test Sarvam API." }
                         .onFailure { sarvamMessage = "Save failed: ${it.message ?: "Unknown error"}" }
-                }, enabled = sarvamApiKey.isNotBlank() && !busy) { Text("Save Sarvam key") }
+                }, enabled = sarvamApiKey.isNotBlank() && !busy) { Text("Save / Replace key") }
                 TextButton(onClick = {
                     checkingSarvam = true
                     scope.launch {
