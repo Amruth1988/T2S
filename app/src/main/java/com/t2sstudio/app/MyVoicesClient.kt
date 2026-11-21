@@ -7,7 +7,7 @@ import org.json.JSONArray
 import java.io.File
 import java.util.UUID
 
-data class SavedUserVoice(val id: String, val name: String, val localSamplePath: String? = null, val language: String = "en", val gender: String = "Unknown")
+data class SavedUserVoice(val id: String, val name: String, val localSamplePath: String? = null, val language: String = "en", val gender: String = "Unknown", val sarvamVoiceId: String = "")
 
 object MyVoicesClient {
     private fun localProfilesFile(context: Context) = File(context.filesDir, "voice_profiles.json")
@@ -26,7 +26,7 @@ object MyVoicesClient {
                 name = item.optString("name", "My Voice"),
                 localSamplePath = sample.absolutePath,
                 language = item.optString("language", "en").ifBlank { "en" },
-                gender = item.optString("gender", "Unknown").ifBlank { "Unknown" }
+                gender = item.optString("gender", "Unknown").ifBlank { "Unknown" },\n                sarvamVoiceId = item.optString("sarvamVoiceId", "")
             )
         }
     }
@@ -82,6 +82,22 @@ object MyVoicesClient {
             sample.delete()
             throw error
         }
+    }
+
+    fun attachSarvamVoiceId(context: Context, id: String, voiceId: String) {
+        require(voiceId.startsWith("svc-")) { "Invalid Sarvam voice ID." }
+        val profiles = JSONArray()
+        var found = false
+        list(context).forEach { voice ->
+            val updated = if (voice.id == id) voice.copy(sarvamVoiceId = voiceId).also { found = true } else voice
+            profiles.put(JSONObject().apply {
+                put("id", updated.id); put("name", updated.name); put("language", updated.language)
+                put("gender", updated.gender); put("localSamplePath", updated.localSamplePath)
+                put("sarvamVoiceId", updated.sarvamVoiceId)
+            })
+        }
+        require(found) { "Saved voice profile could not be found." }
+        localProfilesFile(context).writeText(profiles.toString())
     }
 
     fun deleteLocal(context: Context, id: String) {
