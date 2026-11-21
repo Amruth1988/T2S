@@ -7,7 +7,7 @@ import org.json.JSONArray
 import java.io.File
 import java.util.UUID
 
-data class SavedUserVoice(val id: String, val name: String, val localSamplePath: String? = null, val language: String = "en", val gender: String = "Unknown", val sarvamVoiceId: String = "")
+data class SavedUserVoice(val id: String, val name: String, val localSamplePath: String? = null, val language: String = "en", val gender: String = "Unknown", val sarvamVoiceId: String = "", val firebaseSynced: Boolean = false)
 
 object MyVoicesClient {
     private fun localProfilesFile(context: Context) = File(context.filesDir, "voice_profiles.json")
@@ -25,6 +25,7 @@ object MyVoicesClient {
                 put("gender", voice.gender)
                 put("localSamplePath", voice.localSamplePath)
                 put("sarvamVoiceId", voice.sarvamVoiceId)
+                put("firebaseSynced", voice.firebaseSynced)
             })
         }
         val target = localProfilesFile(context)
@@ -151,7 +152,8 @@ object MyVoicesClient {
                     localSamplePath = localPath,
                     language = item.optString("language", "en").ifBlank { "en" },
                     gender = item.optString("gender", "Unknown").ifBlank { "Unknown" },
-                    sarvamVoiceId = item.optString("sarvamVoiceId", "")
+                    sarvamVoiceId = item.optString("sarvamVoiceId", ""),
+                    firebaseSynced = item.optBoolean("firebaseSynced", false)
                 ))
                 existingIds.add(importedId)
                 imported++
@@ -180,7 +182,8 @@ object MyVoicesClient {
                 localSamplePath = samplePath?.let { File(it).absolutePath },
                 language = item.optString("language", "en").ifBlank { "en" },
                 gender = item.optString("gender", "Unknown").ifBlank { "Unknown" },
-                sarvamVoiceId = item.optString("sarvamVoiceId", "")
+                sarvamVoiceId = item.optString("sarvamVoiceId", ""),
+                firebaseSynced = item.optBoolean("firebaseSynced", false)
             )
         }
     }
@@ -235,7 +238,7 @@ object MyVoicesClient {
             }
             profiles.put(JSONObject().apply {
                 put("id", voice.id); put("name", voice.name); put("language", voice.language); put("gender", voice.gender)
-                put("localSamplePath", voice.localSamplePath); put("sarvamVoiceId", voice.sarvamVoiceId)
+                put("localSamplePath", voice.localSamplePath); put("sarvamVoiceId", voice.sarvamVoiceId); put("firebaseSynced", voice.firebaseSynced)
             })
             localProfilesFile(context).writeText(profiles.toString())
             return voice
@@ -255,10 +258,18 @@ object MyVoicesClient {
                 put("id", updated.id); put("name", updated.name); put("language", updated.language)
                 put("gender", updated.gender); put("localSamplePath", updated.localSamplePath)
                 put("sarvamVoiceId", updated.sarvamVoiceId)
+                put("firebaseSynced", updated.firebaseSynced)
             })
         }
         require(found) { "Saved voice profile could not be found." }
         localProfilesFile(context).writeText(profiles.toString())
+    }
+
+    fun markFirebaseSynced(context: Context, id: String) {
+        val voices = list(context)
+        val target = voices.firstOrNull { it.id == id } ?: error("Saved voice profile could not be found.")
+        require(target.sarvamVoiceId.startsWith("svc-")) { "Register the voice with Sarvam before syncing metadata." }
+        writeProfiles(context, voices.map { if (it.id == id) it.copy(firebaseSynced = true) else it })
     }
 
     fun deleteLocal(context: Context, id: String) {
