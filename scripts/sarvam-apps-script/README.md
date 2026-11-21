@@ -21,3 +21,7 @@ When `scripts/sarvam-apps-script/Code.gs` changes, the repository commit does no
 ## Recovering a user's exhausted registration allowance
 
 The gateway counts only successful provider registrations/generations in the latest code. Older versions counted failed attempts too. To restore one user's registration allowance immediately, find that user's Firebase Authentication UID in Firebase Console → Authentication → Users. In the Apps Script editor, select and run `adminResetVoiceRegistrationQuota` after temporarily adding a one-line wrapper with that UID, for example `function runOneTimeQuotaReset(){ adminResetVoiceRegistrationQuota("FIREBASE_UID_HERE"); }`. Run it as the script owner, then remove the temporary wrapper and save. This resets only that user's current UTC day's registration count; it does not clear API keys or generation counters. Never publish the UID or share editor access.
+
+### Legacy quota migration
+
+The current gateway stores counters under the versioned `quota:v2:` namespace. This intentionally ignores counters written by older gateway versions, including failed attempts that were incorrectly counted as registrations. After deploying the latest `Code.gs` as a new web-app version, the user's new registration allowance starts clean automatically; no manual UID lookup or quota-reset helper is needed. The same daily limits still apply to successful operations.
