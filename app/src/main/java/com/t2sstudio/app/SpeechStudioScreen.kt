@@ -326,16 +326,13 @@ fun SpeechStudioScreen(
         }
 
         val indiaResult = loadWithRetry {
-            withContext(Dispatchers.IO) { TtsAiClient.listVoices(languageCode) }
+            withContext(Dispatchers.IO) { CentralOnlineTtsClient.listVoices("India API", languageCode) }
         }
         val indiaVoices = indiaResult.getOrNull()
-        val vakyamKey = VakyamApiKeyStore.get(context)
-        val vakyamResult = if (!vakyamKey.isNullOrBlank()) {
-            loadWithRetry {
-                withContext(Dispatchers.IO) { VakyamTtsClient.listVoices(languageCode, vakyamKey) }
-            }
-        } else null
-        val vakyamVoices = vakyamResult?.getOrNull()
+        val vakyamResult = loadWithRetry {
+            withContext(Dispatchers.IO) { CentralOnlineTtsClient.listVoices("Vakyam", languageCode) }
+        }
+        val vakyamVoices = vakyamResult.getOrNull()
 
         // Replace only provider catalogues that loaded successfully. A temporary
         // failure from one provider must not erase voices already loaded from another.
@@ -356,7 +353,7 @@ fun SpeechStudioScreen(
             if (onlineVoices.isNotEmpty()) append("${onlineVoices.size} free online voices available • India API: ${onlineVoices.count { it.provider != "Vakyam" }} • Vakyam: ${if (vakyamKey.isNullOrBlank()) "connect key" else onlineVoices.count { it.provider == "Vakyam" }}")
             else append("No online ${selectedLanguage} voices loaded. Check internet or connect a free Vakyam key in Profile → Online TTS access.")
             if (indiaResult.isFailure) append(" • India API: ${indiaResult.exceptionOrNull()?.message ?: "unavailable"}")
-            if (vakyamResult?.isFailure == true) append(" • Vakyam: ${vakyamResult.exceptionOrNull()?.message ?: "unavailable"}")
+            if (vakyamResult.isFailure) append(" • Vakyam: ${vakyamResult.exceptionOrNull()?.message ?: "unavailable"}")
         }
     }
 
@@ -395,7 +392,7 @@ fun SpeechStudioScreen(
                 withContext(Dispatchers.IO) {
                     when {
                         localSample != null -> localSample.copyTo(previewFile, overwrite = true)
-                        else -> if (provider == "Vakyam") VakyamTtsClient.generate(sample, voiceId, languageCode, 1f, previewFile, VakyamApiKeyStore.get(context).orEmpty()) else TtsAiClient.generate(sample, voiceId, 1f, previewFile, format = "mp3", apiKey = IndiaApiKeyStore.get(context))
+                        else -> CentralOnlineTtsClient.generate(provider, sample, voiceId, languageCode, 1f, previewFile, format = "mp3")
                     }
                 }
             }
@@ -1225,23 +1222,14 @@ fun SpeechStudioScreen(
                                             output = output
                                         )
                                     } else if (onlineVoice!!.provider == "Vakyam") {
-                                        VakyamTtsClient.generate(
-                                            textToSpeak,
-                                            onlineVoice.id,
-                                            languageCode,
-                                            speechRate,
-                                            output,
-                                            VakyamApiKeyStore.get(context).orEmpty(),
-                                            format = outputFormatForRequest
+                                        CentralOnlineTtsClient.generate(
+                                            "Vakyam", textToSpeak, onlineVoice.id, languageCode,
+                                            speechRate, output, format = outputFormatForRequest
                                         )
                                     } else {
-                                        TtsAiClient.generate(
-                                            textToSpeak,
-                                            onlineVoice.id,
-                                            speechRate,
-                                            output,
-                                            format = outputFormatForRequest,
-                                            apiKey = IndiaApiKeyStore.get(context)
+                                        CentralOnlineTtsClient.generate(
+                                            "India API", textToSpeak, onlineVoice.id, languageCode,
+                                            speechRate, output, format = outputFormatForRequest
                                         )
                                     }
                                 }
