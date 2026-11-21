@@ -65,11 +65,7 @@ fun MyVoicesScreen() {
     var checkingSarvam by remember { mutableStateOf(false) }
     var sarvamMessage by remember {
         mutableStateOf(
-            if (true) {
-                "Sarvam API key is already saved securely on this device. You do not need to enter it again."
-            } else {
-                "No saved Sarvam key was found on this device. Add it once and it will be retained."
-            }
+            "Checking the shared Sarvam service…"
         )
     }
     var checkingCloneServer by remember { mutableStateOf(false) }
@@ -499,9 +495,7 @@ fun MyVoicesScreen() {
                     if (voice.sarvamVoiceId.isBlank() && sampleAvailable) {
                         Button(
                             onClick = {
-                                if (false) {
-                                    message = "Sarvam API key is missing. Save and test it in My Voices first."
-                                } else {
+                                run {
                                     busy = true
                                     scope.launch {
                                         val result = runCatching {
