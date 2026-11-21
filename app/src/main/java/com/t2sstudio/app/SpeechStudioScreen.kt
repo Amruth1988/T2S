@@ -396,7 +396,7 @@ fun SpeechStudioScreen(
         activePreviewKey = null
     }
 
-    fun previewOnlineVoice(voiceId: String, previewKey: String = voiceId, localSamplePath: String? = null, languageOverride: String? = null, provider: String = "India API") {
+    fun previewOnlineVoice(voiceId: String, previewKey: String = voiceId, localSamplePath: String? = null, languageOverride: String? = null, provider: String = "India API", sarvamVoiceId: String = "") {
         if (isPreviewing && activePreviewKey == previewKey) { stopVoicePreview(); statusMessage = "Preview stopped."; return }
         stopVoicePreview()
         val localSample = localSamplePath?.let { File(it) }?.takeIf { it.exists() && it.length() > 1024L }
@@ -415,6 +415,8 @@ fun SpeechStudioScreen(
                 withContext(Dispatchers.IO) {
                     when {
                         localSample != null -> localSample.copyTo(previewFile, overwrite = true)
+                        sarvamVoiceId.startsWith("svc-") ->
+                            SarvamVoiceCloneClient.generateCentral(sarvamVoiceId, sample, languageCode, previewFile)
                         else -> CentralOnlineTtsClient.generate(provider, sample, voiceId, languageCode, 1f, previewFile, format = "mp3")
                     }
                 }
@@ -1117,7 +1119,7 @@ fun SpeechStudioScreen(
                                     statusMessage = "${voice.name} selected • ${voice.gender} • ${savedLanguage}. The saved sample will be used as the voice-cloning reference."
                                 }.padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                                     Text(voice.name + if (selectedSavedVoice?.id == voice.id) " ✓" else "", modifier = Modifier.weight(1f), color = T2SText, fontWeight = FontWeight.SemiBold)
-                                    TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "personal:${voice.id}", localSamplePath = voice.localSamplePath, languageOverride = voice.language) }) {
+                                    TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "personal:${voice.id}", localSamplePath = voice.localSamplePath, languageOverride = voice.language, sarvamVoiceId = voice.sarvamVoiceId) }) {
                                         Text(if (activePreviewKey == "personal:${voice.id}" && isPreviewing) "■ Stop" else "▶ Play", color = T2SOrange, fontWeight = FontWeight.Bold)
                                     }
                                 }
