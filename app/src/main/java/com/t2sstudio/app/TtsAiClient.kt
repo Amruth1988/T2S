@@ -13,6 +13,7 @@ data class OnlineTtsVoice(
     val gender: String,
     val licence: String = "",
     val attribution: String = "",
+    val provider: String = "India API",
 )
 
 /**
