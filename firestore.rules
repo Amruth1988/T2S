@@ -50,7 +50,7 @@ service cloud.firestore {
       }
     }
 
-    match /voicePresets/{presetId} {
+    // Central provider credentials are server-only. Cloud Functions Admin SDK bypasses rules.\n    match /provider_keys/{providerId} {\n      allow read, write: if false;\n    }\n\n    match /voicePresets/{presetId} {
       allow read: if request.auth != null;
       allow write: if false;
     }
