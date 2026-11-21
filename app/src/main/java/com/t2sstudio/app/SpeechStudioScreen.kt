@@ -985,9 +985,10 @@ fun SpeechStudioScreen(
                                     selectedVoice = null
                                     selectedSavedVoice = null
                                     voiceSearch = voice.name
-                                    statusMessage = voice.name + " selected. Voice licence: " + voice.licence + ". " + voice.attribution
+                                    statusMessage = voice.name + " selected from " + voice.provider + ". Voice licence: " + voice.licence + ". " + voice.attribution
                                 }) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
+                                    Text(voice.provider, color = T2SSecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Medium)
                                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                                         TextButton(onClick = { genderMenuVoiceKey = "online|" + voice.id }) {
                                             Text("Gender: " + (onlineVoiceGender(voice) ?: "Not set") + " ▾", fontSize = 11.sp)
