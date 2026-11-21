@@ -55,6 +55,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 @Composable
 fun MyVoicesScreen() {
@@ -397,22 +400,36 @@ fun MyVoicesScreen() {
                             scope.launch {
                                 runCatching {
                                     withContext(Dispatchers.IO) {
-                                        // Persist locally first. A remote API/key/network failure must
-                                        // never delete the user's only local copy.
+                                        val signedInUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                            ?: error("Sign in to T2S before registering a voice with Sarvam.")
+                                        // Keep a local recovery copy, but do not report success until
+                                        // Sarvam returns an ID and Firestore confirms the metadata write.
                                         val saved = MyVoicesClient.createLocal(context, voiceName, uri, cloneLanguage, voiceGender)
-                                        val registrationMessage = runCatching {
-                                            val sample = saved.localSamplePath?.let(::File)
-                                                ?: error("Saved recording could not be read.")
-                                            val sarvamId = SarvamVoiceCloneClient.createCentralVoice(
-                                                sample, saved.name, saved.language, saved.gender
-                                            )
-                                            MyVoicesClient.attachSarvamVoiceId(context, saved.id, sarvamId)
-                                            null
-                                        }.exceptionOrNull()?.message
-                                        val latest = MyVoicesClient.list(context).first { it.id == saved.id }
-                                        latest to registrationMessage
+                                        val sample = saved.localSamplePath?.let(::File)
+                                            ?: error("Saved recording could not be read.")
+                                        val sarvamId = SarvamVoiceCloneClient.createCentralVoice(
+                                            sample, saved.name, saved.language, saved.gender
+                                        )
+                                        require(sarvamId.startsWith("svc-")) { "Sarvam did not return a valid voice ID." }
+                                        MyVoicesClient.attachSarvamVoiceId(context, saved.id, sarvamId)
+                                        suspendCancellableCoroutine<Unit> { continuation ->
+                                            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveVoiceMetadata(
+                                                uid = signedInUid,
+                                                voiceId = saved.id,
+                                                name = saved.name,
+                                                gender = saved.gender,
+                                                language = saved.language,
+                                                sarvamVoiceId = sarvamId
+                                            ) { cloudResult ->
+                                                if (continuation.isActive) cloudResult.fold(
+                                                    onSuccess = { continuation.resume(Unit) },
+                                                    onFailure = { continuation.resumeWithException(it) }
+                                                )
+                                            }
+                                        }
+                                        MyVoicesClient.list(context).first { it.id == saved.id }
                                     }
-                                }.onSuccess { (saved, registrationMessage) ->
+                                }.onSuccess { saved ->
                                     loadVoices()
                                     voiceName = "My Voice"
                                     voiceGender = ""
@@ -420,31 +437,11 @@ fun MyVoicesScreen() {
                                     pickedUri = null
                                     pickedLabel = "No audio selected"
                                     consentConfirmed = false
-                                    message = if (saved.sarvamVoiceId.isNotBlank()) {
-                                        "${saved.name} registered with Sarvam and saved on this device."
-                                    } else {
-                                        "${saved.name} saved on this device. Sarvam registration is pending: ${registrationMessage ?: "try again later"}"
-                                    }
-                                    val signedInUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-                                    if (signedInUid != null) {
-                                        com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveVoiceMetadata(
-                                            uid = signedInUid,
-                                            voiceId = saved.id,
-                                            name = saved.name,
-                                            gender = saved.gender,
-                                            language = saved.language,
-                                            sarvamVoiceId = saved.sarvamVoiceId
-                                        ) { cloudResult ->
-                                            message = if (cloudResult.isSuccess) {
-                                                "${saved.name} voice profile saved to Firebase ( ${saved.gender} • ${saved.language.uppercase()} )."
-                                            } else {
-                                                "${saved.name} is saved on this device, but Firebase sync failed: ${cloudResult.exceptionOrNull()?.localizedMessage ?: "try again"}"
-                                            }
-                                        }
-                                    } else {
-                                        message = "${saved.name} saved locally. Sign in to sync its name, gender and language to Firebase."
-                                    }
-                                }.onFailure { message = "Could not save voice profile: ${it.message}" }
+                                    message = "${saved.name} Saved successfully. Sarvam voice ID: ${saved.sarvamVoiceId}"
+                                }.onFailure { error ->
+                                    loadVoices()
+                                    message = "Not fully saved: ${error.message ?: "registration or Firebase save failed"}. Your local recording is retained; retry Firebase sync if Sarvam registration completed."
+                                }
                                 busy = false
                             }
                         }
