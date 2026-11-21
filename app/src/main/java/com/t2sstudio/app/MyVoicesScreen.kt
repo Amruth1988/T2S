@@ -113,7 +113,8 @@ fun MyVoicesScreen() {
                     withContext(Dispatchers.IO) { MyVoicesClient.importBackup(context, uri) }
                 }
                 result.onSuccess { (imported, skipped) ->
-                    loadVoices()
+                    voices.clear()
+                    voices.addAll(MyVoicesClient.list(context))
                     message = "Restored ${imported} voice profile(s). Skipped ${skipped} duplicate profile(s)."
                 }.onFailure {
                     message = "Backup import failed: ${it.message ?: "unknown error"}"
