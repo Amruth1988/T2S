@@ -198,6 +198,7 @@ fun SpeechStudioScreen(
     var selectedOnlineVoice by remember { mutableStateOf<OnlineTtsVoice?>(null) }
     var onlineCatalogueStatus by remember { mutableStateOf("Checking online voices…") }
     var onlineCatalogueLanguage by remember { mutableStateOf<String?>(null) }
+    var onlineCatalogueRefreshKey by remember { mutableStateOf(0) }
     val myVoices = remember { mutableStateListOf<SavedUserVoice>() }
     var selectedSavedVoice by remember { mutableStateOf<SavedUserVoice?>(null) }
 
@@ -299,7 +300,7 @@ fun SpeechStudioScreen(
         }
     }
 
-    LaunchedEffect(selectedLanguage, voiceLibraryTab) {
+    LaunchedEffect(selectedLanguage, voiceLibraryTab, onlineCatalogueRefreshKey) {
         if (voiceLibraryTab != "Online") return@LaunchedEffect
 
         val languageCode = when (selectedLanguage) {
@@ -351,7 +352,7 @@ fun SpeechStudioScreen(
 
         onlineCatalogueStatus = buildString {
             if (onlineVoices.isNotEmpty()) append("${onlineVoices.size} online voices available • India API: ${onlineVoices.count { it.provider != "Vakyam" }} • Vakyam: ${onlineVoices.count { it.provider == "Vakyam" }}")
-            else append("No online ${selectedLanguage} voices loaded. Check internet or ask the T2S administrator to configure provider access.")
+            else append("No ${selectedLanguage} online voices are available. Check provider setup and internet, then tap Retry online voices.")
             if (indiaResult.isFailure) append(" • India API: ${indiaResult.exceptionOrNull()?.message ?: "unavailable"}")
             if (vakyamResult.isFailure) append(" • Vakyam: ${vakyamResult.exceptionOrNull()?.message ?: "unavailable"}")
         }
@@ -887,6 +888,33 @@ fun SpeechStudioScreen(
                         }
                     }
                 )
+                if (voiceLibraryTab == "Online") {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7F0)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF3D8C5))
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                onlineCatalogueStatus,
+                                color = if (onlineCatalogueStatus.startsWith("No online") ||
+                                    onlineCatalogueStatus.contains("unavailable", true) ||
+                                    onlineCatalogueStatus.contains("failed", true)) Color(0xFF9B3D20) else T2SSecondaryText,
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp
+                            )
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                TextButton(
+                                    enabled = !onlineCatalogueStatus.startsWith("Loading"),
+                                    onClick = { onlineCatalogueRefreshKey++ }
+                                ) { Text("↻ Retry online voices", color = T2SOrange) }
+                            }
+                        }
+                    }
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
