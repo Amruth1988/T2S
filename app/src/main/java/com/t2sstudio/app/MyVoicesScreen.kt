@@ -62,11 +62,10 @@ fun MyVoicesScreen() {
     val scope = rememberCoroutineScope()
     var voiceName by remember { mutableStateOf("My Voice") }
     var cloneServerUrl by remember { mutableStateOf(VoiceCloneServerSettings.get(context)) }
-    var sarvamApiKey by remember { mutableStateOf("") }
     var checkingSarvam by remember { mutableStateOf(false) }
     var sarvamMessage by remember {
         mutableStateOf(
-            if (SarvamVoiceCloneClient.hasApiKey(context)) {
+            if (true) {
                 "Sarvam API key is already saved securely on this device. You do not need to enter it again."
             } else {
                 "No saved Sarvam key was found on this device. Add it once and it will be retained."
@@ -171,27 +170,20 @@ fun MyVoicesScreen() {
         Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("Sarvam AI voice cloning", fontWeight = FontWeight.SemiBold, color = T2SText)
-                Text("Save your voice to Sarvam when you tap Save voice profile, then reuse its voice ID for Telugu or English speech generation. Your recording is uploaded to Sarvam for processing. Your API key is stored locally and should remain saved when you close or reopen T2S; clearing app data or uninstalling T2S removes it.", color = T2SSecondaryText, fontSize = 12.sp)
-                OutlinedTextField(value = sarvamApiKey, onValueChange = { sarvamApiKey = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(if (SarvamVoiceCloneClient.hasApiKey(context)) "Replace Sarvam API key (optional)" else "Sarvam API key") }, placeholder = { Text(if (SarvamVoiceCloneClient.hasApiKey(context)) "Already saved • leave blank to keep it" else "Paste your Sarvam API key") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
-                Button(onClick = {
-                    runCatching { SarvamVoiceCloneClient.saveApiKey(context, sarvamApiKey) }
-                        .onSuccess { sarvamApiKey = ""; sarvamMessage = "Saved securely on this device. Now tap Test Sarvam API." }
-                        .onFailure { sarvamMessage = "Save failed: ${it.message ?: "Unknown error"}" }
-                }, enabled = sarvamApiKey.isNotBlank() && !busy) { Text("Save / Replace key") }
+                Text("T2S uses the centrally managed Sarvam key. You do not need to enter or store an API key on this device. Your voice sample is sent securely through T2S to Sarvam only when you register it.", color = T2SSecondaryText, fontSize = 12.sp)
                 TextButton(onClick = {
                     checkingSarvam = true
                     scope.launch {
-                        val result = runCatching { withContext(Dispatchers.IO) { SarvamVoiceCloneClient.testConnection(context) } }
-                        sarvamMessage = result.getOrElse { "Sarvam test failed: ${it.message ?: it.javaClass.simpleName}" }
+                        val result = runCatching { withContext(Dispatchers.IO) { SarvamVoiceCloneClient.testCentralConnection() } }
+                        sarvamMessage = result.getOrElse { "Shared Sarvam service: ${it.message ?: it.javaClass.simpleName}" }
                         checkingSarvam = false
                     }
                 }, enabled = !checkingSarvam && !busy) {
                     if (checkingSarvam) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                    else Text("Test Sarvam API")
+                    else Text("Test shared Sarvam service")
                 }
                 Text(sarvamMessage, color = T2SText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                Text("The app never requests a top-up. If Sarvam returns HTTP 402, the request stops. A key stored in a mobile app is not fully secret from a determined device owner; a private backend is safer for production.", color = T2SSecondaryText, fontSize = 11.sp)
-                Text("Only upload your own voice or a recording with the speaker’s explicit consent.", color = T2SSecondaryText, fontSize = 11.sp)
+                Text("Voice cloning may consume the shared provider account's paid allowance. Daily limits apply. Only upload your own voice or a recording whose speaker has explicitly consented.", color = T2SSecondaryText, fontSize = 11.sp)
             }
         }
         Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
@@ -413,7 +405,7 @@ fun MyVoicesScreen() {
                                         // never delete the user's only local copy.
                                         val saved = MyVoicesClient.createLocal(context, voiceName, uri, cloneLanguage, voiceGender)
                                         val registrationMessage = runCatching {
-                                            require(SarvamVoiceCloneClient.hasApiKey(context)) {
+                                            require(false) {
                                                 "No Sarvam API key is saved. Add it later to register this voice."
                                             }
                                             val sample = saved.localSamplePath?.let(::File)
