@@ -25,6 +25,18 @@ import com.google.firebase.functions.FirebaseFunctions
 import com.t2sstudio.app.ui.theme.T2SOrange
 import com.t2sstudio.app.ui.theme.T2SSecondaryText
 import com.t2sstudio.app.ui.theme.T2SText
+import java.text.DateFormat
+import java.util.Date
+
+private data class CentralProviderStatus(
+    val id: String,
+    val name: String,
+    val configured: Boolean,
+    val active: Boolean,
+    val createdAt: Long?,
+    val updatedAt: Long?,
+    val rotatedAt: Long?,
+)
 
 @Composable
 fun CentralApiKeyAdminScreen() {
@@ -35,7 +47,11 @@ fun CentralApiKeyAdminScreen() {
     var provider by remember { mutableStateOf("sarvam") }
     var apiKey by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("Checking administrator access…") }
-    var configured by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var providers by remember { mutableStateOf<List<CentralProviderStatus>>(emptyList()) }
+
+    fun dateLabel(value: Long?): String =
+        value?.let { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it)) }
+            ?: "—"
 
     fun refreshStatus() {
         val user = auth.currentUser
@@ -48,17 +64,29 @@ fun CentralApiKeyAdminScreen() {
         user.getIdToken(true).addOnSuccessListener { token ->
             isAdmin = token.claims["admin"] == true
             if (isAdmin != true) {
-                status = "This account does not have the administrator permission."
+                status = "This account does not have administrator permission."
                 loading = false
             } else {
                 functions.getHttpsCallable("getCentralProviderStatus").call()
                     .addOnSuccessListener { result ->
-                        val data = result.data as? Map<*, *> ?: emptyMap<Any, Any>()
-                        configured = data.entries.associate { it.key.toString() to (it.value == true) }
-                        status = "Central provider status refreshed."
+                        val root = result.data as? Map<*, *> ?: emptyMap<Any, Any>()
+                        val data = root["providers"] as? Map<*, *> ?: emptyMap<Any, Any>()
+                        providers = listOf("sarvam", "vakyam", "india").mapNotNull { id ->
+                            val item = data[id] as? Map<*, *> ?: return@mapNotNull null
+                            CentralProviderStatus(
+                                id = id,
+                                name = item["providerName"]?.toString() ?: id,
+                                configured = item["configured"] == true,
+                                active = item["isActive"] == true,
+                                createdAt = (item["createdAt"] as? Number)?.toLong(),
+                                updatedAt = (item["updatedAt"] as? Number)?.toLong(),
+                                rotatedAt = (item["lastRotatedAt"] as? Number)?.toLong(),
+                            )
+                        }
+                        status = "Provider details refreshed."
                         loading = false
                     }.addOnFailureListener {
-                        status = it.localizedMessage ?: "Could not load central provider status."
+                        status = it.localizedMessage ?: "Could not load provider status."
                         loading = false
                     }
             }
@@ -76,17 +104,41 @@ fun CentralApiKeyAdminScreen() {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text("Central API keys", color = T2SText, fontSize = 24.sp)
-        Text("Administrator-only setup. Keys are sent to the secured backend and are never returned to this app.", color = T2SSecondaryText, fontSize = 13.sp)
+        Text(
+            "Keys are encrypted by Cloud KMS before being saved in Firebase. The Android app never downloads or displays the decrypted keys.",
+            color = T2SSecondaryText, fontSize = 13.sp
+        )
         Text(status, color = T2SOrange, fontSize = 13.sp)
         if (loading) CircularProgressIndicator(color = T2SOrange)
         if (isAdmin == true) {
-            listOf("sarvam", "vakyam", "india").forEach { id ->
-                Text("${id.replaceFirstChar { it.uppercase() }}: " + if (configured[id] == true) "Configured" else "Not configured",
-                    color = T2SText, fontSize = 14.sp)
+            providers.forEach { item ->
+                Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(item.name + " — " + when {
+                        !item.configured -> "Not configured"
+                        item.active -> "Active"
+                        else -> "Disabled"
+                    }, color = T2SText, fontSize = 15.sp)
+                    Text("Added: ${dateLabel(item.createdAt)}", color = T2SSecondaryText, fontSize = 11.sp)
+                    Text("Updated: ${dateLabel(item.updatedAt)}", color = T2SSecondaryText, fontSize = 11.sp)
+                    Text("Last rotated: ${dateLabel(item.rotatedAt)}", color = T2SSecondaryText, fontSize = 11.sp)
+                    if (item.configured) {
+                        OutlinedButton(
+                            onClick = {
+                                loading = true
+                                functions.getHttpsCallable("setCentralProviderActive")
+                                    .call(mapOf("provider" to item.id, "isActive" to !item.active))
+                                    .addOnSuccessListener { status = "${item.name} status updated."; refreshStatus() }
+                                    .addOnFailureListener { status = it.localizedMessage ?: "Could not update provider."; loading = false }
+                            },
+                            enabled = !loading,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(if (item.active) "Disable ${item.name}" else "Enable ${item.name}") }
+                    }
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("sarvam", "vakyam", "india").forEach { id ->
-                    OutlinedButton(onClick = { provider = id; apiKey = "" }) {
+                    OutlinedButton(onClick = { provider = id; apiKey = "" }, enabled = !loading) {
                         Text(id.replaceFirstChar { it.uppercase() })
                     }
                 }
@@ -101,12 +153,12 @@ fun CentralApiKeyAdminScreen() {
             Button(
                 onClick = {
                     loading = true
-                    status = "Saving key securely…"
+                    status = "Encrypting and saving key…"
                     functions.getHttpsCallable("saveCentralProviderKey")
                         .call(mapOf("provider" to provider, "apiKey" to apiKey.trim()))
                         .addOnSuccessListener {
                             apiKey = ""
-                            status = "Key saved in Secret Manager. Refreshing status…"
+                            status = "Encrypted key saved in Firebase. Refreshing dates…"
                             refreshStatus()
                         }.addOnFailureListener {
                             status = it.localizedMessage ?: "Could not save central key."
@@ -115,13 +167,15 @@ fun CentralApiKeyAdminScreen() {
                 },
                 enabled = apiKey.isNotBlank() && !loading,
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Save central key") }
+            ) { Text("Save / rotate provider key") }
             OutlinedButton(onClick = { refreshStatus() }, enabled = !loading, modifier = Modifier.fillMaxWidth()) {
                 Text("Refresh provider status")
             }
         } else if (isAdmin == false) {
-            Text("Ask the T2S project owner to grant the admin custom claim to this Firebase account. The app cannot grant this permission itself.",
-                color = T2SSecondaryText, fontSize = 13.sp)
+            Text(
+                "Ask the T2S project owner to grant the admin custom claim to this Firebase account. The app cannot grant this permission itself.",
+                color = T2SSecondaryText, fontSize = 13.sp
+            )
         }
     }
 }
