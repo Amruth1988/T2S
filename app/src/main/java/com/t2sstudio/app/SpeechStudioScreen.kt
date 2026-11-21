@@ -350,8 +350,8 @@ fun SpeechStudioScreen(
             ?: onlineVoices.firstOrNull()
 
         onlineCatalogueStatus = buildString {
-            if (onlineVoices.isNotEmpty()) append("${onlineVoices.size} free online voices available • India API: ${onlineVoices.count { it.provider != "Vakyam" }} • Vakyam: ${if (vakyamKey.isNullOrBlank()) "connect key" else onlineVoices.count { it.provider == "Vakyam" }}")
-            else append("No online ${selectedLanguage} voices loaded. Check internet or connect a free Vakyam key in Profile → Online TTS access.")
+            if (onlineVoices.isNotEmpty()) append("${onlineVoices.size} online voices available • India API: ${onlineVoices.count { it.provider != "Vakyam" }} • Vakyam: ${onlineVoices.count { it.provider == "Vakyam" }}")
+            else append("No online ${selectedLanguage} voices loaded. Check internet or ask the T2S administrator to configure provider access.")
             if (indiaResult.isFailure) append(" • India API: ${indiaResult.exceptionOrNull()?.message ?: "unavailable"}")
             if (vakyamResult.isFailure) append(" • Vakyam: ${vakyamResult.exceptionOrNull()?.message ?: "unavailable"}")
         }
