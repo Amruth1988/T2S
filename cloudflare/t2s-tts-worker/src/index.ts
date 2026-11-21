@@ -97,10 +97,19 @@ async function handle(request: Request, env: Env): Promise<Response> {
       headers: { authorization: `Bearer ${env.VAKYAM_API_KEY}`, accept: "application/json" },
     });
     if (!response.ok) return providerError(response, "Vakyam");
-    const root = await response.json() as { data?: Record<string, unknown> };
+    // Vakyam returns the language-grouped voice map at the top level:
+    // { "te-IN": [{ "voice_name": "Archana", "gender": "female" }, ...] }.
+    // Accept a nested "data" wrapper as a compatibility fallback.
+    const root = await response.json() as Record<string, unknown> & { data?: Record<string, unknown> };
     const locale = languageLocale(url.searchParams.get("language") || "te");
-    const data = root.data?.[locale];
-    return json({ voices: Array.isArray(data) ? data : [] });
+    const grouped = root.data && typeof root.data === "object" ? root.data : root;
+    const data = grouped[locale];
+    const voices = Array.isArray(data)
+      ? data.filter((item): item is Record<string, unknown> =>
+          !!item && typeof item === "object" &&
+          typeof (item as Record<string, unknown>).voice_name === "string")
+      : [];
+    return json({ voices });
   }
 
   if (url.pathname === "/v1/vakyam/tts" && request.method === "POST") {
