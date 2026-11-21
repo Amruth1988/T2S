@@ -128,3 +128,98 @@ export const setCentralProviderActive = onCall({ region: REGION, enforceAppCheck
   await ref.update({ isActive: active, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
   return { updated: true, provider, isActive: active };
 });
+
+/** Per-user UTC quota for shared, billable Sarvam voice-clone requests. */
+async function reserveSarvamUsage(uid: string, characters: number): Promise<void> {
+  const day = new Date().toISOString().slice(0, 10);
+  const ref = db.collection("provider_usage").doc(`sarvam_${uid}_${day}`);
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const calls = Number(snapshot.get("calls") ?? 0);
+    const usedCharacters = Number(snapshot.get("characters") ?? 0);
+    if (calls >= 10 || usedCharacters + characters > 10000) {
+      throw new HttpsError("resource-exhausted", "Daily shared Sarvam limit reached (10 generations or 10,000 characters). Try again tomorrow.");
+    }
+    transaction.set(ref, {
+      provider: "sarvam",
+      uid,
+      day,
+      calls: calls + 1,
+      characters: usedCharacters + characters,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+}
+
+/** Lists workspace voices without ever returning the provider credential. */
+export const listCentralSarvamVoices = onCall({
+  region: REGION, enforceAppCheck: true, secrets: [PRIVATE_KEY],
+}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in is required.");
+  const apiKey = await decryptProviderKey("sarvam");
+  const response = await fetch("https://api.sarvam.ai/voices", {
+    method: "GET",
+    headers: { "api-subscription-key": apiKey, "Accept": "application/json" },
+    signal: AbortSignal.timeout(20000),
+  });
+  const body = await response.text();
+  if (!response.ok) {
+    throw new HttpsError(response.status === 429 ? "resource-exhausted" : "unavailable",
+      `Sarvam voice list failed (HTTP ${response.status}).`);
+  }
+  try {
+    return { voices: JSON.parse(body) };
+  } catch {
+    throw new HttpsError("unavailable", "Sarvam returned an invalid voice-list response.");
+  }
+});
+
+/** Generates speech with the centrally stored Sarvam key; enforces a daily user quota. */
+export const generateCentralSarvamClone = onCall({
+  region: REGION, enforceAppCheck: true, secrets: [PRIVATE_KEY], timeoutSeconds: 120,
+}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in is required.");
+  const voiceId = request.data?.voiceId;
+  const text = request.data?.text;
+  const language = request.data?.language;
+  if (typeof voiceId !== "string" || !/^svc-[A-Za-z0-9_-]{3,100}$/.test(voiceId)) {
+    throw new HttpsError("invalid-argument", "A valid saved Sarvam voice ID is required.");
+  }
+  if (typeof text !== "string" || !text.trim() || text.length > 1000) {
+    throw new HttpsError("invalid-argument", "Text must contain 1–1,000 characters.");
+  }
+  if (language !== "te-IN" && language !== "en-IN") {
+    throw new HttpsError("invalid-argument", "Choose Telugu or English.");
+  }
+
+  await reserveSarvamUsage(request.auth.uid, text.length);
+  const apiKey = await decryptProviderKey("sarvam");
+  const form = new FormData();
+  form.append("voice_id", voiceId);
+  form.append("text", text);
+  form.append("language_code", language);
+  const response = await fetch("https://api.sarvam.ai/voices/clone", {
+    method: "POST",
+    headers: { "api-subscription-key": apiKey, "Accept": "application/json" },
+    body: form,
+    signal: AbortSignal.timeout(110000),
+  });
+  const body = await response.text();
+  if (!response.ok) {
+    throw new HttpsError(response.status === 429 ? "resource-exhausted" : "unavailable",
+      `Sarvam speech generation failed (HTTP ${response.status}).`);
+  }
+  let payload: Record<string, unknown>;
+  try {
+    payload = JSON.parse(body) as Record<string, unknown>;
+  } catch {
+    throw new HttpsError("unavailable", "Sarvam returned an invalid audio response.");
+  }
+  const audioBase64 = typeof payload.audio_b64 === "string" ? payload.audio_b64 :
+    typeof payload.audio === "string" ? payload.audio : "";
+  if (!audioBase64 || audioBase64.length > 20_000_000 || !/^[A-Za-z0-9+/]*={0,2}$/.test(audioBase64)) {
+    throw new HttpsError("unavailable", "Sarvam returned missing or invalid audio data.");
+  }
+  return { audioBase64, contentType: "audio/wav" };
+});
+
