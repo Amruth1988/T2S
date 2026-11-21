@@ -112,6 +112,9 @@ private fun T2SApp() {
         return
     }
     val context = androidx.compose.ui.platform.LocalContext.current
+    var showLoginPage by remember {
+        mutableStateOf(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser == null)
+    }
     // Start provisioning the Purohit Telugu voice immediately after the splash screen,
     // including before sign-in. The local install check prevents repeat downloads.
     LaunchedEffect(Unit) {
