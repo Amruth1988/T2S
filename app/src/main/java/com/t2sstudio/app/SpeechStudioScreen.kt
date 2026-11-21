@@ -1504,6 +1504,7 @@ fun SpeechStudioScreen(
                         else -> ""
                     }
                     val serverUrl = VoiceCloneServerSettings.get(context)
+                    val sarvamVoiceId = savedVoice?.sarvamVoiceId.orEmpty()
                     val savedLanguage = when (savedVoice?.language?.lowercase()) {
                         "te", "telugu" -> "Telugu"
                         "en", "english" -> "English"
@@ -1516,7 +1517,7 @@ fun SpeechStudioScreen(
                         statusMessage = "This saved voice is marked ${savedLanguage}. Select ${savedLanguage} to generate with this sample."
                     } else if (reference == null || !reference.isFile) {
                         statusMessage = "Saved voice recording is missing. Please add the voice again in My Voices."
-                    } else if (savedVoice?.sarvamVoiceId.isNullOrBlank() && serverUrl.isBlank()) {
+                    } else if (sarvamVoiceId.isBlank() && serverUrl.isBlank()) {
                         statusMessage = "This voice is not registered with Sarvam. Save it again in My Voices with your Sarvam key, or configure your Volt-TTS server."
                     } else {
                         val audioDirectory = File(
@@ -1531,7 +1532,7 @@ fun SpeechStudioScreen(
                         coroutineScope.launch {
                             val result = runCatching {
                                 withContext(Dispatchers.IO) {
-                                    if (!savedVoice?.sarvamVoiceId.isNullOrBlank()) SarvamVoiceCloneClient.generate(context, savedVoice.sarvamVoiceId, textToSpeak, cloneLanguage, output) else VoiceCloneClient.generate(serverUrl, textToSpeak, cloneLanguage, reference, output)
+                                    if (!savedVoice?.sarvamVoiceId.isNullOrBlank()) SarvamVoiceCloneClient.generate(context, sarvamVoiceId, textToSpeak, cloneLanguage, output) else VoiceCloneClient.generate(serverUrl, textToSpeak, cloneLanguage, reference, output)
                                 }
                             }
                             result.onSuccess {
