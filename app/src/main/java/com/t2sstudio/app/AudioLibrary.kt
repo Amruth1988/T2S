@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
@@ -42,6 +43,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -203,11 +207,28 @@ fun SavedAudioScreen(
             .onFailure { message = "Unable to download this recording: ${it.localizedMessage ?: "storage error"}" }
     }
 
-    Column(modifier = androidx.compose.ui.Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Saved Audio", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = T2SText)
-        Text("Generated audio files saved on this device.", fontSize = 13.sp, color = T2SSecondaryText)
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("Recent", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                Text("${records.size} saved ${if (records.size == 1) "recording" else "recordings"}", fontSize = 13.sp, color = T2SSecondaryText)
+            }
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier.size(46.dp).background(T2SOrange.copy(alpha = 0.12f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.History, contentDescription = null, tint = T2SOrange, modifier = Modifier.size(24.dp))
+            }
+        }
         if (records.isEmpty()) {
-            Card(colors = CardDefaults.cardColors(containerColor = T2SCream), shape = RoundedCornerShape(18.dp)) {
+            Card(modifier = Modifier.fillMaxWidth().shadow(2.dp, RoundedCornerShape(18.dp), clip = false), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(18.dp), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
                 Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = T2SOrange)
                     Text("No saved audio yet", color = T2SText, fontWeight = FontWeight.SemiBold)
@@ -218,9 +239,10 @@ fun SavedAudioScreen(
             LazyColumn(modifier = androidx.compose.ui.Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(records, key = { it.id }) { record ->
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = T2SBackground),
-                        shape = RoundedCornerShape(16.dp)
+                        modifier = Modifier.fillMaxWidth().shadow(2.dp, RoundedCornerShape(18.dp), clip = false),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        shape = RoundedCornerShape(18.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(record.textPreview, color = T2SText, fontWeight = FontWeight.SemiBold, maxLines = 2)
