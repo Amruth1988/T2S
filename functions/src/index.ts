@@ -62,7 +62,7 @@ export const getProviderEncryptionPublicKey = onCall({ region: REGION, enforceAp
   return { publicKey, algorithm: "RSA-OAEP-SHA256" };
 });
 
-export const saveCentralProviderKey = onCall({ region: REGION, enforceAppCheck: true }, async (request) => {
+export const saveCentralProviderKey = onCall({ region: REGION, enforceAppCheck: true, secrets: [PRIVATE_KEY] }, async (request) => {
   const uid = requireAdmin(request);
   const provider = parseProvider(request.data?.provider);
   const ciphertext = request.data?.encryptedKey;
