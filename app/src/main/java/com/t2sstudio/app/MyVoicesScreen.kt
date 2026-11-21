@@ -390,6 +390,9 @@ fun MyVoicesScreen() {
             TextButton(onClick = { loadVoices() }, enabled = !busy, modifier = Modifier.padding(0.dp)) { Text("↻ Refresh") }
         }
         voices.forEach { voice ->
+            val sampleFileForStatus = voice.localSamplePath?.let(::File)
+            val sampleAvailable = sampleFileForStatus != null &&
+                sampleFileForStatus.exists() && sampleFileForStatus.length() > 1024L
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
@@ -416,9 +419,21 @@ fun MyVoicesScreen() {
                         Text(if (voice.sarvamVoiceId.isNotBlank()) "Sarvam cloud voice" else "Local recording only", color = T2SText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Text("Voice ID  •  ${voice.sarvamVoiceId.ifBlank { voice.id }}", color = T2SSecondaryText, fontSize = 10.sp, maxLines = 1)
+                    if (!sampleAvailable) {
+                        Text(
+                            "Original recording is missing on this device. This profile is retained, but local preview and sample-based cloning are unavailable. Restore a backup recording to use those features.",
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                            fontSize = 11.sp,
+                            lineHeight = 14.sp
+                        )
+                    }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Text("Saved sample • preview the original recording", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp, modifier = Modifier.weight(1f))
-                        TextButton(onClick = {
+                        Text(
+                            if (sampleAvailable) "Saved sample • preview the original recording" else "No local audio sample",
+                            color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(enabled = sampleAvailable, onClick = {
                             val currentPlayer = previewPlayer
                             if (previewingSavedVoiceId == voice.id && currentPlayer?.isPlaying == true) {
                                 currentPlayer.pause()
