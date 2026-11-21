@@ -161,6 +161,52 @@ class T2SFirestoreRepository(
             .addOnFailureListener { onComplete(Result.failure(it)) }
     }
 
+    fun saveDraftMetadata(
+        uid: String,
+        draftId: String,
+        projectId: String?,
+        title: String,
+        content: String,
+        language: String,
+        onComplete: (Result<Unit>) -> Unit
+    ) {
+        val data = mapOf(
+            "projectId" to projectId,
+            "title" to title,
+            "content" to content,
+            "language" to language,
+            "isDraft" to true,
+            "isDeleted" to false,
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+        userCollection(uid, "scripts").document(draftId)
+            .set(data, SetOptions.merge())
+            .addOnSuccessListener { onComplete(Result.success(Unit)) }
+            .addOnFailureListener { onComplete(Result.failure(it)) }
+    }
+
+    fun saveVoiceMetadata(
+        uid: String,
+        voiceId: String,
+        name: String,
+        gender: String,
+        language: String,
+        sarvamVoiceId: String,
+        onComplete: (Result<Unit>) -> Unit
+    ) {
+        val data = mapOf(
+            "name" to name.trim(),
+            "gender" to gender,
+            "language" to language,
+            "sarvamVoiceId" to sarvamVoiceId,
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+        userCollection(uid, "voices").document(voiceId)
+            .set(data, SetOptions.merge())
+            .addOnSuccessListener { onComplete(Result.success(Unit)) }
+            .addOnFailureListener { onComplete(Result.failure(it)) }
+    }
+
     fun archiveScript(
         uid: String,
         scriptId: String,
