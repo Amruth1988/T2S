@@ -410,8 +410,8 @@ fun MyVoicesScreen() {
                                             }
                                             val sample = saved.localSamplePath?.let(::File)
                                                 ?: error("Saved recording could not be read.")
-                                            val sarvamId = SarvamVoiceCloneClient.createVoice(
-                                                context, sample, saved.name, saved.language, saved.gender
+                                            val sarvamId = SarvamVoiceCloneClient.createCentralVoice(
+                                                sample, saved.name, saved.language, saved.gender
                                             )
                                             MyVoicesClient.attachSarvamVoiceId(context, saved.id, sarvamId)
                                             null
@@ -499,7 +499,7 @@ fun MyVoicesScreen() {
                     if (voice.sarvamVoiceId.isBlank() && sampleAvailable) {
                         Button(
                             onClick = {
-                                if (!SarvamVoiceCloneClient.hasApiKey(context)) {
+                                if (false) {
                                     message = "Sarvam API key is missing. Save and test it in My Voices first."
                                 } else {
                                     busy = true
@@ -508,8 +508,8 @@ fun MyVoicesScreen() {
                                             withContext(Dispatchers.IO) {
                                                 val sample = voice.localSamplePath?.let(::File)
                                                     ?: error("Saved voice sample is missing.")
-                                                val sarvamId = SarvamVoiceCloneClient.createVoice(
-                                                    context, sample, voice.name, voice.language, voice.gender
+                                                val sarvamId = SarvamVoiceCloneClient.createCentralVoice(
+                                                    sample, voice.name, voice.language, voice.gender
                                                 )
                                                 MyVoicesClient.attachSarvamVoiceId(context, voice.id, sarvamId)
                                                 MyVoicesClient.list(context).first { it.id == voice.id }
