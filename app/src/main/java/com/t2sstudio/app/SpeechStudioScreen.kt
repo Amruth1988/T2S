@@ -246,13 +246,48 @@ fun SpeechStudioScreen(
             engine.setLanguage(locale)
             val matching = engine.voices.orEmpty()
                 .filter { it.locale.language == locale.language }
+                .distinctBy { it.name }
                 .sortedBy { it.name.lowercase(Locale.ROOT) }
+            val previousName = selectedVoice?.name
             availableVoices.clear()
             availableVoices.addAll(matching)
-            selectedVoice = matching.firstOrNull()
+            selectedVoice = matching.firstOrNull { it.name == previousName } ?: matching.firstOrNull()
         }.onFailure {
             availableVoices.clear()
             selectedVoice = null
+        }
+    }
+
+    // Initialise Android's actual TTS engine so voices installed on the phone
+    // are discovered and can be previewed/selected from the Installed tab.
+    DisposableEffect(context) {
+        var createdEngine: TextToSpeech? = null
+        val engine = TextToSpeech(context.applicationContext) { result ->
+            if (result == TextToSpeech.SUCCESS) {
+                createdEngine?.let { readyEngine ->
+                    ttsEngine = readyEngine
+                    engineReady = true
+                    refreshVoices(readyEngine, languages.first { it.label == selectedLanguage }.locale)
+                }
+            } else {
+                engineReady = false
+                statusMessage = "Android text-to-speech engine could not be initialized. Check your phone's Text-to-speech settings."
+            }
+        }
+        createdEngine = engine
+        onDispose {
+            engineReady = false
+            if (ttsEngine === engine) ttsEngine = null
+            runCatching { engine.stop(); engine.shutdown() }
+        }
+    }
+
+    LaunchedEffect(selectedLanguage, engineReady) {
+        if (engineReady) {
+            ttsEngine?.let { engine ->
+                val locale = languages.firstOrNull { it.label == selectedLanguage }?.locale ?: Locale.US
+                refreshVoices(engine, locale)
+            }
         }
     }
 
@@ -859,7 +894,7 @@ fun SpeechStudioScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf("Online", "My Voices").forEach { tab ->
+                    listOf("Online", "Installed", "My Voices").forEach { tab ->
                         FilterChip(
                             modifier = Modifier.weight(1f),
                             selected = voiceLibraryTab == tab,
