@@ -174,6 +174,12 @@ class T2SFirestoreRepository(
         language: String,
         onComplete: (Result<Unit>) -> Unit
     ) {
+        require(uid.isNotBlank()) { "A signed-in Firebase user is required to save a draft." }
+        require(draftId.isNotBlank()) { "Draft ID cannot be empty." }
+        require(title.isNotBlank()) { "Draft title cannot be empty." }
+        require(content.isNotBlank()) { "Draft content cannot be empty." }
+        require(content.length <= 180_000) { "Draft is too large to save. Please shorten it and try again." }
+
         val mainHandler = Handler(Looper.getMainLooper())
         val completed = AtomicBoolean(false)
         fun finish(result: Result<Unit>) {
@@ -204,7 +210,17 @@ class T2SFirestoreRepository(
             userCollection(uid, "scripts").document(draftId)
                 .set(data, SetOptions.merge())
                 .addOnSuccessListener { finish(Result.success(Unit)) }
-                .addOnFailureListener { finish(Result.failure(it)) }
+                .addOnFailureListener { error ->
+                    val firestoreCode = (error as? com.google.firebase.firestore.FirebaseFirestoreException)
+                        ?.code?.name
+                    val detail = error.localizedMessage ?: error.javaClass.simpleName
+                    finish(Result.failure(
+                        IllegalStateException(
+                            "Firestore draft write failed${firestoreCode?.let { " [$it]" } ?: ""}: $detail",
+                            error
+                        )
+                    ))
+                }
         } catch (error: Exception) {
             finish(Result.failure(error))
         }
