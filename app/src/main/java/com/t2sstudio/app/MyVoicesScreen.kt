@@ -151,9 +151,22 @@ fun MyVoicesScreen() {
     }
 
     fun loadVoices() {
-        runCatching { MyVoicesClient.list(context) }
-            .onSuccess { saved -> voices.clear(); voices.addAll(saved) }
-            .onFailure { message = "Could not load saved voice profiles: ${it.message}" }
+        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        if (uid.isNullOrBlank()) {
+            voices.clear()
+            message = "Sign in to load your saved Firebase voice profiles."
+            return
+        }
+        com.t2sstudio.app.data.firebase.T2SFirestoreRepository().loadVoiceMetadata(uid) { result ->
+            result.onSuccess { saved ->
+                voices.clear()
+                voices.addAll(saved)
+                if (saved.isEmpty()) message = "No voice profiles were found in your Firebase account."
+            }.onFailure { error ->
+                voices.clear()
+                message = "Could not load voice profiles from Firebase: ${error.localizedMessage ?: "check your connection"}"
+            }
+        }
     }
 
     LaunchedEffect(Unit) { loadVoices() }
