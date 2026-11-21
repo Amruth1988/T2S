@@ -198,8 +198,7 @@ object MyVoicesClient {
         val cleanGender = when (gender.trim().lowercase()) {
             "male" -> "Male"
             "female" -> "Female"
-            "other" -> "Other"
-            else -> "Unknown"
+            else -> error("Select Male or Female voice gender.")
         }
         require(list(context).none { it.name.trim().equals(cleanName, ignoreCase = true) }) {
             "A voice profile with this name already exists. Choose a different name."
