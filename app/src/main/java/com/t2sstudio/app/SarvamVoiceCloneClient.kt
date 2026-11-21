@@ -50,6 +50,31 @@ object SarvamVoiceCloneClient {
         return generator.generateKey()
     }
 
+    fun testConnection(context: Context): String {
+        val connection = (URL("$BASE/voices").openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 15_000
+            readTimeout = 20_000
+            setRequestProperty("api-subscription-key", apiKey(context))
+            setRequestProperty("Accept", "application/json")
+        }
+        try {
+            val code = connection.responseCode
+            val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
+                ?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (code !in 200..299) {
+                when (code) {
+                    401 -> error("Sarvam API key rejected (401). Check the key.")
+                    403 -> error("Sarvam denied access (403). Check account and voice-cloning API access.")
+                    402 -> error("Sarvam account has no available credits (402). No top-up was requested.")
+                    else -> error("Sarvam connection failed (HTTP $code): ${body.take(200)}")
+                }
+            }
+            JSONObject(body)
+            return "Sarvam API connected. Saved-voice endpoint responded successfully."
+        } finally { connection.disconnect() }
+    }
+
     fun createVoice(context: Context, sample: File, name: String, language: String, gender: String): String {
         require(sample.isFile && sample.length() > 1024L) { "Voice recording is missing or empty." }
         require(language in setOf("te", "en", "hi"))
