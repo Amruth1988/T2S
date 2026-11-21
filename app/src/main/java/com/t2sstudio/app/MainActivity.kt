@@ -131,9 +131,6 @@ private fun T2SApp() {
     var selectedDestination by remember { mutableIntStateOf(0) }
     val destinationBackStack = remember { mutableStateListOf<Int>() }
     var showAccountPage by remember { mutableStateOf(false) }
-    var showLoginPage by remember {
-        mutableStateOf(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser == null)
-    }
     val audioRecords = remember {
         mutableStateListOf<AudioRecord>().apply { addAll(AudioHistoryStore.load(context)) }
     }
