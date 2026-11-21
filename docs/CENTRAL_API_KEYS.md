@@ -1,30 +1,43 @@
 # T2S Studio central provider keys
 
-## Current implementation
-- Admin-only callable functions accept Sarvam, Vakyam and India TTS keys.
-- Each key is encrypted with Google Cloud KMS before any Firestore write.
-- Firestore collection: `provider_keys`; document IDs: `sarvam`, `vakyam`, `india`.
-- Stored fields: provider ID/name, KMS ciphertext, KMS key version, active state, created/updated/rotated timestamps, and admin UIDs.
-- The admin status callable returns names, active/configured state and dates only. It never returns ciphertext or plaintext.
-- The Android admin screen supports saving/rotating keys, viewing dates and enabling/disabling providers.
-- Firestore client rules explicitly deny all access to `provider_keys`. Cloud Functions use the Admin SDK.
-- A backend-only `decryptProviderKey` helper is exported for server-side provider proxy handlers. There is no callable endpoint that returns a decrypted key.
+## Encryption design
+- The Android admin screen fetches the RSA public key from `getProviderEncryptionPublicKey`.
+- Android encrypts the provider API key with RSA-OAEP using SHA-256 for both OAEP and MGF1.
+- Only the Base64 ciphertext is submitted to `saveCentralProviderKey` and stored in Firestore.
+- The RSA private key is a Firebase Functions Secret Manager secret. It is never shipped in the APK or returned by a callable.
+- Firestore client rules deny all direct reads and writes to `provider_keys`.
+- The backend-only `decryptProviderKey` helper decrypts credentials for future server-side provider proxy handlers. No callable returns plaintext.
 
-## One-time cloud setup (not performed)
-1. Confirm Firebase project `t2s-studio`. Cloud Functions and Cloud KMS may require the Firebase project to use the Blaze billing plan. Do not enable billing without the owner's explicit approval.
-2. Enable Cloud KMS API and create a symmetric encryption key ring/key in the same project and a supported region. Use purpose `ENCRYPT_DECRYPT`.
-3. Set Functions environment variable `T2S_KMS_KEY_NAME` to the full KMS CryptoKey resource name:
-   `projects/PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY_NAME`.
-4. Grant the deployed Functions runtime service account only `roles/cloudkms.cryptoKeyEncrypterDecrypter` on that CryptoKey.
-5. Ensure Firestore is initialized in the Firebase project.
-6. Grant the T2S owner account the Firebase Auth custom claim `admin: true` from a trusted Admin SDK environment. The app cannot grant this claim.
-7. Configure Firebase App Check for the Android app before enabling callable functions.
-8. From the repository root, install Functions dependencies and deploy only after reviewing billing and IAM:
-   `cd functions && npm install && npm run deploy`.
+## One-time key-pair setup (owner action; not performed)
+Use OpenSSL on a trusted computer. Keep the private key private and back it up securely.
 
-## Important integration status
-- Keys are centrally stored and encrypted, with metadata and rotation dates.
-- Android clients do not download/decrypt shared keys.
-- End-user provider calls still need to be routed through authenticated backend proxy handlers before central keys can power speech generation, voice listing or Sarvam voice registration. Until those handlers are implemented and deployed, existing device-local key flows remain in effect.
-- Existing device-local keys are not automatically uploaded, read, or deleted. Migrate only keys the administrator deliberately enters in the admin screen.
-- Never log key material, authorization headers, ciphertext payloads, or provider responses that may echo credentials.
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out t2s-provider-private.pem
+openssl pkey -in t2s-provider-private.pem -pubout -out t2s-provider-public.pem
+```
+
+Set the private key as a Functions secret:
+```bash
+firebase functions:secrets:set T2S_PROVIDER_PRIVATE_KEY
+```
+When prompted, paste the complete contents of `t2s-provider-private.pem`.
+
+For the public key, create `functions/.env.t2s-studio` (do not commit it) with:
+```
+T2S_PROVIDER_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\\n...base64 lines...\\n-----END PUBLIC KEY-----"
+```
+Replace the example with the actual public PEM, putting literal `\\n` between PEM lines. Firebase Functions parameter configuration reads this file during deploy.
+
+## Firebase requirements
+- Confirm project `t2s-studio` and region `asia-south1`.
+- Cloud Functions deployment generally requires the Firebase project to be on the Blaze plan and a billing account. This repository change does not enable billing or deploy anything. Do not upgrade or enable billing without the owner's explicit approval.
+- Set up Firebase Authentication, grant the owner account the `admin: true` custom claim using a trusted Admin SDK environment, and configure Firebase App Check for Android.
+- Deploy only after the project owner has approved the billing implications and reviewed IAM:
+  `cd functions && npm install && npm run deploy`.
+
+## Current scope and limitations
+- The Android admin key-save flow now performs encryption before upload.
+- Existing KMS-encrypted documents from the previous prototype are not compatible with RSA-OAEP. Re-enter/rotate those credentials after the new backend is configured; do not delete old data until verified.
+- The backend helper is ready for server-side provider integration, but provider voice-list, speech-generation and Sarvam registration proxy endpoints are not yet implemented. Until those endpoints are built and deployed, existing device-local provider key flows remain active.
+- No provider key, plaintext or ciphertext should be written to logs.
+- RSA-2048 OAEP-SHA256 supports plaintext up to 190 bytes. Provider API keys longer than this must use a hybrid envelope (AES-GCM data key wrapped by RSA) before enabling such a provider.
