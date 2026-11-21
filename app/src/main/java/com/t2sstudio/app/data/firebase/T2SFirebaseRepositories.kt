@@ -2,6 +2,7 @@ package com.t2sstudio.app.data.firebase
 
 import android.os.Handler
 import android.os.Looper
+import com.t2sstudio.app.T2SScriptDraft
 import java.util.concurrent.atomic.AtomicBoolean
 
 import com.google.firebase.auth.AuthCredential
@@ -165,6 +166,41 @@ class T2SFirestoreRepository(
             .addOnFailureListener { onComplete(Result.failure(it)) }
     }
 
+    fun loadDrafts(
+        uid: String,
+        onComplete: (Result<List<T2SScriptDraft>>) -> Unit
+    ) {
+        if (uid.isBlank()) {
+            onComplete(Result.failure(IllegalStateException("Please sign in to load your Firebase drafts.")))
+            return
+        }
+        userCollection(uid, "scripts")
+            .whereEqualTo("isDraft", true)
+            .whereEqualTo("isDeleted", false)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val drafts = snapshot.documents.mapNotNull { document ->
+                    val content = document.getString("content").orEmpty()
+                    if (content.isBlank()) return@mapNotNull null
+                    val projectId = document.getString("projectId").orEmpty()
+                    val updatedAt = document.getTimestamp("updatedAt")?.toDate()?.time
+                        ?: document.getDate("updatedAt")?.time
+                        ?: 0L
+                    T2SScriptDraft(
+                        id = document.id,
+                        title = document.getString("title") ?: "Untitled draft",
+                        content = content,
+                        language = document.getString("language") ?: "English",
+                        projectId = projectId,
+                        projectName = if (projectId.isBlank()) "Unassigned" else "Project",
+                        updatedAt = updatedAt
+                    )
+                }.sortedByDescending { it.updatedAt }
+                onComplete(Result.success(drafts))
+            }
+            .addOnFailureListener { onComplete(Result.failure(it)) }
+    }
+
     fun saveDraftMetadata(
         uid: String,
         draftId: String,
@@ -191,7 +227,7 @@ class T2SFirestoreRepository(
         val timeout = Runnable {
             finish(Result.failure(
                 java.util.concurrent.TimeoutException(
-                    "Firebase draft save timed out. Your local draft is still saved; check your internet connection and try again."
+                    "Firebase draft save timed out. Check your internet connection and try again."
                 )
             ))
         }
