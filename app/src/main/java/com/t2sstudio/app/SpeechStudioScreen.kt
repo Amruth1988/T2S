@@ -185,7 +185,7 @@ fun SpeechStudioScreen(
     var outputFormat by remember { mutableStateOf("WAV") }
     var autoPlayAfterGeneration by remember { mutableStateOf(false) }
     var voiceSearch by remember { mutableStateOf("") }
-    var voiceLibraryTab by remember { mutableStateOf("Installed") }
+    var voiceLibraryTab by remember { mutableStateOf("Online") }
     var projectMenuExpanded by remember { mutableStateOf(false) }
     val selectedProject = projects.firstOrNull { it.id == selectedProjectId }
     var selectedVoice by remember { mutableStateOf<Voice?>(null) }
@@ -790,7 +790,7 @@ fun SpeechStudioScreen(
                                 onClick = {
                                     stopVoicePreview()
                                     voiceSearch = ""
-                                    voiceLibraryTab = "Installed"
+                                    voiceLibraryTab = "Online"
                                     selectedSavedVoice = null
                                     selectedOnlineVoice = null
                                     selectedVoice = availableVoices.firstOrNull()
@@ -812,7 +812,7 @@ fun SpeechStudioScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf("Installed", "Online", "My Voice").forEach { tab ->
+                    listOf("Online").forEach { tab ->
                         FilterChip(
                             modifier = Modifier.weight(1f),
                             selected = voiceLibraryTab == tab,
@@ -1071,10 +1071,10 @@ fun SpeechStudioScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text("Output format:", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-                listOf("WAV", "MP3").forEach { format ->
+                listOf("WAV", "MP3", "OGG").forEach { format ->
                     FilterChip(
                         selected = outputFormat == format,
-                        enabled = selectedLanguage != "Telugu" || format == "WAV" || (!isPurohitMode && selectedOnlineVoice != null),
+                        enabled = true,
                         onClick = { outputFormat = format },
                         label = { Text(format, fontSize = 12.sp) }
                     )
