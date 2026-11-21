@@ -419,6 +419,25 @@ fun MyVoicesScreen() {
                                     }
                                 }.onSuccess { (saved, registrationMessage) ->
                                     loadVoices()
+                                    val signedInUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                    if (signedInUid != null) {
+                                        com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveVoiceMetadata(
+                                            uid = signedInUid,
+                                            voiceId = saved.id,
+                                            name = saved.name,
+                                            gender = saved.gender,
+                                            language = saved.language,
+                                            sarvamVoiceId = saved.sarvamVoiceId
+                                        ) { cloudResult ->
+                                            message = if (cloudResult.isSuccess) {
+                                                "${saved.name} voice profile saved to Firebase ( ${saved.gender} • ${saved.language.uppercase()} )."
+                                            } else {
+                                                "${saved.name} is saved on this device, but Firebase sync failed: ${cloudResult.exceptionOrNull()?.localizedMessage ?: "try again"}"
+                                            }
+                                        }
+                                    } else {
+                                        message = "${saved.name} saved locally. Sign in to sync its name, gender and language to Firebase."
+                                    }
                                     voiceName = "My Voice"
                                     voiceGender = "Male"
                                     cloneLanguage = "en"
