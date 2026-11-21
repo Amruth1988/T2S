@@ -29,6 +29,8 @@ object SarvamVoiceCloneClient {
         check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("key", packed).commit())
     }
 
+    fun hasApiKey(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("key", null).orEmpty().isNotBlank()
+
     private fun apiKey(context: Context): String {
         val packed = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("key", null)
             ?: error("Add your Sarvam API key in My Voices first.")
