@@ -51,7 +51,9 @@ function create_(uid,b){
  quota_(uid,"create",0);
  const ext={"audio/wav":"wav","audio/mpeg":"mp3","audio/flac":"flac","audio/aac":"aac","audio/opus":"opus","audio/mulaw":"mulaw","audio/alaw":"alaw","audio/linear16":"pcm"};
  const form={name:name,language:lang,remove_background_noise:"true",file:Utilities.newBlob(bytes,mime,"sample."+ext[mime])};
- if(gender==="male"||gender==="female")form.gender=gender==="male"?"Male":"Female";
+ // Sarvam marks gender optional. Omit it entirely to avoid provider-side enum
+ // validation rejecting an otherwise valid recording; the voice is created from audio.
+ // Do not infer or force a gender value at the provider boundary.
  const r=UrlFetchApp.fetch(SARVAM_BASE+"/voices/create",{method:"post",headers:{"api-subscription-key":key_(),Accept:"application/json"},payload:form,muteHttpExceptions:true});
  const c=r.getResponseCode();if(c<200||c>=300){const body=String(r.getContentText()||"").slice(0,700);throw new Error("Sarvam voice registration failed (HTTP "+c+"): "+body); }
  const d=JSON.parse(r.getContentText()),id=d.data&&d.data.voice_id;
