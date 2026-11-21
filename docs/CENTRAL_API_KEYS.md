@@ -41,3 +41,19 @@ Replace the example with the actual public PEM, putting literal `\\n` between PE
 - The backend helper is ready for server-side provider integration, but provider voice-list, speech-generation and Sarvam registration proxy endpoints are not yet implemented. Until those endpoints are built and deployed, existing device-local provider key flows remain active.
 - No provider key, plaintext or ciphertext should be written to logs.
 - RSA-2048 OAEP-SHA256 supports plaintext up to 190 bytes. Provider API keys longer than this must use a hybrid envelope (AES-GCM data key wrapped by RSA) before enabling such a provider.
+
+
+## Central India TTS and Vakyam proxy (implementation added)
+The Functions source now includes authenticated, App-Check-protected callable endpoints:
+- `listCentralIndiaTtsVoices`
+- `generateCentralIndiaTts`
+- `listCentralVakyamVoices`
+- `generateCentralVakyamTts`
+
+The Android Speech Studio calls these endpoints for both providers. Provider credentials are decrypted only in the Functions runtime and are never returned to Android. Profile → Online TTS access no longer asks each user to enter a provider key. The admin central-key screen remains the intended one-time credential configuration path.
+
+Before these endpoints can work in production, the owner must complete the RSA key-pair / Functions Secret Manager setup above, configure Firebase Auth admin claim and App Check, save the India and Vakyam credentials centrally, and deploy Functions. Deployment has not been performed by this code change. Firebase Functions deployment generally requires Blaze billing; do not upgrade or enable billing without explicit owner approval.
+
+The callable speech endpoints return Base64 audio in the Firebase callable response and reject responses larger than the configured safety limits. Provider usage is charged/limited according to the provider's own account and plan. This implementation does not add a user quota for India or Vakyam; configure provider-side limits and monitor usage before opening access broadly.
+
+Existing device-local key stores and direct HTTP clients remain in the code for backward compatibility, but the Speech Studio path no longer calls them.
