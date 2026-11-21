@@ -1150,11 +1150,20 @@ fun SpeechStudioScreen(
             ) {
                 Text("Output format:", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 listOf("WAV", "MP3", "OGG").forEach { format ->
+                    val formatSupported = !(selectedOnlineVoice?.provider == "Vakyam" && format == "OGG")
                     FilterChip(
                         selected = outputFormat == format,
-                        enabled = true,
+                        enabled = formatSupported,
                         onClick = { outputFormat = format },
-                        label = { Text(format, fontSize = 12.sp) }
+                        label = { Text(format, fontSize = 12.sp) },
+                        colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = T2SOrange,
+                            selectedLabelColor = Color.White,
+                            containerColor = Color(0xFFFFF7F0),
+                            labelColor = Color(0xFF6B5546),
+                            disabledContainerColor = Color(0xFFF3EFEB),
+                            disabledLabelColor = Color(0xFFB8AAA0)
+                        )
                     )
                 }
             }
