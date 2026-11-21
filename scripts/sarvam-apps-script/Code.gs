@@ -27,10 +27,26 @@ function quota_(uid,kind,n){
  try{
   const d=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),k="quota:"+d+":"+uid,c=JSON.parse(p.getProperty(k)||"{}");
   p.getKeys().filter(x=>x.indexOf("quota:")===0 && x.indexOf(":"+d+":")<0).forEach(x=>p.deleteProperty(x));
-  if(kind==="generate"){if((c.calls||0)>=10||(c.chars||0)+n>10000)throw new Error("Daily limit reached: 10 generations or 10,000 characters.");c.calls=(c.calls||0)+1;c.chars=(c.chars||0)+n;}
-  else{if((c.creates||0)>=3)throw new Error("Daily voice-registration limit reached (3).");c.creates=(c.creates||0)+1;}
+  if(kind==="generate"){if((c.calls||0)>=10||(c.chars||0)+n>10000)throw new Error("Daily limit reached: 10 successful generations or 10,000 characters.");}
+  else if((c.creates||0)>=3)throw new Error("Daily voice-registration limit reached (3 successful registrations).");
+ }finally{l.releaseLock();}
+}
+// Count only successful provider operations. Failed validation/network/provider attempts
+// must not consume a user's daily allowance.
+function quotaCommit_(uid,kind,n){
+ const l=LockService.getScriptLock();l.waitLock(15000);
+ try{
+  const d=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),k="quota:"+d+":"+uid,c=JSON.parse(p.getProperty(k)||"{}");
+  if(kind==="generate"){c.calls=(c.calls||0)+1;c.chars=(c.chars||0)+n;}
+  else c.creates=(c.creates||0)+1;
   p.setProperty(k,JSON.stringify(c));
  }finally{l.releaseLock();}
+}
+// Owner-only recovery helper: run manually in Apps Script editor with the user's Firebase UID.
+function adminResetVoiceRegistrationQuota(uid){
+ if(!uid||typeof uid!=="string")throw new Error("Provide the Firebase UID.");
+ const d=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),k="quota:"+d+":"+uid,c=JSON.parse(p.getProperty(k)||"{}");
+ c.creates=0;p.setProperty(k,JSON.stringify(c));return "Today's voice-registration allowance reset for the supplied UID.";
 }
 function sarvam_(method,path,payload){
  const options={method:method,headers:{"api-subscription-key":key_(),Accept:"application/json"},muteHttpExceptions:true};
@@ -58,6 +74,7 @@ function create_(uid,b){
  const c=r.getResponseCode();if(c<200||c>=300){const body=String(r.getContentText()||"").slice(0,700);throw new Error("Sarvam voice registration failed (HTTP "+c+"): "+body); }
  const d=JSON.parse(r.getContentText()),id=d.data&&d.data.voice_id;
  if(typeof id!=="string"||!/^svc-[A-Za-z0-9_-]{3,100}$/.test(id))throw new Error("Sarvam returned an invalid voice ID.");
+ quotaCommit_(uid,"create",0);
  return {voiceId:id};
 }
 function generate_(uid,b){
@@ -75,6 +92,7 @@ function generate_(uid,b){
  const code=r.getResponseCode();if(code<200||code>=300)throw new Error("Speech generation failed (HTTP "+code+").");
  const d=JSON.parse(r.getContentText()),audio=d.audio_b64||d.audio;
  if(typeof audio!=="string"||audio.length<100||audio.length>20000000)throw new Error("Sarvam returned missing or oversized audio.");
+ quotaCommit_(uid,"generate",text.length);
  return {audioBase64:audio,contentType:"audio/wav"};
 }
 function out_(v){return ContentService.createTextOutput(JSON.stringify(v)).setMimeType(ContentService.MimeType.JSON);}
