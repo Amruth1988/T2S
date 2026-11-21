@@ -195,8 +195,12 @@ object MyVoicesClient {
         require(cleanName.none { it.isISOControl() }) { "Voice name contains invalid characters." }
         val cleanLanguage = language.trim().lowercase()
         require(cleanLanguage in setOf("en", "te", "hi")) { "Select the voice sample language: English, Telugu or Hindi." }
-        val cleanGender = gender.trim()
-        require(cleanGender in setOf("Male", "Female", "Other")) { "Select a valid voice gender." }
+        val cleanGender = when (gender.trim().lowercase()) {
+            "male" -> "Male"
+            "female" -> "Female"
+            "other" -> "Other"
+            else -> "Unknown"
+        }
         require(list(context).none { it.name.trim().equals(cleanName, ignoreCase = true) }) {
             "A voice profile with this name already exists. Choose a different name."
         }
