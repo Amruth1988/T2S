@@ -61,7 +61,14 @@ function generate_(uid,b){
  if(!text.trim()||text.length>1000)throw new Error("Text must contain 1–1,000 characters.");
  if(!["te-IN","en-IN"].includes(lang))throw new Error("Choose Telugu or English.");
  quota_(uid,"generate",text.length);
- const d=sarvam_("post","/voices/clone",{voice_id:id,text:text,language_code:lang}),audio=d.audio_b64||d.audio;
+ const boundary="----T2STUDIO"+Utilities.getUuid().replace(/-/g,"");
+ const fields={voice_id:id,text:text,language_code:lang};
+ let parts="";
+ Object.keys(fields).forEach(k=>{parts+="--"+boundary+"\\r\\nContent-Disposition: form-data; name=\\""+k+"\\"\\r\\n\\r\\n"+fields[k]+"\\r\\n";});
+ parts+="--"+boundary+"--\\r\\n";
+ const r=UrlFetchApp.fetch(SARVAM_BASE+"/voices/clone",{method:"post",contentType:"multipart/form-data; boundary="+boundary,headers:{"api-subscription-key":key_(),Accept:"application/json"},payload:parts,muteHttpExceptions:true});
+ const code=r.getResponseCode();if(code<200||code>=300)throw new Error("Speech generation failed (HTTP "+code+").");
+ const d=JSON.parse(r.getContentText()),audio=d.audio_b64||d.audio;
  if(typeof audio!=="string"||audio.length<100||audio.length>20000000)throw new Error("Sarvam returned missing or oversized audio.");
  return {audioBase64:audio,contentType:"audio/wav"};
 }
