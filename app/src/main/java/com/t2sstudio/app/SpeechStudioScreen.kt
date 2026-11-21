@@ -220,35 +220,6 @@ fun SpeechStudioScreen(
         }
     }
 
-    // Download the Purohit Telugu voice automatically when Speech Studio opens.
-    // Existing installations are detected locally, so repeat launches do not re-download it.
-    LaunchedEffect(Unit) {
-        val installed = TeluguVoicePacks.installedConverted(context)
-            .firstOrNull { it.id == "venkatesh" && it.group == TeluguVoiceGroup.MALE }
-        if (installed == null) {
-            downloadingTeluguPack = true
-            teluguDownloadFailed = false
-            teluguDownloadProgress = 0f
-            statusMessage = "Preparing Telugu voice for Purohit presets…"
-            val result = runCatching {
-                withContext(Dispatchers.IO) {
-                    TeluguVoicePacks.downloadAndInstallVenkatesh(context) {
-                        teluguDownloadProgress = it.toFloat()
-                    }
-                }
-            }
-            result.onSuccess { voice ->
-                convertedTeluguPacks.clear()
-                convertedTeluguPacks.addAll(TeluguVoicePacks.installedConverted(context))
-                selectedTeluguPackId = voice.id
-                statusMessage = "Telugu voice is ready. Purohit presets can now play offline."
-            }.onFailure {
-                teluguDownloadFailed = true
-                statusMessage = "Telugu voice setup failed. Check your internet connection and retry."
-            }
-            downloadingTeluguPack = false
-        }
-    }
 
     val languages = listOf(
         SpeechLanguage("English", Locale.US),
@@ -1434,198 +1405,45 @@ fun SpeechStudioScreen(
         Button(
             onClick = {
                 val textToSpeak = inputText.trim()
-                val language = languages.first { it.label == selectedLanguage }
+                val languageCode = when (selectedLanguage) {
+                    "English" -> "en"
+                    "Hindi" -> "hi"
+                    "Telugu" -> "te"
+                    else -> ""
+                }
+                val voice = selectedOnlineVoice
                 if (textToSpeak.isBlank()) {
                     statusMessage = "Please enter some text first."
-                } else if (isPurohitMode) {
-                    val preset = selectedPurohitPreset
-                    val malePack = convertedTeluguPacks.firstOrNull { it.id == "venkatesh" && it.group == TeluguVoiceGroup.MALE }
-                    if (selectedLanguage != "Telugu") {
-                        statusMessage = "Purohit presets are available only for Telugu."
-                    } else if (preset == null) {
-                        statusMessage = "Select Purohit 1, 2 or 3 first."
-                    } else if (malePack == null) {
-                        statusMessage = "Purohit generation needs the Venkatesh (Male) Telugu voice pack. Import it in the Purohit section first."
-                    } else {
-                        val directory = File(
-                            context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
-                            "T2SStudio"
-                        ).apply { mkdirs() }
-                        val output = File(directory, "purohit_speech_" + System.currentTimeMillis() + ".wav")
-                        isGenerating = true
-                        generatedFile = null
-                        stopVoicePreview()
-                        statusMessage = "Generating " + preset.name + " with " + malePack.displayName + " (Male Telugu model)…"
-                        coroutineScope.launch {
-                            val result = runCatching {
-                                withContext(Dispatchers.IO) {
-                                    TeluguOfflineTtsEngine(context, malePack.model, malePack.tokens).use { offlineEngine ->
-                                        offlineEngine.synthesizeToWav(
-                                            textToSpeak,
-                                            output,
-                                            (speechRate * preset.speedMultiplier).coerceIn(0.5f, 2f)
-                                        )
-                                    }
-                                }
-                            }
-                            result.onSuccess {
-                                isGenerating = false
-                                generatedFile = output
-                                onAudioGenerated(
-                                    AudioRecord(
-                                        id = java.util.UUID.randomUUID().toString(),
-                                        filePath = output.absolutePath,
-                                        textPreview = textToSpeak.take(180),
-                                        language = "Telugu",
-                                        createdAt = System.currentTimeMillis(),
-                                        projectId = selectedProject?.id.orEmpty(),
-                                        projectName = selectedProject?.name ?: "Unassigned",
-                                        scriptContent = textToSpeak
-                                    )
-                                )
-                                statusMessage = "Purohit audio ready • " + malePack.displayName + " (Male Telugu model)."
-                                playGeneratedFile(
-                                    output,
-                                    (speechPitch * preset.pitchMultiplier).coerceIn(0.72f, 0.95f)
-                                )
-                            }.onFailure {
-                                output.delete()
-                                isGenerating = false
-                                statusMessage = "Purohit generation failed: " + (it.message ?: "male voice model error")
-                            }
-                        }
-                    }
-                } else if (selectedSavedVoice != null) {
-                    val savedVoice = selectedSavedVoice
-                    val reference = savedVoice?.localSamplePath?.let(::File)
-                    val cloneLanguage = when (selectedLanguage) {
-                        "Telugu" -> "te"
-                        "English" -> "en"
-                        else -> ""
-                    }
-                    val serverUrl = VoiceCloneServerSettings.get(context)
-                    val sarvamVoiceId = savedVoice?.sarvamVoiceId.orEmpty()
-                    val savedLanguage = when (savedVoice?.language?.lowercase()) {
-                        "te", "telugu" -> "Telugu"
-                        "en", "english" -> "English"
-                        "hi", "hindi" -> "Hindi"
-                        else -> selectedLanguage
-                    }
-                    if (cloneLanguage.isBlank()) {
-                        statusMessage = "AI voice cloning currently supports Telugu and English."
-                    } else if (savedLanguage != selectedLanguage) {
-                        statusMessage = "This saved voice is marked ${savedLanguage}. Select ${savedLanguage} to generate with this sample."
-                    } else if (reference == null || !reference.isFile) {
-                        statusMessage = "Saved voice recording is missing. Please add the voice again in My Voices."
-                    } else if (sarvamVoiceId.isBlank() && serverUrl.isBlank()) {
-                        statusMessage = "This voice is not registered with Sarvam. Save it again in My Voices with your Sarvam key, or configure your Volt-TTS server."
-                    } else {
-                        val audioDirectory = File(
-                            context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
-                            "T2SStudio"
-                        ).apply { mkdirs() }
-                        val output = File(audioDirectory, "voice_clone_" + System.currentTimeMillis() + ".wav")
-                        isGenerating = true
-                        generatedFile = null
-                        stopVoicePreview()
-                        statusMessage = "Generating " + selectedLanguage + " speech with your saved voice…"
-                        coroutineScope.launch {
-                            val result = runCatching {
-                                withContext(Dispatchers.IO) {
-                                    if (!savedVoice?.sarvamVoiceId.isNullOrBlank()) SarvamVoiceCloneClient.generate(context, sarvamVoiceId, textToSpeak, cloneLanguage, output) else VoiceCloneClient.generate(serverUrl, textToSpeak, cloneLanguage, reference, output)
-                                }
-                            }
-                            result.onSuccess {
-                                isGenerating = false
-                                generatedFile = output
-                                onAudioGenerated(AudioRecord(
-                                    id = java.util.UUID.randomUUID().toString(),
-                                    filePath = output.absolutePath,
-                                    textPreview = textToSpeak.take(180),
-                                    language = selectedLanguage,
-                                    createdAt = System.currentTimeMillis(),
-                                    projectId = selectedProject?.id.orEmpty(),
-                                    projectName = selectedProject?.name ?: "Unassigned",
-                                    scriptContent = textToSpeak,
-                                    voiceSource = "My Voice",
-                                    voiceName = savedVoice?.name.orEmpty(),
-                                    voiceGender = savedVoice?.gender.orEmpty()
-                                ))
-                                statusMessage = "AI-cloned " + selectedLanguage + " voice WAV is ready."
-                                if (autoPlayAfterGeneration) playGeneratedFile(output)
-                            }.onFailure {
-                                output.delete()
-                                isGenerating = false
-                                statusMessage = "Voice cloning failed: " + (it.message ?: "server error")
-                            }
-                        }
-                    }
-                } else if (selectedLanguage == "Telugu" && !isPurohitMode && outputFormat == "WAV" && convertedTeluguPacks.any { it.id == selectedTeluguPackId }) {
-                    val pack = convertedTeluguPacks.firstOrNull { it.id == selectedTeluguPackId }
-                    if (pack == null) {
-                        statusMessage = "Import and select a converted Telugu voice pack first."
-                    } else {
-                        val directory = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir, "T2SStudio").apply { mkdirs() }
-                        val output = File(directory, "telugu_speech_" + System.currentTimeMillis() + ".wav")
-                        isGenerating = true
-                        generatedFile = null
-                        stopVoicePreview()
-                        statusMessage = "Generating offline Telugu speech with " + pack.displayName + "…"
-                        coroutineScope.launch {
-                            val result = runCatching { withContext(Dispatchers.IO) { TeluguOfflineTtsEngine(context, pack.model, pack.tokens).use { it.synthesizeToWav(textToSpeak, output, speechRate) } } }
-                            result.onSuccess {
-                                isGenerating = false
-                                generatedFile = output
-                                onAudioGenerated(AudioRecord(id = java.util.UUID.randomUUID().toString(), filePath = output.absolutePath, textPreview = textToSpeak.take(180), language = "Telugu", createdAt = System.currentTimeMillis(), projectId = selectedProject?.id.orEmpty(), projectName = selectedProject?.name ?: "Unassigned", scriptContent = textToSpeak))
-                                statusMessage = "Offline Telugu WAV is ready."
-                                if (autoPlayAfterGeneration || isPurohitMode) playGeneratedFile(output)
-                            }.onFailure { output.delete(); isGenerating = false; statusMessage = "Offline Telugu generation failed: " + (it.message ?: "engine error") }
-                        }
-                    }
-                } else if (!engineReady || ttsEngine == null) {
-                    statusMessage = "Speech engine is still starting. Please try again."
+                } else if (textToSpeak.length > 3000) {
+                    statusMessage = "Online TTS supports up to 3,000 characters per request. Shorten your text and try again."
+                } else if (languageCode.isBlank()) {
+                    statusMessage = "This language is not supported by the online speech service."
+                } else if (voice == null || !voice.language.substringBefore('-').equals(languageCode, ignoreCase = true)) {
+                    statusMessage = "Choose an online ${selectedLanguage} voice before generating speech."
                 } else {
-                    val audioDirectory = File(
+                    val directory = File(
                         context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
                         "T2SStudio"
                     ).apply { mkdirs() }
-                    val output = File(audioDirectory, "speech_" + System.currentTimeMillis() + "." + outputFormat.lowercase())
+                    val output = File(directory, "speech_" + System.currentTimeMillis() + "." + outputFormat.lowercase(Locale.ROOT))
                     isGenerating = true
                     generatedFile = null
-                    statusMessage = "Trying online speech…"
+                    stopVoicePreview()
+                    statusMessage = "Generating ${selectedLanguage} speech online…"
                     coroutineScope.launch {
-                        val onlineLanguage = if (isPurohitMode) null else when (selectedLanguage) {
-                            "English" -> "en"
-                            "Hindi" -> "hi"
-                            "Telugu" -> "te"
-                            else -> null
-                        }
-                        var onlineSuccess = false
-                        val chosenOnlineVoice = selectedOnlineVoice
-                        val voiceId = chosenOnlineVoice?.id
-                        if (onlineLanguage != null && voiceId != null && textToSpeak.length <= 3000) {
-                            val onlineResult = runCatching {
-                                withContext(Dispatchers.IO) {
-                                    TtsAiClient.generate(
-                                        textToSpeak, voiceId, speechRate, output,
-                                        format = outputFormat.lowercase(),
-                                        apiKey = IndiaApiKeyStore.get(context)
-                                    )
-                                }
+                        val result = runCatching {
+                            withContext(Dispatchers.IO) {
+                                TtsAiClient.generate(
+                                    textToSpeak,
+                                    voice.id,
+                                    speechRate,
+                                    output,
+                                    format = outputFormat.lowercase(Locale.ROOT),
+                                    apiKey = IndiaApiKeyStore.get(context)
+                                )
                             }
-                            onlineSuccess = onlineResult.isSuccess && output.isFile && output.length() > 0L
-                            if (!onlineSuccess) {
-                                statusMessage = "Online unavailable (" +
-                                    (onlineResult.exceptionOrNull()?.message ?: "service error") +
-                                    "). Switching to Android voice…"
-                            }
-                        } else if (onlineLanguage != null && textToSpeak.length > 3000) {
-                            statusMessage = "Text exceeds the free online 3,000-character limit. Switching to Android voice…"
-                        } else {
-                            statusMessage = "Using Android voice for Telugu…"
                         }
-
-                        if (onlineSuccess) {
+                        if (result.isSuccess && output.isFile && output.length() > 1024L) {
                             isGenerating = false
                             generatedFile = output
                             onAudioGenerated(
@@ -1644,84 +1462,10 @@ fun SpeechStudioScreen(
                             if (autoPlayAfterGeneration) playGeneratedFile(output)
                         } else {
                             output.delete()
-                            val fallbackOutput = if (outputFormat == "MP3") File(output.parentFile, output.nameWithoutExtension + ".wav") else output
-                            val engine = ttsEngine
-                            if (engine == null || !engineReady) {
-                                isGenerating = false
-                                statusMessage = "Online speech failed and Android speech engine is unavailable."
-                            } else {
-                                val preset = selectedPurohitPreset.takeIf { isPurohitMode }
-                                val presetVoice = if (preset != null) {
-                                    // A Purohit preset is never allowed to fall back to an arbitrary
-                                    // Telugu voice: Android voice names do not reliably encode gender.
-                                    selectedPurohitVoice?.takeIf {
-                                        it.locale.language == "te" && genderForVoice(it) == "Male" &&
-                                            !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
-                                    } ?: engine.voices.orEmpty().firstOrNull {
-                                        it.locale.language == "te" && genderForVoice(it) == "Male" &&
-                                            !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
-                                    }
-                                } else null
-                                if (preset != null && presetVoice == null) {
-                                    isGenerating = false
-                                    statusMessage = "Cannot generate ${preset.name}: no Telugu voice is confirmed Male. In the installed Telugu voice list, audition a voice and set Gender to Male, then select the Purohit preset again. Android cannot create a genuine male voice by changing pitch."
-                                } else {
-                                val languageResult = engine.setLanguage(language.locale)
-                                if (languageResult == TextToSpeech.LANG_MISSING_DATA ||
-                                    languageResult == TextToSpeech.LANG_NOT_SUPPORTED
-                                ) {
-                                    isGenerating = false
-                                    statusMessage = language.label + " voice data is not installed or supported on this device."
-                                } else {
-                                    (presetVoice ?: selectedVoice)?.let { engine.voice = it }
-                                    engine.setSpeechRate((speechRate * (preset?.speedMultiplier ?: 1f)).coerceIn(0.5f, 2f))
-                                    engine.setPitch((speechPitch * (preset?.pitchMultiplier ?: 1f)).coerceIn(0.5f, 2f))
-                                    engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                                        override fun onStart(utteranceId: String?) { }
-                                        override fun onDone(utteranceId: String?) {
-                                            if (!fallbackOutput.isFile || fallbackOutput.length() <= 0L) {
-                                                fallbackOutput.delete()
-                                                isGenerating = false
-                                                statusMessage = "Android speech engine finished without producing a valid audio file."
-                                                return
-                                            }
-                                            isGenerating = false
-                                            generatedFile = fallbackOutput
-                                            onAudioGenerated(
-                                                AudioRecord(
-                                                    id = java.util.UUID.randomUUID().toString(),
-                                                    filePath = fallbackOutput.absolutePath,
-                                                    textPreview = textToSpeak.take(180),
-                                                    language = selectedLanguage,
-                                                    createdAt = System.currentTimeMillis(),
-                                                    projectId = selectedProject?.id.orEmpty(),
-                                                    projectName = selectedProject?.name ?: "Unassigned",
-                                                    scriptContent = textToSpeak
-                                                )
-                                            )
-                                            statusMessage = if (outputFormat == "MP3") "MP3 generation was unavailable; Android fallback saved as WAV." else "Android speech audio is ready and saved in T2S Studio."
-                                            if (autoPlayAfterGeneration || isPurohitMode) playGeneratedFile(fallbackOutput)
-                                        }
-                                        @Deprecated("Deprecated in Java")
-                                        override fun onError(utteranceId: String?) {
-                                            fallbackOutput.delete()
-                                            isGenerating = false
-                                            statusMessage = "Could not generate audio with either speech provider."
-                                        }
-                                        override fun onError(utteranceId: String?, errorCode: Int) {
-                                            fallbackOutput.delete()
-                                            isGenerating = false
-                                            statusMessage = "Android speech generation failed (code " + errorCode + ")."
-                                        }
-                                    })
-                                    val result = engine.synthesizeToFile(textToSpeak, Bundle(), fallbackOutput, "t2s-" + fallbackOutput.name)
-                                    if (result != TextToSpeech.SUCCESS) {
-                                        isGenerating = false
-                                        statusMessage = "Android speech engine could not generate this audio."
-                                    }
-                                }
-                                }
-                            }
+                            isGenerating = false
+                            statusMessage = "Online TTS failed: " +
+                                (result.exceptionOrNull()?.message ?: "The service returned invalid audio.") +
+                                " Check your internet connection or try again. No offline fallback was used."
                         }
                     }
                 }
