@@ -60,8 +60,6 @@ android {
         }
     }
 
-    // Keep native Sherpa-ONNX libraries out of unrelated CPU architectures.
-    // Publish one small installable APK per supported Android ARM ABI.
     splits {
         abi {
             isEnable = true
@@ -101,10 +99,5 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.media3:media3-exoplayer:1.8.0")
-    implementation("com.github.k2-fsa:sherpa-onnx:v2.0.1") {
-        exclude(group = "com.github.k2-fsa.sherpa-onnx", module = "sherpa-onnx-jvm")
-    }
-    // Official Sherpa-ONNX Android sample dependency: Piper/eSpeak text frontend.
-    implementation("com.github.csukuangfj.piper-phonemize:piper-phonemize:v1.5.9")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
