@@ -20,6 +20,60 @@ object SarvamVoiceCloneClient {
     private const val ALIAS = "t2s_sarvam_api_key_v1"
     private const val BASE = "https://api.sarvam.ai"
 
+    private fun centralCall(name: String, data: Map<String, Any?> = emptyMap()): Map<*, *> {
+        val task = com.google.firebase.functions.FirebaseFunctions.getInstance("asia-south1")
+            .getHttpsCallable(name).call(data)
+        val result = com.google.android.gms.tasks.Tasks.await(task)
+        return result.getData() as? Map<*, *> ?: error("Invalid response from T2S server.")
+    }
+
+    fun testCentralConnection(): String {
+        val result = centralCall("listCentralSarvamVoices")
+        require(result.containsKey("voices")) { "T2S server did not return the Sarvam voice catalogue." }
+        return "T2S shared Sarvam connection is ready."
+    }
+
+    fun createCentralVoice(sample: File, name: String, language: String, gender: String): String {
+        require(sample.isFile && sample.length() in 1024L..6_000_000L) {
+            "Voice sample must be between 1 KB and 6 MB for secure upload."
+        }
+        val mimeType = when (sample.extension.lowercase()) {
+            "wav" -> "audio/wav"
+            "mp3" -> "audio/mpeg"
+            "flac" -> "audio/flac"
+            "m4a", "mp4" -> "audio/mp4"
+            "aac" -> "audio/aac"
+            else -> error("Use WAV, MP3, FLAC, M4A or AAC audio.")
+        }
+        val locale = when (language) { "te" -> "te-IN"; "hi" -> "hi-IN"; else -> "en-IN" }
+        val result = centralCall("createCentralSarvamVoice", mapOf(
+            "name" to name,
+            "language" to locale,
+            "gender" to gender,
+            "mimeType" to mimeType,
+            "sampleBase64" to Base64.encodeToString(sample.readBytes(), Base64.NO_WRAP)
+        ))
+        return result["voiceId"]?.toString()?.takeIf { it.startsWith("svc-") }
+            ?: error("T2S server did not return a saved Sarvam voice ID.")
+    }
+
+    fun generateCentral(voiceId: String, text: String, language: String, output: File) {
+        require(voiceId.startsWith("svc-")) { "This profile has not been registered with Sarvam." }
+        require(text.isNotBlank() && text.length <= 1000) { "Enter 1–1,000 characters." }
+        val result = centralCall("generateCentralSarvamClone", mapOf(
+            "voiceId" to voiceId,
+            "text" to text,
+            "language" to if (language == "te") "te-IN" else "en-IN"
+        ))
+        val encoded = result["audioBase64"]?.toString().orEmpty()
+        require(encoded.isNotBlank()) { "T2S server returned no audio." }
+        val bytes = Base64.decode(encoded, Base64.DEFAULT)
+        require(bytes.size > 1024 && String(bytes, 0, 4, Charsets.US_ASCII) == "RIFF" &&
+            String(bytes, 8, 4, Charsets.US_ASCII) == "WAVE") { "Sarvam returned invalid WAV audio." }
+        output.parentFile?.mkdirs()
+        output.writeBytes(bytes)
+    }
+
     fun saveApiKey(context: Context, value: String) {
         val key = value.trim()
         require(key.length >= 8) { "Enter the complete Sarvam API key from your Sarvam dashboard." }
