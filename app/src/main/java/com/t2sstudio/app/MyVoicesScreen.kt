@@ -62,6 +62,7 @@ fun MyVoicesScreen() {
     val scope = rememberCoroutineScope()
     var voiceName by remember { mutableStateOf("My Voice") }
     var cloneServerUrl by remember { mutableStateOf(VoiceCloneServerSettings.get(context)) }
+    var sarvamApiKey by remember { mutableStateOf("") }
     var checkingCloneServer by remember { mutableStateOf(false) }
     var cloneLanguage by remember { mutableStateOf("en") }
     var voiceGender by remember { mutableStateOf("Male") }
@@ -101,6 +102,20 @@ fun MyVoicesScreen() {
         ExternalMediaCatalogueCard()
         Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
         Text("Save and manage reusable voice recordings on this device. Local profiles remain available after reopening the app.", color = T2SSecondaryText, fontSize = 14.sp)
+        Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("Sarvam AI voice cloning", fontWeight = FontWeight.SemiBold, color = T2SText)
+                Text("Save your voice to Sarvam when you tap Save voice profile, then reuse its voice ID for Telugu or English speech generation. Your recording is uploaded to Sarvam for processing.", color = T2SSecondaryText, fontSize = 12.sp)
+                OutlinedTextField(value = sarvamApiKey, onValueChange = { sarvamApiKey = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Sarvam API key") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                Button(onClick = {
+                    runCatching { SarvamVoiceCloneClient.saveApiKey(context, sarvamApiKey) }
+                        .onSuccess { sarvamApiKey = ""; message = "Sarvam API key encrypted and saved on this device." }
+                        .onFailure { message = it.message ?: "Could not save Sarvam API key." }
+                }, enabled = sarvamApiKey.isNotBlank() && !busy) { Text("Save Sarvam key") }
+                Text("The app never requests a top-up. If Sarvam returns HTTP 402, the request stops. A key stored in a mobile app is not fully secret from a determined device owner; a private backend is safer for production.", color = T2SSecondaryText, fontSize = 11.sp)
+                Text("Only upload your own voice or a recording with the speaker’s explicit consent.", color = T2SSecondaryText, fontSize = 11.sp)
+            }
+        }
         Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("Self-hosted Volt-TTS server", fontWeight = FontWeight.SemiBold, color = T2SText)
@@ -314,7 +329,17 @@ fun MyVoicesScreen() {
                             scope.launch {
                                 runCatching {
                                     withContext(Dispatchers.IO) {
-                                        MyVoicesClient.createLocal(context, voiceName, uri, cloneLanguage, voiceGender)
+                                        require(SarvamVoiceCloneClient.hasApiKey(context)) { "Save your Sarvam API key above before registering a voice." }
+                                        val saved = MyVoicesClient.createLocal(context, voiceName, uri, cloneLanguage, voiceGender)
+                                        try {
+                                            val sample = saved.localSamplePath?.let(::File) ?: error("Saved recording could not be read.")
+                                            val sarvamId = SarvamVoiceCloneClient.createVoice(context, sample, saved.name, saved.language, saved.gender)
+                                            MyVoicesClient.attachSarvamVoiceId(context, saved.id, sarvamId)
+                                            MyVoicesClient.list(context).first { it.id == saved.id }
+                                        } catch (error: Exception) {
+                                            MyVoicesClient.deleteLocal(context, saved.id)
+                                            throw error
+                                        }
                                     }
                                 }.onSuccess { saved ->
                                     loadVoices()
@@ -324,8 +349,8 @@ fun MyVoicesScreen() {
                                     pickedUri = null
                                     pickedLabel = "No audio selected"
                                     consentConfirmed = false
-                                    message = "${saved.name} saved on this device. Connect your private cloning server to generate Telugu or English speech in this voice."
-                                }.onFailure { message = "Could not save voice profile: ${it.message}" }
+                                    message = "${saved.name} registered with Sarvam and saved on this device."
+                                }.onFailure { message = "Voice registration failed: ${it.message}" }
                                 busy = false
                             }
                         }
@@ -356,7 +381,7 @@ fun MyVoicesScreen() {
                         ) { Text("🎙️", fontSize = 23.sp) }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(voice.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("${voice.gender} • ${voice.language.uppercase()} • Local recording", color = T2SSecondaryText, fontSize = 12.sp)
+                            Text("${voice.gender} • ${voice.language.uppercase()} • Sarvam registered", color = T2SSecondaryText, fontSize = 12.sp)
                         }
                         Text("SAVED", color = T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
                             modifier = Modifier.background(T2SCream, androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 6.dp))
@@ -364,9 +389,9 @@ fun MyVoicesScreen() {
                     androidx.compose.material3.HorizontalDivider(color = T2SOrange.copy(alpha = 0.16f))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Text("TYPE", color = T2SSecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        Text("Local recording", color = T2SText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(if (voice.sarvamVoiceId.isNotBlank()) "Sarvam cloud voice" else "Local recording only", color = T2SText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
-                    Text("Voice ID  •  ${voice.id}", color = T2SSecondaryText, fontSize = 10.sp, maxLines = 1)
+                    Text("Voice ID  •  ${voice.sarvamVoiceId.ifBlank { voice.id }}", color = T2SSecondaryText, fontSize = 10.sp, maxLines = 1)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Text("Saved sample • preview the original recording", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp, modifier = Modifier.weight(1f))
                         TextButton(onClick = {
