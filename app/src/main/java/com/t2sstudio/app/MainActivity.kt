@@ -296,11 +296,36 @@ private fun T2SApp() {
                     },
                     initialScriptText = pendingScriptText,
                     onInitialScriptTextConsumed = { pendingScriptText = null },
-                    onSaveDraft = { text, language, projectId, projectName ->
-                        val draft = ScriptDraftStore.create(text, language, projectId, projectName)
-                        scriptDrafts.add(0, draft)
-                        ScriptDraftStore.save(context, scriptDrafts)
-                        draft
+                    onSaveDraft = { text, language, projectId, projectName, onComplete ->
+                        runCatching {
+                            val cleanText = text.trim()
+                            require(cleanText.isNotEmpty()) { "Write some text before saving a draft." }
+                            val existingIndex = scriptDrafts.indexOfFirst { draft ->
+                                draft.content.trim() == cleanText &&
+                                    draft.language.equals(language, ignoreCase = true) &&
+                                    draft.projectId == projectId
+                            }
+                            val draft = if (existingIndex >= 0) {
+                                scriptDrafts[existingIndex].copy(updatedAt = System.currentTimeMillis())
+                                    .also { scriptDrafts[existingIndex] = it }
+                            } else {
+                                ScriptDraftStore.create(cleanText, language, projectId, projectName)
+                                    .also { scriptDrafts.add(0, it) }
+                            }
+                            ScriptDraftStore.save(context, scriptDrafts)
+                            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                ?: error("Sign in to save drafts to your Firebase account.")
+                            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveDraftMetadata(
+                                uid = uid,
+                                draftId = draft.id,
+                                projectId = projectId.takeIf { it.isNotBlank() },
+                                title = draft.title,
+                                content = draft.content.take(180_000),
+                                language = draft.language
+                            ) { result ->
+                                onComplete(result.map { draft })
+                            }
+                        }.onFailure { onComplete(Result.failure(it)) }
                     }
                 )
                 1 -> ProjectsScreen(
