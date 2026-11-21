@@ -40,12 +40,32 @@ import com.t2sstudio.app.ui.theme.T2SText
 
 @Composable
 fun AccountPageScreen(onBack: () -> Unit, onSignIn: () -> Unit) {
+    var showSettingsHub by remember { mutableStateOf(false) }
     var showOnlineTtsSettings by remember { mutableStateOf(false) }
     var showCentralKeys by remember { mutableStateOf(false) }
+    if (showSettingsHub) {
+        Column(modifier = Modifier.fillMaxSize().background(T2SBackground)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                IconButton(onClick = { showSettingsHub = false }) {
+                    Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = T2SText)
+                }
+                Text("Settings", color = T2SText, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+            }
+            Column(modifier = Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                androidx.compose.material3.OutlinedButton(onClick = { showOnlineTtsSettings = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Online TTS access", color = T2SText)
+                }
+                if (user != null) androidx.compose.material3.OutlinedButton(onClick = { showCentralKeys = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Central API keys (Admin)", color = T2SText)
+                }
+            }
+        }
+        return
+    }
     if (showCentralKeys) {
         Column(modifier = Modifier.fillMaxSize().background(T2SBackground)) {
             CentralApiKeyAdminScreen()
-            androidx.compose.material3.OutlinedButton(onClick = { showCentralKeys = false }, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp)) { Text("Back to Account", color = T2SText) }
+            androidx.compose.material3.OutlinedButton(onClick = { showCentralKeys = false }, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp)) { Text("Back to Settings", color = T2SText) }
         }
         return
     }
@@ -94,7 +114,7 @@ fun AccountPageScreen(onBack: () -> Unit, onSignIn: () -> Unit) {
                     color = T2SSecondaryText, fontSize = 14.sp)
                 Text(
                     if (user == null) "Sign in to sync your projects and script metadata across devices."
-                    else "Your T2S account is connected. Your audio files and original voice recordings remain on this device.",
+                    else "Your T2S account is connected. Project and script metadata can sync across devices; audio files remain on this device.",
                     color = T2SSecondaryText, fontSize = 14.sp
                 )
                 Button(
@@ -105,14 +125,11 @@ fun AccountPageScreen(onBack: () -> Unit, onSignIn: () -> Unit) {
                     Text(if (user == null) "Sign in / Create account" else "Account sign-in options")
                 }
                 androidx.compose.material3.OutlinedButton(
-                    onClick = { showOnlineTtsSettings = true },
+                    onClick = { showSettingsHub = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Online TTS access", color = T2SText)
+                    Text("App settings", color = T2SText)
                 }
-                if (user != null) androidx.compose.material3.OutlinedButton(
-                    onClick = { showCentralKeys = true }, modifier = Modifier.fillMaxWidth()
-                ) { Text("Central API keys (Admin)", color = T2SText) }
             }
         }
     }
