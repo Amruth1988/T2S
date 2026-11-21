@@ -766,14 +766,11 @@ fun SpeechStudioScreen(
             // Installed Android voices are listed without gender labels or gender filtering.
             // Android TTS does not provide reliable speaker-gender metadata.
             val installedPool = allInstalledForLanguage
-            val onlineGenderMatches = onlineVoices.filter { voice ->
+            // Gender filters are strict: unknown/unclassified voices must not leak into
+            // Male or Female results. Users can correct a provider label from each voice card.
+            val onlinePool = onlineVoices.filter { voice ->
                 selectedGender == "All" || onlineVoiceGender(voice) == selectedGender
             }
-            // Some online catalogues omit gender or use different metadata labels.
-            // Fall back to all voices for this language only when no exact gender match exists.
-            val onlinePool = if (selectedGender != "All" && onlineGenderMatches.isEmpty()) {
-                onlineVoices.toList()
-            } else onlineGenderMatches
             val searchTerm = voiceSearch.trim().lowercase(Locale.ROOT)
             val searchedInstalled = installedPool.filter { voice ->
                 "${voice.name} ${voice.locale.displayName} ${voice.locale.toLanguageTag()}".lowercase(Locale.ROOT).contains(searchTerm)
