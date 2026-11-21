@@ -280,3 +280,156 @@ export const generateCentralSarvamClone = onCall({
   return { audioBase64, contentType: "audio/wav" };
 });
 
+
+
+/** Central India TTS voice catalogue; provider credentials never leave Functions. */
+export const listCentralIndiaTtsVoices = onCall({
+  region: REGION, enforceAppCheck: true, secrets: [PRIVATE_KEY], timeoutSeconds: 30,
+}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in is required.");
+  const language = request.data?.language;
+  if (!["en", "te", "hi"].includes(language)) {
+    throw new HttpsError("invalid-argument", "Choose English, Telugu or Hindi.");
+  }
+  const apiKey = await decryptProviderKey("india");
+  const response = await fetch("https://api.dharun.dev/v1/tts/voices", {
+    headers: { "Accept": "application/json", "Authorization": `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(20000),
+  });
+  const body = await response.text();
+  if (!response.ok) {
+    throw new HttpsError(response.status === 429 ? "resource-exhausted" : "unavailable",
+      `India TTS voice catalogue failed (HTTP ${response.status}).`);
+  }
+  let payload: Record<string, unknown>;
+  try { payload = JSON.parse(body) as Record<string, unknown>; }
+  catch { throw new HttpsError("unavailable", "India TTS returned an invalid voice catalogue."); }
+  const voices = Array.isArray(payload.data) ? payload.data.filter((item) => {
+    if (!item || typeof item !== "object") return false;
+    const voice = item as Record<string, unknown>;
+    return typeof voice.language === "string" &&
+      voice.language.toLowerCase().startsWith(`${language}-`) &&
+      voice.non_commercial !== true;
+  }) : [];
+  return { voices };
+});
+
+/** Central Vakyam voice catalogue. */
+export const listCentralVakyamVoices = onCall({
+  region: REGION, enforceAppCheck: true, secrets: [PRIVATE_KEY], timeoutSeconds: 30,
+}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in is required.");
+  const language = request.data?.language;
+  if (!["en", "te", "hi"].includes(language)) {
+    throw new HttpsError("invalid-argument", "Choose English, Telugu or Hindi.");
+  }
+  const apiKey = await decryptProviderKey("vakyam");
+  const response = await fetch("https://api.vakyam.ai/v1/voices?group_by=language", {
+    headers: { "Accept": "application/json", "Authorization": `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(20000),
+  });
+  const body = await response.text();
+  if (!response.ok) {
+    throw new HttpsError(response.status === 429 ? "resource-exhausted" : "unavailable",
+      `Vakyam voice catalogue failed (HTTP ${response.status}).`);
+  }
+  let payload: Record<string, unknown>;
+  try { payload = JSON.parse(body) as Record<string, unknown>; }
+  catch { throw new HttpsError("unavailable", "Vakyam returned an invalid voice catalogue."); }
+  const locale = language === "te" ? "te-IN" : language === "hi" ? "hi-IN" : "en-IN";
+  const data = payload.data && typeof payload.data === "object" ? payload.data as Record<string, unknown> : payload;
+  const voices = Array.isArray(data[locale]) ? data[locale] : [];
+  return { voices };
+});
+
+function validateOnlineTtsInput(data: Record<string, unknown>, maxCharacters: number) {
+  const text = data.text;
+  const voice = data.voice;
+  const language = data.language;
+  const speed = data.speed;
+  const format = data.format;
+  if (typeof text !== "string" || !text.trim() || text.length > maxCharacters) {
+    throw new HttpsError("invalid-argument", `Text must contain 1–${maxCharacters} characters.`);
+  }
+  if (typeof voice !== "string" || !voice.trim() || voice.length > 160) {
+    throw new HttpsError("invalid-argument", "Choose a valid voice.");
+  }
+  if (typeof language !== "string" || !["en", "te", "hi"].includes(language)) {
+    throw new HttpsError("invalid-argument", "Choose English, Telugu or Hindi.");
+  }
+  const numericSpeed = typeof speed === "number" && Number.isFinite(speed) ? speed : 1;
+  if (numericSpeed < 0.5 || numericSpeed > 2) {
+    throw new HttpsError("invalid-argument", "Speech speed must be between 0.5 and 2.");
+  }
+  const safeFormat = typeof format === "string" && ["mp3", "wav", "ogg"].includes(format.toLowerCase())
+    ? format.toLowerCase() : "mp3";
+  return { text, voice, language, speed: numericSpeed, format: safeFormat };
+}
+
+/** Generate India TTS audio through the centrally stored India API key. */
+export const generateCentralIndiaTts = onCall({
+  region: REGION, enforceAppCheck: true, secrets: [PRIVATE_KEY], timeoutSeconds: 120,
+}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in is required.");
+  const input = validateOnlineTtsInput(request.data ?? {}, 3000);
+  const apiKey = await decryptProviderKey("india");
+  const response = await fetch("https://api.dharun.dev/v1/tts", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "Accept": input.format === "mp3" ? "audio/mpeg" : input.format === "wav" ? "audio/wav" : "audio/ogg",
+    },
+    body: JSON.stringify({ text: input.text, voice: input.voice, speed: input.speed, format: input.format }),
+    signal: AbortSignal.timeout(110000),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new HttpsError(response.status === 429 ? "resource-exhausted" : "unavailable",
+      detail.slice(0, 300) || `India TTS generation failed (HTTP ${response.status}).`);
+  }
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length < 1024 || bytes.length > 7_000_000) {
+    throw new HttpsError("unavailable", "India TTS returned empty or oversized audio.");
+  }
+  return { audioBase64: bytes.toString("base64"), contentType: response.headers.get("content-type") ?? "audio/mpeg" };
+});
+
+/** Generate Vakyam Raaga speech through the centrally stored Vakyam key. */
+export const generateCentralVakyamTts = onCall({
+  region: REGION, enforceAppCheck: true, secrets: [PRIVATE_KEY], timeoutSeconds: 120,
+}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in is required.");
+  const input = validateOnlineTtsInput(request.data ?? {}, 3000);
+  const apiKey = await decryptProviderKey("vakyam");
+  const locale = input.language === "te" ? "te-IN" : input.language === "hi" ? "hi-IN" : "en-IN";
+  const response = await fetch("https://api.vakyam.ai/v1/tts/generate", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+    body: JSON.stringify({
+      text: input.text, model_id: "raaga-v1", voice: input.voice,
+      language: locale, output_format: input.format === "wav" ? "wav" : "mp3", speed: input.speed,
+    }),
+    signal: AbortSignal.timeout(110000),
+  });
+  const body = await response.text();
+  if (!response.ok) {
+    throw new HttpsError(response.status === 429 ? "resource-exhausted" : "unavailable",
+      `Vakyam speech generation failed (HTTP ${response.status}).`);
+  }
+  let payload: Record<string, unknown>;
+  try { payload = JSON.parse(body) as Record<string, unknown>; }
+  catch { throw new HttpsError("unavailable", "Vakyam returned an invalid audio response."); }
+  const data = payload.data && typeof payload.data === "object" ? payload.data as Record<string, unknown> : {};
+  const audioBase64 = typeof payload.audio === "string" ? payload.audio :
+    typeof payload.audio_base64 === "string" ? payload.audio_base64 :
+    typeof data.audio === "string" ? data.audio : "";
+  if (!audioBase64 || audioBase64.length > 9_000_000 || !/^[A-Za-z0-9+/]*={0,2}$/.test(audioBase64)) {
+    throw new HttpsError("unavailable", "Vakyam returned missing or invalid audio data.");
+  }
+  return { audioBase64, contentType: input.format === "wav" ? "audio/wav" : "audio/mpeg" };
+});
