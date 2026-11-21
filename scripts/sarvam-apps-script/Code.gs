@@ -64,8 +64,8 @@ function generate_(uid,b){
  const boundary="----T2STUDIO"+Utilities.getUuid().replace(/-/g,"");
  const fields={voice_id:id,text:text,language_code:lang};
  let parts="";
- Object.keys(fields).forEach(k=>{parts+="--"+boundary+"\\r\\nContent-Disposition: form-data; name=\\""+k+"\\"\\r\\n\\r\\n"+fields[k]+"\\r\\n";});
- parts+="--"+boundary+"--\\r\\n";
+ Object.keys(fields).forEach(k=>{parts+="--"+boundary+"\r\nContent-Disposition: form-data; name=\""+k+"\"\r\n\r\n"+fields[k]+"\r\n";});
+ parts+="--"+boundary+"--\r\n";
  const r=UrlFetchApp.fetch(SARVAM_BASE+"/voices/clone",{method:"post",contentType:"multipart/form-data; boundary="+boundary,headers:{"api-subscription-key":key_(),Accept:"application/json"},payload:parts,muteHttpExceptions:true});
  const code=r.getResponseCode();if(code<200||code>=300)throw new Error("Speech generation failed (HTTP "+code+").");
  const d=JSON.parse(r.getContentText()),audio=d.audio_b64||d.audio;
