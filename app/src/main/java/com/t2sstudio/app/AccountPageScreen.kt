@@ -115,6 +115,7 @@ fun AccountPageScreen(
             icon = Icons.Filled.AccountCircle
         ) {
             AccountMenuRow("Profile", "Update your personal details", Icons.Filled.AccountCircle) { showProfile = true }
+            AccountMenuRow("My Drafts", "Continue your saved scripts", Icons.Filled.Description) { onNavigate(4) }
         }
 
         AccountSectionCard(
@@ -125,7 +126,6 @@ fun AccountPageScreen(
             AccountMenuRow("Projects", "Manage your projects", Icons.Filled.Folder) { onNavigate(1) }
             AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
             AccountMenuRow("Recent audio", "Listen to your generated speech", Icons.Filled.AccessTime) { onNavigate(2) }
-            AccountMenuRow("Drafts", "Continue your saved scripts", Icons.Filled.Description) { onNavigate(4) }
         }
 
         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center) {
