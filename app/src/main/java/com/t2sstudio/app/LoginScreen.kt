@@ -247,7 +247,7 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
                                 try {
                                     val clientId = context.getString(webClientIdId)
                                     val credentialManager = CredentialManager.create(context)
-                                    val googleOption = GetGoogleIdOption.Builder().setFilterByAuthorizedAccounts(true)
+                                    val googleOption = GetGoogleIdOption.Builder().setFilterByAuthorizedAccounts(false)
                                         .setServerClientId(clientId).setAutoSelectEnabled(false).build()
                                     val credential = try {
                                         credentialManager.getCredential(activity, GetCredentialRequest.Builder().addCredentialOption(googleOption).build()).credential
