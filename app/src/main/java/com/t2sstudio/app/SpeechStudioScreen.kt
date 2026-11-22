@@ -982,15 +982,17 @@ fun SpeechStudioScreen(
                                     Card(
                                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                                         shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FB)),
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7F0)),
                                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDCE3EF))
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0D7C2))
                                     ) {
-                                        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
-                                            Text(installedVoiceDisplayName(voice, filteredInstalled.indexOf(voice) + 1), color = Color(0xFF101B35), fontWeight = FontWeight.Bold, maxLines = 1)
-                                            if (isPlaying && activePreviewKey == "installed:${voice.name}") {
-                                                VoicePlaybackWaveform()
-                                            }
+                                        Row(
+                                            Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 12.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(installedVoiceDisplayName(voice, filteredInstalled.indexOf(voice) + 1), modifier = Modifier.weight(1f), color = T2SText, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                            if (isPlaying && activePreviewKey == "installed:${voice.name}") VoicePlaybackWaveform()
                                         }
                                     }
                                 },
@@ -1078,11 +1080,11 @@ fun SpeechStudioScreen(
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                                 shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FB)),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7F0)),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDCE3EF))
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0D7C2))
                             ) {
-                              Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                              Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f).clickable {
                                     isPurohitMode = false
                                     selectedOnlineVoice = voice
@@ -1110,9 +1112,9 @@ fun SpeechStudioScreen(
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                                 shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(containerColor = if (selectedSavedVoice?.id == voice.id) Color(0xFFFFEBDD) else Color(0xFFF5F7FB)),
+                                colors = CardDefaults.cardColors(containerColor = if (selectedSavedVoice?.id == voice.id) Color(0xFFFFEBDD) else Color(0xFFFFF7F0)),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, if (selectedSavedVoice?.id == voice.id) T2SOrange else Color(0xFFDCE3EF))
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (selectedSavedVoice?.id == voice.id) T2SOrange else Color(0xFFF0D7C2))
                             ) {
                                 Row(Modifier.fillMaxWidth().clickable {
                                     isPurohitMode = false
@@ -1128,7 +1130,7 @@ fun SpeechStudioScreen(
                                     selectedLanguage = savedLanguage
                                     voiceSearch = voice.name
                                     statusMessage = "${voice.name} selected • ${voice.gender} • ${savedLanguage}. The saved sample will be used as the voice-cloning reference."
-                                }.padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                }.heightIn(min = 64.dp).padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text(voice.name + if (selectedSavedVoice?.id == voice.id) " ✓" else "", modifier = Modifier.weight(1f), color = T2SText, fontWeight = FontWeight.SemiBold)
                                     TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "personal:${voice.id}", localSamplePath = voice.localSamplePath, languageOverride = voice.language, sarvamVoiceId = voice.sarvamVoiceId) }) {
                                         Text(if (activePreviewKey == "personal:${voice.id}" && isPreviewing) "■ Stop" else "▶ Play", color = T2SOrange, fontWeight = FontWeight.Bold)
