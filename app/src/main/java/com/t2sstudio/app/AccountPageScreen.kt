@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material3.AlertDialog
@@ -147,6 +148,7 @@ fun AccountPageScreen(
         ) {
             AccountMenuRow("About", "About T2S Studio", Icons.Filled.Info) { infoDialog = "About" }
             AccountMenuRow("Privacy", "How your audio and information are handled", Icons.Filled.PrivacyTip) { infoDialog = "Privacy" }
+            AccountMenuRow("Terms & Conditions", "Read the terms for using T2S Studio", Icons.Filled.Gavel) { infoDialog = "Terms & Conditions" }
             AccountMenuRow("Contact", "Get help or report an issue", Icons.Filled.MailOutline) {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Amruth1988/T2S/issues")))
             }
@@ -155,13 +157,17 @@ fun AccountPageScreen(
 
         infoDialog?.let { section ->
             val about = section == "About"
+            val privacy = section == "Privacy"
             AlertDialog(
                 onDismissRequest = { infoDialog = null },
-                title = { Text(if (about) "About T2S Studio" else "Privacy") },
+                title = { Text(section) },
                 text = {
                     Text(
-                        if (about) "T2S Studio is an Android text-to-speech studio built with Kotlin and Jetpack Compose. Create speech in supported languages and save generated audio on your device."
-                        else "Generated audio is saved on your device. Speech generation uses an online service, so the text you submit is sent to that service for processing. Avoid submitting private or sensitive text unless you are comfortable with the provider's data handling. Optional API keys are encrypted with Android Keystore."
+                        when {
+                            about -> "T2S Studio is an Android text-to-speech studio. Create speech in supported languages and manage your voice profiles, projects and drafts."
+                            privacy -> "Generated audio is saved on your device. Speech generation uses an online service, so the text you submit is sent to that service for processing. Avoid submitting private or sensitive text unless you are comfortable with the provider's data handling. Optional API keys are encrypted with Android Keystore."
+                            else -> "By using T2S Studio, you agree to use the app lawfully and responsibly. You are responsible for the text and audio you create and for ensuring you have the rights to use any content or voice recordings you submit. Speech generation may require an internet connection and may depend on third-party services, which can have their own terms and availability. Do not use the app to create deceptive, abusive, or unlawful content. Features may change over time. Use of the app is at your discretion."
+                        }
                     )
                 },
                 confirmButton = {
