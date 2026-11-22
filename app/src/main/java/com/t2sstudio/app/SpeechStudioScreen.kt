@@ -882,9 +882,25 @@ fun SpeechStudioScreen(
                     },
                     modifier = Modifier.fillMaxWidth().height(46.dp),
                     singleLine = true,
-                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = T2SText),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        color = T2SText
+                    ),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        horizontal = 12.dp,
+                        vertical = 0.dp
+                    ),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                    placeholder = { Text("Search by voice name", fontSize = 12.sp, maxLines = 1) },
+                    placeholder = {
+                        Text(
+                            "Search by voice name",
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    },
                     leadingIcon = { Text("⌕", fontSize = 19.sp, color = T2SOrange, fontWeight = FontWeight.Bold) },
                     trailingIcon = {
                         if (voiceSearch.isNotBlank()) {
