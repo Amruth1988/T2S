@@ -205,6 +205,7 @@ private fun T2SApp() {
     var selectedDestination by remember { mutableIntStateOf(0) }
     val destinationBackStack = remember { mutableStateListOf<Int>() }
     var showAccountPage by remember { mutableStateOf(false) }
+    var showAboutPage by remember { mutableStateOf(false) }
     var returnToAccountOnBack by remember { mutableStateOf(false) }
     val audioRecords = remember {
         mutableStateListOf<AudioRecord>().apply { addAll(AudioHistoryStore.load(context)) }
@@ -286,9 +287,11 @@ private fun T2SApp() {
         }
     }
 
-    BackHandler(enabled = showLoginPage || showAccountPage || destinationBackStack.isNotEmpty()) {
+    BackHandler(enabled = showLoginPage || showAccountPage || showAboutPage || destinationBackStack.isNotEmpty()) {
         if (showLoginPage) {
             showLoginPage = false
+        } else if (showAboutPage) {
+            showAboutPage = false
         } else if (showAccountPage) {
             showAccountPage = false
         } else if (destinationBackStack.isNotEmpty()) {
@@ -309,10 +312,15 @@ private fun T2SApp() {
         )
         return
     }
+    if (showAboutPage) {
+        AboutPageScreen(onBack = { showAboutPage = false })
+        return
+    }
     if (showAccountPage) {
         AccountPageScreen(
             onBack = { showAccountPage = false },
             onSignIn = { showLoginPage = true },
+            onAbout = { showAboutPage = true },
             onNavigate = { destination ->
                 // Keep the account page as the return destination for system Back.
                 returnToAccountOnBack = true
