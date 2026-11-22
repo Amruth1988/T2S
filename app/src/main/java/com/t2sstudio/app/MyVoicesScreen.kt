@@ -295,7 +295,7 @@ fun MyVoicesScreen() {
                                 contentAlignment = androidx.compose.ui.Alignment.Center
                             ) {
                                 Image(
-                                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_t2s_mark),
+                                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_t2s_microphone),
                                     contentDescription = "T2S logo",
                                     modifier = Modifier.size(40.dp)
                                 )
