@@ -2,6 +2,7 @@ package com.t2sstudio.app
 
 import android.app.Activity
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +29,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -139,14 +142,12 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
                 contentAlignment = androidx.compose.ui.Alignment.Center
             ) {
                 Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                    androidx.compose.foundation.layout.Box(
-                        modifier = Modifier.size(78.dp)
-                            .background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.RoundedCornerShape(22.dp))
-                            .border(2.dp, T2SOrange, androidx.compose.foundation.shape.RoundedCornerShape(22.dp)),
-                        contentAlignment = androidx.compose.ui.Alignment.Center
-                    ) {
-                        Text("T2S", color = T2SOrange, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-                    }
+                    Image(
+                        painter = painterResource(id = R.drawable.app_logo),
+                        contentDescription = "T2S app logo",
+                        modifier = Modifier.size(104.dp),
+                        contentScale = ContentScale.Fit
+                    )
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Studio", color = T2SText, fontSize = 36.sp, fontWeight = FontWeight.Bold)
                         Text("🎙️", fontSize = 28.sp)
