@@ -302,7 +302,7 @@ fun MyVoicesScreen() {
                             }
                             Text("Record", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, color = T2SText, fontSize = 15.sp)
                             Text(if (recording) "● LIVE" else "READY", color = if (recording) androidx.compose.ui.graphics.Color(0xFFC62828) else T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                                modifier = Modifier.background(T2SBackground, RoundedCornerShape(20.dp)).padding(horizontal = 9.dp, vertical = 6.dp))
+                                modifier = Modifier.background(T2SBackground, RoundedCornerShape(8.dp)).padding(horizontal = 9.dp, vertical = 6.dp))
                         }
                         androidx.compose.material3.HorizontalDivider(color = T2SOrange.copy(alpha = 0.18f))
                         Text("Speak for 10–30 sec in a quiet room.", color = T2SSecondaryText, fontSize = 12.sp)
@@ -527,13 +527,19 @@ fun MyVoicesScreen() {
                         androidx.compose.foundation.layout.Box(
                             Modifier.size(48.dp).background(T2SCream, androidx.compose.foundation.shape.CircleShape),
                             contentAlignment = androidx.compose.ui.Alignment.Center
-                        ) { Text("🎙️", fontSize = 23.sp) }
+                        ) {
+                            Image(
+                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_t2s_microphone),
+                                contentDescription = "T2S microphone",
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(voice.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("${voice.gender} • ${voice.language.uppercase()} • " + when { voice.firebaseSynced -> "Saved to Firebase"; voice.sarvamVoiceId.isNotBlank() -> "Firebase sync pending"; else -> "Local only" }, color = T2SSecondaryText, fontSize = 12.sp)
+                            Text("${voice.gender} • ${voice.language.uppercase()}", color = T2SSecondaryText, fontSize = 12.sp)
                         }
                         Text(if (voice.firebaseSynced) "SAVED" else "PENDING", color = T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.background(T2SCream, androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 6.dp))
+                            modifier = Modifier.background(T2SCream, androidx.compose.foundation.shape.RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 6.dp))
                     }
                     androidx.compose.material3.HorizontalDivider(color = T2SOrange.copy(alpha = 0.16f))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
