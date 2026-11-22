@@ -1,0 +1,159 @@
+import { createRemoteJWKSet, jwtVerify } from "jose";
+
+interface Env {
+  FIREBASE_PROJECT_ID: string;
+  VAKYAM_API_KEY: string;
+  INDIA_API_KEY?: string;
+}
+
+const firebaseKeys = createRemoteJWKSet(
+  new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com")
+);
+
+function json(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+  });
+}
+
+async function authenticate(request: Request, env: Env): Promise<string> {
+  const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) throw new Error("Sign in to T2S Studio to use online TTS.");
+  const { payload } = await jwtVerify(token, firebaseKeys, {
+    issuer: `https://securetoken.google.com/${env.FIREBASE_PROJECT_ID}`,
+    audience: env.FIREBASE_PROJECT_ID,
+    algorithms: ["RS256"],
+  });
+  if (typeof payload.sub !== "string" || !payload.sub) throw new Error("Invalid Firebase user token.");
+  return payload.sub;
+}
+
+function languageLocale(language: string): string {
+  const code = language.toLowerCase();
+  if (code === "te") return "te-IN";
+  if (code === "hi") return "hi-IN";
+  if (code === "en") return "en-IN";
+  throw new Error("Supported languages are English, Telugu and Hindi.");
+}
+
+async function providerError(response: Response, provider: string): Promise<never> {
+  const body = await response.text();
+  let detail = "";
+  try {
+    const parsed = JSON.parse(body) as { message?: string; detail?: string; error?: { message?: string } };
+    detail = parsed.error?.message || parsed.message || parsed.detail || "";
+  } catch { /* provider did not return JSON */ }
+  throw new Error(detail || `${provider} request failed (HTTP ${response.status}).`);
+}
+
+async function handle(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+  if (url.pathname === "/health" && request.method === "GET") {
+    return json({ ok: true, service: "t2s-tts-worker", providers: { vakyam: Boolean(env.VAKYAM_API_KEY), india: Boolean(env.INDIA_API_KEY) } });
+  }
+
+  await authenticate(request, env);
+
+  if (url.pathname === "/v1/india/voices" && request.method === "GET") {
+    const response = await fetch("https://api.dharun.dev/v1/tts/voices", {
+      headers: env.INDIA_API_KEY ? { authorization: `Bearer ${env.INDIA_API_KEY}` } : {},
+    });
+    if (!response.ok) return providerError(response, "India TTS");
+    const body = await response.json() as { data?: Array<Record<string, unknown>> };
+    const language = url.searchParams.get("language") || "te";
+    const voices = (body.data || []).filter(v =>
+      String(v.language || "").split("-")[0].toLowerCase() === language.toLowerCase() &&
+      v.non_commercial !== true
+    );
+    return json({ voices });
+  }
+
+  if (url.pathname === "/v1/india/tts" && request.method === "POST") {
+    const input = await request.json() as { text?: string; voice?: string; language?: string; speed?: number; format?: string };
+    const text = input.text?.trim() || "";
+    if (!text || text.length > 3000) return json({ error: "Text must contain 1–3,000 characters." }, 400);
+    const voice = input.voice?.trim() || languageLocale(input.language || "en");
+    const format = ["mp3", "wav", "ogg"].includes(input.format || "") ? input.format! : "mp3";
+    const query = new URLSearchParams({ text, voice, format, speed: String(Math.min(2, Math.max(0.5, input.speed || 1))) });
+    const headers: Record<string, string> = { accept: format === "mp3" ? "audio/mpeg" : format === "wav" ? "audio/wav" : "audio/ogg" };
+    if (env.INDIA_API_KEY) headers.authorization = `Bearer ${env.INDIA_API_KEY}`;
+    const response = await fetch(`https://api.dharun.dev/v1/tts?${query}`, { headers });
+    if (!response.ok) return providerError(response, "India TTS");
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength < 1024 || bytes.byteLength > 8_000_000) {
+      return json({ error: "India TTS returned an invalid or oversized audio file." }, 502);
+    }
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return json({ audioBase64: btoa(binary), contentType: response.headers.get("content-type") || "audio/mpeg" });
+  }
+
+  if (url.pathname === "/v1/vakyam/voices" && request.method === "GET") {
+    const response = await fetch("https://api.vakyam.ai/v1/voices?group_by=language", {
+      headers: { authorization: `Bearer ${env.VAKYAM_API_KEY}`, accept: "application/json" },
+    });
+    if (!response.ok) return providerError(response, "Vakyam");
+    // Vakyam returns the language-grouped voice map at the top level:
+    // { "te-IN": [{ "voice_name": "Archana", "gender": "female" }, ...] }.
+    // Accept a nested "data" wrapper as a compatibility fallback.
+    const root = await response.json() as Record<string, unknown> & { data?: Record<string, unknown> };
+    const locale = languageLocale(url.searchParams.get("language") || "te");
+    const grouped = root.data && typeof root.data === "object" ? root.data : root;
+    const data = grouped[locale];
+    const voices = Array.isArray(data)
+      ? data.filter((item): item is Record<string, unknown> =>
+          !!item && typeof item === "object" &&
+          typeof (item as Record<string, unknown>).voice_name === "string")
+      : [];
+    return json({ voices });
+  }
+
+  if (url.pathname === "/v1/vakyam/tts" && request.method === "POST") {
+    const input = await request.json() as { text?: string; voice?: string; language?: string; speed?: number; format?: string };
+    const text = input.text?.trim() || "";
+    if (!text || text.length > 3000) return json({ error: "Text must contain 1–3,000 characters." }, 400);
+    if (!input.voice?.trim()) return json({ error: "Choose a Vakyam voice." }, 400);
+    const locale = languageLocale(input.language || "en");
+    const format = input.format === "wav" ? "wav" : "mp3";
+    const response = await fetch("https://api.vakyam.ai/v1/tts/generate", {
+      method: "POST",
+      headers: { authorization: `Bearer ${env.VAKYAM_API_KEY}`, "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({
+        text, model_id: "raaga-v1", voice: input.voice, language: locale,
+        output_format: format, speed: Math.min(2, Math.max(0.5, input.speed || 1)),
+      }),
+    });
+    if (!response.ok) return providerError(response, "Vakyam");
+    const root = await response.json() as { audio?: string; audio_base64?: string; data?: { audio?: string } };
+    const audioBase64 = root.audio || root.audio_base64 || root.data?.audio;
+    if (!audioBase64) return json({ error: "Vakyam returned no audio data." }, 502);
+    return json({ audioBase64, contentType: format === "wav" ? "audio/wav" : "audio/mpeg" });
+  }
+
+  return json({ error: "Route not found." }, 404);
+}
+
+const corsHeaders = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-headers": "authorization, content-type",
+};
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    try {
+      const response = await handle(request, env);
+      const headers = new Headers(response.headers);
+      for (const [key, value] of Object.entries(corsHeaders)) headers.set(key, value);
+      return new Response(response.body, { status: response.status, headers });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected TTS backend error.";
+      const status = message.startsWith("Sign in") || message.startsWith("Invalid Firebase") ? 401 : 502;
+      return json({ error: message }, status);
+    }
+  },
+};

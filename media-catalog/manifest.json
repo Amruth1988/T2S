@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "catalogueVersion": 3,
+  "updatedAt": "2026-11-20T00:00:00Z",
+  "assets": [
+    {
+      "id": "telugu-voice-preview-01",
+      "title": "Telugu voice preview",
+      "language": "te-IN",
+      "kind": "preview_audio",
+      "version": 1,
+      "sizeBytes": 320270,
+      "sha256": "6c1b7e1db5048fb77c5ed1052fc2410b43a222cc7a8a02378bc3c0a66b9369d8",
+      "urls": [
+        "https://c495ce3e.t2s-media.pages.dev/telugu-sample.wav"
+      ],
+      "license": "User-provided sample; authorised for this T2S preview"
+    }
+  ]
+}

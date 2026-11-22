@@ -1,0 +1,75 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedInAs(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+      allow read: if signedInAs(uid);
+      allow create: if signedInAs(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly([
+          'uid', 'displayName', 'email', 'photoUrl',
+          'accountStatus', 'schemaVersion', 'createdAt',
+          'updatedAt', 'lastSignInAt'
+        ]);
+      allow update: if signedInAs(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName', 'email', 'photoUrl', 'updatedAt', 'lastSignInAt'
+        ]);
+      allow delete: if false;
+
+      match /projects/{projectId} {
+        allow read, create, update, delete: if signedInAs(uid);
+      }
+      match /scripts/{scriptId} {
+        allow read, create, update, delete: if signedInAs(uid);
+      }
+      match /audioLibrary/{audioId} {
+        allow read, create, update, delete: if signedInAs(uid);
+      }
+      match /voiceProfiles/{voiceId} {
+        allow read, create, update, delete: if signedInAs(uid);
+      }
+      match /settings/{settingsId} {
+        allow read, create, update, delete: if signedInAs(uid);
+      }
+      match /devices/{deviceId} {
+        allow read, create, update, delete: if signedInAs(uid);
+      }
+      match /usageStats/{periodId} {
+        allow read: if signedInAs(uid);
+        allow write: if false;
+      }
+      match /feedback/{feedbackId} {
+        allow read, create: if signedInAs(uid);
+        allow update, delete: if false;
+      }
+    }
+
+    // Central provider credentials are server-only. Cloud Functions Admin SDK bypasses rules.
+    match /provider_keys/{providerId} {
+      allow read, write: if false;
+    }
+
+    match /voicePresets/{presetId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /languages/{languageId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /appConfig/{configId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

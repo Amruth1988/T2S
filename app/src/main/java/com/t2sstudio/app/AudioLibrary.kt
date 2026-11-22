@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,7 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
@@ -32,6 +35,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -41,6 +45,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -105,7 +112,11 @@ data class AudioRecord(
     val language: String,
     val createdAt: Long,
     val projectId: String = "",
-    val projectName: String = "Unassigned"
+    val projectName: String = "Unassigned",
+    val scriptContent: String = "",
+    val voiceSource: String = "Standard",
+    val voiceName: String = "",
+    val voiceGender: String = ""
 )
 
 object AudioHistoryStore {
@@ -126,7 +137,11 @@ object AudioHistoryStore {
                     language = item.optString("language"),
                     createdAt = item.optLong("createdAt"),
                     projectId = item.optString("projectId", ""),
-                    projectName = item.optString("projectName", "Unassigned")
+                    projectName = item.optString("projectName", "Unassigned"),
+                    scriptContent = item.optString("scriptContent", item.optString("textPreview", "")),
+                    voiceSource = item.optString("voiceSource", "Standard"),
+                    voiceName = item.optString("voiceName", ""),
+                    voiceGender = item.optString("voiceGender", "")
                 )
             }.filter { it.id.isNotBlank() && it.filePath.isNotBlank() }
                 .filter { File(it.filePath).exists() }
@@ -145,6 +160,10 @@ object AudioHistoryStore {
                 put("createdAt", record.createdAt)
                 put("projectId", record.projectId)
                 put("projectName", record.projectName)
+                put("scriptContent", record.scriptContent)
+                put("voiceSource", record.voiceSource)
+                put("voiceName", record.voiceName)
+                put("voiceGender", record.voiceGender)
             })
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -155,7 +174,8 @@ object AudioHistoryStore {
 @Composable
 fun SavedAudioScreen(
     records: List<AudioRecord>,
-    onDelete: (AudioRecord) -> Unit
+    onDelete: (AudioRecord) -> Unit,
+    onEditScript: (AudioRecord) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var playingId by remember { mutableStateOf<String?>(null) }
@@ -189,11 +209,28 @@ fun SavedAudioScreen(
             .onFailure { message = "Unable to download this recording: ${it.localizedMessage ?: "storage error"}" }
     }
 
-    Column(modifier = androidx.compose.ui.Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Saved Audio", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = T2SText)
-        Text("Generated audio files saved on this device.", fontSize = 13.sp, color = T2SSecondaryText)
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("Recent", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                Text("${records.size} saved ${if (records.size == 1) "recording" else "recordings"}", fontSize = 13.sp, color = T2SSecondaryText)
+            }
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier.size(46.dp).background(T2SOrange.copy(alpha = 0.12f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.History, contentDescription = null, tint = T2SOrange, modifier = Modifier.size(24.dp))
+            }
+        }
         if (records.isEmpty()) {
-            Card(colors = CardDefaults.cardColors(containerColor = T2SCream), shape = RoundedCornerShape(18.dp)) {
+            Card(modifier = Modifier.fillMaxWidth().shadow(2.dp, RoundedCornerShape(18.dp), clip = false), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(18.dp), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
                 Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = T2SOrange)
                     Text("No saved audio yet", color = T2SText, fontWeight = FontWeight.SemiBold)
@@ -204,9 +241,10 @@ fun SavedAudioScreen(
             LazyColumn(modifier = androidx.compose.ui.Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(records, key = { it.id }) { record ->
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = T2SBackground),
-                        shape = RoundedCornerShape(16.dp)
+                        modifier = Modifier.fillMaxWidth().shadow(2.dp, RoundedCornerShape(18.dp), clip = false),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        shape = RoundedCornerShape(18.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(record.textPreview, color = T2SText, fontWeight = FontWeight.SemiBold, maxLines = 2)
@@ -214,6 +252,13 @@ fun SavedAudioScreen(
                                 "${record.language} • ${record.projectName} • " + SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(record.createdAt)),
                                 color = T2SSecondaryText, fontSize = 11.sp
                             )
+                            if (record.voiceSource == "My Voice") {
+                                Text(
+                                    "🎙 My Voice • ${record.voiceName.ifBlank { "Saved voice" }}"
+                                        + if (record.voiceGender.isNotBlank()) " • ${record.voiceGender}" else "",
+                                    color = T2SOrange, fontSize = 11.sp, fontWeight = FontWeight.SemiBold
+                                )
+                            }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Button(
                                     onClick = {
@@ -260,6 +305,7 @@ fun SavedAudioScreen(
                                     Text(if (playingId == record.id) "Pause" else "Play")
                                 }
                                 Spacer(Modifier.weight(1f))
+                                IconButton(onClick = { onEditScript(record) }) { Icon(Icons.Filled.Edit, contentDescription = "Edit script", tint = T2SOrange) }
                                 IconButton(onClick = { download(record) }) { Icon(Icons.Filled.Download, contentDescription = "Download", tint = T2SOrange) }
                                 IconButton(onClick = { share(record) }) { Icon(Icons.Filled.Share, contentDescription = "Share", tint = T2SOrange) }
                                 IconButton(onClick = {

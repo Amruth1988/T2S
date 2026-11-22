@@ -3,6 +3,7 @@ package com.t2sstudio.app
 import android.Manifest
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
+import android.widget.Toast
 import androidx.media3.common.AudioAttributes as Media3AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -13,6 +14,7 @@ import java.io.File
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,13 +57,28 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 @Composable
 fun MyVoicesScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var voiceName by remember { mutableStateOf("My Voice") }
-    var cloneLanguage by remember { mutableStateOf("en") }
+    var voiceName by remember { mutableStateOf("") }
+    var selectedAddTab by remember { mutableStateOf("Add Voice") }
+    var showSarvamForm by remember { mutableStateOf(false) }
+    var showVoltSettings by remember { mutableStateOf(false) }
+    var cloneServerUrl by remember { mutableStateOf(VoiceCloneServerSettings.get(context)) }
+    var checkingSarvam by remember { mutableStateOf(false) }
+    var sarvamMessage by remember {
+        mutableStateOf(
+            "Checking the shared Sarvam service…"
+        )
+    }
+    var checkingCloneServer by remember { mutableStateOf(false) }
+    var cloneLanguage by remember { mutableStateOf("") }
+    var voiceGender by remember { mutableStateOf("") }
     var pickedUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var pickedLabel by remember { mutableStateOf("No audio selected") }
     var recording by remember { mutableStateOf(false) }
@@ -72,6 +89,25 @@ fun MyVoicesScreen() {
     var recordingStartedAt by remember { mutableStateOf(0L) }
     var hasMicPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
     var message by remember { mutableStateOf("Add a clear recording of your own voice to create a reusable voice profile.") }
+    var lastToastMessage by remember { mutableStateOf(message) }
+    val messageIsError = message.contains("failed", ignoreCase = true) ||
+        message.contains("error", ignoreCase = true) ||
+        message.contains("could not", ignoreCase = true) ||
+        message.contains("not fully saved", ignoreCase = true) ||
+        message.contains("required", ignoreCase = true) ||
+        message.contains("must be", ignoreCase = true) ||
+        message.contains("missing", ignoreCase = true) ||
+        message.contains("invalid", ignoreCase = true)
+    LaunchedEffect(message) {
+        if (message != lastToastMessage) {
+            Toast.makeText(
+                context,
+                message,
+                Toast.LENGTH_SHORT
+            ).show()
+            lastToastMessage = message
+        }
+    }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> hasMicPermission = granted; message = if (granted) "Microphone ready. Tap Start recording." else "Microphone permission is required." }
     var busy by remember { mutableStateOf(false) }
     var consentConfirmed by remember { mutableStateOf(false) }
@@ -80,11 +116,39 @@ fun MyVoicesScreen() {
         pickedUri = uri
         pickedLabel = if (uri == null) "No audio selected" else uri.lastPathSegment ?: "Audio sample selected"
     }
-
     fun loadVoices() {
-        runCatching { MyVoicesClient.list(context) }
-            .onSuccess { saved -> voices.clear(); voices.addAll(saved) }
-            .onFailure { message = "Could not load saved voice profiles: ${it.message}" }
+        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        if (uid.isNullOrBlank()) {
+            voices.clear()
+            message = "Sign in to load your saved Firebase voice profiles."
+            return
+        }
+        com.t2sstudio.app.data.firebase.T2SFirestoreRepository().loadVoiceMetadata(uid) { result ->
+            result.onSuccess { saved ->
+                // Firebase stores cloud metadata, while the original audio remains local.
+                // Merge by profile ID so refreshing cloud metadata never discards the
+                // local recording path needed to replay the user's actual sample.
+                val localProfiles = MyVoicesClient.list(context)
+                val localById = localProfiles.associateBy { it.id }
+                val mergedCloud = saved.map { cloud ->
+                    val local = localById[cloud.id]
+                    if (local != null) cloud.copy(
+                        localSamplePath = local.localSamplePath,
+                        name = local.name.ifBlank { cloud.name },
+                        language = local.language.ifBlank { cloud.language },
+                        gender = local.gender.ifBlank { cloud.gender }
+                    ) else cloud
+                }
+                val cloudIds = mergedCloud.map { it.id }.toSet()
+                val localOnly = localProfiles.filter { it.id !in cloudIds }
+                voices.clear()
+                voices.addAll(mergedCloud + localOnly)
+                if (voices.isEmpty()) message = "No voice profiles were found in your account."
+            }.onFailure { error ->
+                voices.clear()
+                message = "Could not load voice profiles from Firebase: ${error.localizedMessage ?: "check your connection"}"
+            }
+        }
     }
 
     LaunchedEffect(Unit) { loadVoices() }
@@ -96,19 +160,127 @@ fun MyVoicesScreen() {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
-        Text("Save and manage reusable voice recordings on this device. Local profiles remain available after reopening the app.", color = T2SSecondaryText, fontSize = 14.sp)
+        androidx.compose.material3.TabRow(selectedTabIndex = if (selectedAddTab == "Add Voice") 0 else 1) {
+            listOf("Add Voice", "Add AI Voice").forEach { tab ->
+                androidx.compose.material3.Tab(
+                    selected = selectedAddTab == tab,
+                    onClick = {
+                        selectedAddTab = tab
+                        showVoltSettings = false
+                        showSarvamForm = false
+                    },
+                    text = { Text(tab, maxLines = 1, fontSize = 13.sp) },
+                    enabled = !busy && !recording
+                )
+            }
+        }
+
+        if (selectedAddTab == "Add Voice" || selectedAddTab == "Add AI Voice") {
+            if (showVoltSettings) {
+        Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("Voice server settings", fontWeight = FontWeight.SemiBold, color = T2SText)
+                    OutlinedTextField(
+                        value = cloneServerUrl,
+                        onValueChange = { cloneServerUrl = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Server URL") },
+                        placeholder = { Text("https://your-private-server:8080") }
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                runCatching { VoiceCloneServerSettings.save(context, cloneServerUrl) }
+                                    .onSuccess { message = "Voice server settings saved." }
+                                    .onFailure { message = it.message ?: "Invalid server URL." }
+                            },
+                            enabled = !checkingCloneServer
+                        ) { Text("Save") }
+                        TextButton(
+                            onClick = {
+                                checkingCloneServer = true
+                                scope.launch {
+                                    val result = runCatching { withContext(Dispatchers.IO) { VoiceCloneClient.checkServer(cloneServerUrl) } }
+                                    message = result.getOrElse { "Connection failed: " + (it.message ?: "Please try again.") }
+                                    checkingCloneServer = false
+                                }
+                            },
+                            enabled = !checkingCloneServer && cloneServerUrl.isNotBlank()
+                        ) {
+                            if (checkingCloneServer) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            else Text("Test connection")
+                        }
+                    }
+                    TextButton(onClick = { showVoltSettings = false }) { Text("Done") }
+                }
+            }
+        }
         Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("Add a voice", fontWeight = FontWeight.SemiBold, color = T2SText)
-                OutlinedTextField(value = voiceName, onValueChange = { voiceName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Voice name") }, singleLine = true)
-                Text("Voice sample language", color = T2SText, fontSize = 13.sp)
+                OutlinedTextField(
+                    value = voiceName,
+                    onValueChange = { voiceName = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = {
+                        Row {
+                            Text("Voice Name")
+                            Text(" *", color = androidx.compose.ui.graphics.Color.Red)
+                        }
+                    },
+                    singleLine = true
+                )
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text("Voice Gender", color = T2SText, fontSize = 13.sp)
+                    Text(" *", color = androidx.compose.ui.graphics.Color.Red, fontSize = 13.sp)
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("en" to "English", "te" to "Telugu", "hi" to "Hindi").forEach { (code, label) ->
-                        androidx.compose.material3.FilterChip(selected = cloneLanguage == code, onClick = { cloneLanguage = code }, label = { Text(label) })
+                    listOf("Male", "Female").forEach { gender ->
+                        androidx.compose.material3.FilterChip(
+                            selected = voiceGender == gender,
+                            onClick = { voiceGender = gender },
+                            label = { Text(gender) },
+                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = T2SOrange,
+                                selectedLabelColor = androidx.compose.ui.graphics.Color.White,
+                                containerColor = T2SBackground,
+                                labelColor = T2SText
+                            ),
+                            border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = voiceGender == gender,
+                                borderColor = T2SOrange.copy(alpha = 0.45f),
+                                selectedBorderColor = T2SOrange
+                            )
+                        )
                     }
                 }
-                Text("Your recording and profile details are stored locally. This does not yet create an AI-cloned voice; no paid cloud service is used.", fontSize = 12.sp, color = T2SSecondaryText)
-                Text("Record your voice directly here, or select an existing file. Speak naturally in a quiet room for 10–30 seconds.", fontSize = 12.sp, color = T2SSecondaryText)
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text("Voice Language", color = T2SText, fontSize = 13.sp)
+                    Text(" *", color = androidx.compose.ui.graphics.Color.Red, fontSize = 13.sp)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("en" to "English", "te" to "Telugu", "hi" to "Hindi").forEach { (code, label) ->
+                        androidx.compose.material3.FilterChip(
+                            selected = cloneLanguage == code,
+                            onClick = { cloneLanguage = code },
+                            label = { Text(label) },
+                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = T2SOrange,
+                                selectedLabelColor = androidx.compose.ui.graphics.Color.White,
+                                containerColor = T2SBackground,
+                                labelColor = T2SText
+                            ),
+                            border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = cloneLanguage == code,
+                                borderColor = T2SOrange.copy(alpha = 0.45f),
+                                selectedBorderColor = T2SOrange
+                            )
+                        )
+                    }
+                }
                 Card(
                     colors = CardDefaults.cardColors(containerColor = T2SCream),
                     modifier = Modifier.fillMaxWidth(),
@@ -121,16 +293,19 @@ fun MyVoicesScreen() {
                             androidx.compose.foundation.layout.Box(
                                 Modifier.size(46.dp).background(T2SOrange.copy(alpha = 0.14f), RoundedCornerShape(15.dp)),
                                 contentAlignment = androidx.compose.ui.Alignment.Center
-                            ) { Text("🎙️", fontSize = 24.sp) }
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text("Record with your phone microphone", fontWeight = FontWeight.Bold, color = T2SText, fontSize = 15.sp)
-                                Text("Capture a clear sample using your device", color = T2SSecondaryText, fontSize = 11.sp)
+                            ) {
+                                Image(
+                                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_t2s_microphone),
+                                    contentDescription = "T2S logo",
+                                    modifier = Modifier.size(40.dp)
+                                )
                             }
+                            Text("Record", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, color = T2SText, fontSize = 15.sp)
                             Text(if (recording) "● LIVE" else "READY", color = if (recording) androidx.compose.ui.graphics.Color(0xFFC62828) else T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                                modifier = Modifier.background(T2SBackground, RoundedCornerShape(20.dp)).padding(horizontal = 9.dp, vertical = 6.dp))
+                                modifier = Modifier.background(T2SBackground, RoundedCornerShape(8.dp)).padding(horizontal = 9.dp, vertical = 6.dp))
                         }
                         androidx.compose.material3.HorizontalDivider(color = T2SOrange.copy(alpha = 0.18f))
-                        Text("Speak naturally for 10–30 seconds in a quiet room.", color = T2SSecondaryText, fontSize = 12.sp)
+                        Text("Speak for 10–30 sec in a quiet room.", color = T2SSecondaryText, fontSize = 12.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = {
                                 if (!hasMicPermission) micPermission.launch(Manifest.permission.RECORD_AUDIO)
@@ -186,6 +361,7 @@ fun MyVoicesScreen() {
                         else runCatching {
                             previewPlayer?.release()
                             val player = ExoPlayer.Builder(context).build()
+                            player.skipSilenceEnabled = true
                             previewPlayer = player
                             player.setAudioAttributes(
                                 Media3AudioAttributes.Builder()
@@ -219,44 +395,126 @@ fun MyVoicesScreen() {
                 }
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     androidx.compose.material3.Checkbox(checked = consentConfirmed, onCheckedChange = { consentConfirmed = it }, enabled = !busy)
-                    Text("I confirm this is my voice, or I have permission to save and use this recording.", color = T2SSecondaryText, fontSize = 12.sp)
+                    Text("I confirm this is my voice, or I have permission to save and use this recording.", color = T2SSecondaryText, fontSize = 12.sp, lineHeight = 14.sp)
                 }
                 Button(
                     onClick = {
                         val uri = pickedUri
                         if (uri == null) message = "Record or select an audio file first."
                         else if (!consentConfirmed) message = "Confirm that this is your voice or that you have permission to use it."
-                        else if (voiceName.isBlank()) message = "Enter a name for this voice profile."
+                        else if (voiceName.trim().length !in 2..40) message = "Voice name must be between 2 and 40 characters."
+                        else if (voiceGender !in listOf("Male", "Female")) message = "Select Male or Female voice gender." 
+                        else if (cloneLanguage !in listOf("en", "te", "hi")) message = "Select the voice sample language."
                         else {
                             busy = true
                             scope.launch {
                                 runCatching {
                                     withContext(Dispatchers.IO) {
-                                        MyVoicesClient.createLocal(context, voiceName, uri, cloneLanguage)
+                                        val saved = MyVoicesClient.createLocal(context, voiceName, uri, cloneLanguage, voiceGender)
+                                        if (selectedAddTab == "Add AI Voice") {
+                                            val signedInUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                                ?: error("Sign in to T2S before creating an AI voice.")
+                                            val sample = saved.localSamplePath?.let(::File)
+                                                ?: error("Saved recording could not be read.")
+                                            val sarvamId = SarvamVoiceCloneClient.createCentralVoice(sample, saved.name, saved.language, saved.gender)
+                                            require(sarvamId.startsWith("svc-")) { "Sarvam did not return a valid voice ID." }
+                                            MyVoicesClient.attachSarvamVoiceId(context, saved.id, sarvamId)
+                                            suspendCancellableCoroutine<Unit> { continuation ->
+                                                com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveVoiceMetadata(
+                                                    uid = signedInUid, voiceId = saved.id, name = saved.name,
+                                                    gender = saved.gender, language = saved.language, sarvamVoiceId = sarvamId
+                                                ) { cloudResult ->
+                                                    if (continuation.isActive) cloudResult.fold(
+                                                        onSuccess = { continuation.resume(Unit) },
+                                                        onFailure = { continuation.resumeWithException(it) }
+                                                    )
+                                                }
+                                            }
+                                            MyVoicesClient.markFirebaseSynced(context, saved.id)
+                                            MyVoicesClient.list(context).first { it.id == saved.id }
+                                        } else saved
                                     }
                                 }.onSuccess { saved ->
                                     loadVoices()
                                     voiceName = "My Voice"
+                                    voiceGender = ""
+                                    cloneLanguage = ""
                                     pickedUri = null
                                     pickedLabel = "No audio selected"
                                     consentConfirmed = false
-                                    message = "${saved.name} saved on this device. This stores your sample; AI voice cloning is not yet active."
-                                }.onFailure { message = "Could not save voice profile: ${it.message}" }
+                                    message = if (saved.sarvamVoiceId.isNotBlank()) "${saved.name} AI voice created and saved. Sarvam voice ID: ${saved.sarvamVoiceId}" else "${saved.name} saved as a local voice."
+                                }.onFailure { error ->
+                                    loadVoices()
+                                    val details = error.message.orEmpty()
+                                    message = when {
+                                        details.contains("Total speech duration is too short", ignoreCase = true) ->
+                                            "Recording too short. Please record at least 4 seconds and try again."
+                                        details.contains("VALIDATION_FAILED", ignoreCase = true) ||
+                                            details.contains("Audio validation failed", ignoreCase = true) ->
+                                            "Audio validation failed. Please use a clear recording of at least 4 seconds."
+                                        details.contains("HTTP 422", ignoreCase = true) ->
+                                            "Voice sample was rejected. Please check the recording and try again."
+                                        else -> "Could not create AI voice. Your local recording is saved; please try again."
+                                    }
+                                }
                                 busy = false
                             }
                         }
                     },
-                    enabled = !busy && !recording && pickedUri != null && consentConfirmed && voiceName.isNotBlank()
-                ) { Text("Save voice profile") }
+                    enabled = !busy && !recording && pickedUri != null && consentConfirmed && voiceName.trim().length in 2..40 && voiceGender in listOf("Male", "Female") && cloneLanguage in listOf("en", "te", "hi")
+                ) { Text(if (selectedAddTab == "Add AI Voice") "Create AI Voice" else "Save My Voice") }
             }
         }
+        }
         if (busy) CircularProgressIndicator()
-        Text(message, color = T2SSecondaryText, fontSize = 12.sp)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Text("Saved voice profiles", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+            Text("My saved voices", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
             TextButton(onClick = { loadVoices() }, enabled = !busy, modifier = Modifier.padding(0.dp)) { Text("↻ Refresh") }
         }
-        voices.forEach { voice ->
+        val orderedVoices = voices.sortedBy { voice ->
+            when {
+                voice.firebaseSynced -> 0
+                voice.sarvamVoiceId.isNotBlank() -> 1
+                else -> 2
+            }
+        }
+        orderedVoices.forEachIndexed { voiceIndex, voice ->
+            val groupKey = when {
+                voice.firebaseSynced -> 0
+                voice.sarvamVoiceId.isNotBlank() -> 1
+                else -> 2
+            }
+            val previousGroupKey = if (voiceIndex > 0) {
+                val previous = orderedVoices[voiceIndex - 1]
+                when {
+                    previous.firebaseSynced -> 0
+                    previous.sarvamVoiceId.isNotBlank() -> 1
+                    else -> 2
+                }
+            } else -1
+            if (groupKey != previousGroupKey) {
+                Text(
+                    when (groupKey) {
+                        0 -> "Registered cloud voices"
+                        1 -> "Cloud voices awaiting Firebase sync"
+                        else -> "Local recordings — registration incomplete"
+                    },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = T2SText,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                if (groupKey == 2) {
+                    Text(
+                        "These recordings are kept on this device. They are not registered cloud voices.",
+                        fontSize = 12.sp,
+                        color = T2SSecondaryText
+                    )
+                }
+            }
+            val sampleFileForStatus = voice.localSamplePath?.let(::File)
+            val sampleAvailable = sampleFileForStatus != null &&
+                sampleFileForStatus.exists() && sampleFileForStatus.length() > 1024L
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
@@ -269,72 +527,188 @@ fun MyVoicesScreen() {
                         androidx.compose.foundation.layout.Box(
                             Modifier.size(48.dp).background(T2SCream, androidx.compose.foundation.shape.CircleShape),
                             contentAlignment = androidx.compose.ui.Alignment.Center
-                        ) { Text("🎙️", fontSize = 23.sp) }
+                        ) {
+                            Image(
+                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_t2s_microphone),
+                                contentDescription = "T2S microphone",
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(voice.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("${voice.language.uppercase()} • Local recording", color = T2SSecondaryText, fontSize = 12.sp)
+                            Text("${voice.gender} • ${voice.language.uppercase()}", color = T2SSecondaryText, fontSize = 12.sp)
                         }
-                        Text("SAVED", color = T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.background(T2SCream, androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 6.dp))
+                        Text(if (voice.firebaseSynced) "SAVED" else "PENDING", color = T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.background(T2SCream, androidx.compose.foundation.shape.RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 6.dp))
                     }
                     androidx.compose.material3.HorizontalDivider(color = T2SOrange.copy(alpha = 0.16f))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Text("TYPE", color = T2SSecondaryText, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        Text("Local recording", color = T2SText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(if (voice.sarvamVoiceId.isNotBlank()) "Sarvam cloud voice" else "Local recording only", color = T2SText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
-                    Text("Voice ID  •  ${voice.id}", color = T2SSecondaryText, fontSize = 10.sp, maxLines = 1)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Text("Saved sample • preview the original recording", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp, modifier = Modifier.weight(1f))
-                        TextButton(onClick = {
-                            val currentPlayer = previewPlayer
-                            if (previewingSavedVoiceId == voice.id && currentPlayer?.isPlaying == true) {
-                                currentPlayer.pause()
-                                currentPlayer.seekTo(0)
-                                previewingSavedVoiceId = null
-                                message = "Voice sample preview stopped."
-                            } else runCatching {
-                                currentPlayer?.release()
-                                previewPlayer = null
-                                previewingSavedVoiceId = null
-                                val sampleFile = voice.localSamplePath?.let(::File)
-                                    ?: error("Saved voice sample file is missing.")
-                                require(sampleFile.exists() && sampleFile.length() > 1024L) { "Saved voice sample file is missing or empty." }
-                                val player = ExoPlayer.Builder(context).build()
-                                previewPlayer = player
-                                player.setAudioAttributes(
-                                    Media3AudioAttributes.Builder()
-                                        .setUsage(C.USAGE_MEDIA)
-                                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                                        .build(),
-                                    true
-                                )
-                                player.volume = 1f
-                                player.addListener(object : Player.Listener {
-                                    override fun onPlaybackStateChanged(playbackState: Int) {
-                                        if (playbackState == Player.STATE_ENDED) {
-                                            player.release()
-                                            if (previewPlayer === player) previewPlayer = null
-                                            previewingSavedVoiceId = null
-                                            message = "${voice.name} sample preview finished."
+                    Text("Voice ID  •  ${voice.sarvamVoiceId.ifBlank { voice.id }}", color = T2SSecondaryText, fontSize = 10.sp, maxLines = 1)
+                    if (voice.sarvamVoiceId.isBlank() && sampleAvailable) {
+                        Button(
+                            onClick = {
+                                run {
+                                    busy = true
+                                    scope.launch {
+                                        val result = runCatching {
+                                            withContext(Dispatchers.IO) {
+                                                val sample = voice.localSamplePath?.let(::File)
+                                                    ?: error("Saved voice sample is missing.")
+                                                val sarvamId = SarvamVoiceCloneClient.createCentralVoice(
+                                                    sample, voice.name, voice.language, voice.gender
+                                                )
+                                                MyVoicesClient.attachSarvamVoiceId(context, voice.id, sarvamId)
+                                                val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                                    ?: error("Sign in to T2S before syncing voice metadata.")
+                                                suspendCancellableCoroutine<Unit> { continuation ->
+                                                    com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveVoiceMetadata(
+                                                        uid = uid,
+                                                        voiceId = voice.id,
+                                                        name = voice.name,
+                                                        gender = voice.gender,
+                                                        language = voice.language,
+                                                        sarvamVoiceId = sarvamId
+                                                    ) { cloudResult ->
+                                                        if (continuation.isActive) cloudResult.fold(
+                                                            onSuccess = { continuation.resume(Unit) },
+                                                            onFailure = { continuation.resumeWithException(it) }
+                                                        )
+                                                    }
+                                                }
+                                                MyVoicesClient.markFirebaseSynced(context, voice.id)
+                                                MyVoicesClient.list(context).first { it.id == voice.id }
+                                            }
                                         }
+                                        result.onSuccess { registered ->
+                                            loadVoices()
+                                            message = "${registered.name} Saved successfully. Sarvam voice ID: ${registered.sarvamVoiceId}"
+                                        }.onFailure { error ->
+                                            loadVoices()
+                                            message = "Not fully saved for ${voice.name}: ${error.message ?: error.javaClass.simpleName}. If Sarvam returned an ID, use Sync metadata to Firebase."
+                                        }
+                                        busy = false
                                     }
-                                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                                        player.release()
-                                        if (previewPlayer === player) previewPlayer = null
+                                }
+                            },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(if (busy) "Registering…" else "Register existing voice with Sarvam") }
+                    }
+                    if (voice.sarvamVoiceId.isNotBlank() && !voice.firebaseSynced) {
+                        TextButton(
+                            onClick = {
+                                busy = true
+                                scope.launch {
+                                    val result = runCatching {
+                                        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                            ?: error("Sign in to T2S before syncing voice metadata.")
+                                        suspendCancellableCoroutine<Unit> { continuation ->
+                                            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveVoiceMetadata(
+                                                uid = uid,
+                                                voiceId = voice.id,
+                                                name = voice.name,
+                                                gender = voice.gender,
+                                                language = voice.language,
+                                                sarvamVoiceId = voice.sarvamVoiceId
+                                            ) { cloudResult ->
+                                                if (continuation.isActive) cloudResult.fold(
+                                                    onSuccess = { continuation.resume(Unit) },
+                                                    onFailure = { continuation.resumeWithException(it) }
+                                                )
+                                            }
+                                        }
+                                        MyVoicesClient.markFirebaseSynced(context, voice.id)
+                                    }
+                                    result.onSuccess { loadVoices() }
+                                    message = result.fold(
+                                        { "${voice.name} Saved successfully. Sarvam voice ID: ${voice.sarvamVoiceId}" },
+                                        { "Firebase metadata sync failed: ${it.localizedMessage ?: "try again"}" }
+                                    )
+                                    busy = false
+                                }
+                            },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Sync metadata to Firebase") }
+                    }
+                    if (!sampleAvailable) {
+                        Text(
+                            if (voice.sarvamVoiceId.startsWith("svc-"))
+                                "Cloud voice ready. You can generate speech with this voice; the original recording is not needed."
+                            else
+                                "Original recording is not available on this device. Restore the sample to preview or register this voice.",
+                            color = T2SSecondaryText,
+                            fontSize = 11.sp,
+                            lineHeight = 14.sp
+                        )
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text(
+                            if (sampleAvailable) "Saved sample • preview the original recording" else "No local audio sample",
+                            color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(
+                            enabled = sampleAvailable,
+                            onClick = {
+                                if (!sampleAvailable) {
+                                    message = "Original recording is not available on this device. Restore the voice backup to play it."
+                                } else {
+                                    val currentPlayer = previewPlayer
+                                    if (previewingSavedVoiceId == voice.id && currentPlayer?.isPlaying == true) {
+                                        currentPlayer.pause()
+                                        currentPlayer.seekTo(0)
                                         previewingSavedVoiceId = null
-                                        message = "Sample preview failed: ${error.message ?: "audio playback error"}"
+                                        message = "Voice sample preview stopped."
+                                    } else runCatching {
+                                        currentPlayer?.release()
+                                        previewPlayer = null
+                                        previewingSavedVoiceId = null
+                                        val sampleFile = voice.localSamplePath?.let(::File)
+                                            ?: error("Saved voice sample file is missing.")
+                                        require(sampleFile.exists() && sampleFile.length() > 1024L) { "Saved voice sample file is missing or empty." }
+                                        val player = ExoPlayer.Builder(context).build()
+                                        player.skipSilenceEnabled = true
+                                        previewPlayer = player
+                                        player.setAudioAttributes(
+                                            Media3AudioAttributes.Builder()
+                                                .setUsage(C.USAGE_MEDIA)
+                                                .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                                                .build(),
+                                            true
+                                        )
+                                        player.volume = 1f
+                                        player.addListener(object : Player.Listener {
+                                            override fun onPlaybackStateChanged(playbackState: Int) {
+                                                if (playbackState == Player.STATE_ENDED) {
+                                                    player.release()
+                                                    if (previewPlayer === player) previewPlayer = null
+                                                    previewingSavedVoiceId = null
+                                                    message = "${voice.name} sample preview finished."
+                                                }
+                                            }
+                                            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                                                player.release()
+                                                if (previewPlayer === player) previewPlayer = null
+                                                previewingSavedVoiceId = null
+                                                message = "Sample preview failed: ${error.message ?: "audio playback error"}"
+                                            }
+                                        })
+                                        player.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(sampleFile)))
+                                        player.prepare()
+                                        player.play()
+                                        previewingSavedVoiceId = voice.id
+                                        message = "Playing saved sample for ${voice.name}. This is the original recording, not generated speech."
+                                    }.onFailure {
+                                        previewingSavedVoiceId = null
+                                        message = "Could not preview saved voice: ${it.localizedMessage ?: "audio playback error"}"
                                     }
-                                })
-                                player.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(sampleFile)))
-                                player.prepare()
-                                player.play()
-                                previewingSavedVoiceId = voice.id
-                                message = "Playing saved sample for ${voice.name}. This is the original recording, not generated speech."
-                            }.onFailure {
-                                previewingSavedVoiceId = null
-                                message = "Could not preview saved voice: ${it.localizedMessage ?: "audio playback error"}"
+                                }
                             }
-                        }) { Text(if (previewingSavedVoiceId == voice.id) "■ Stop" else "▶ Preview") }
+                        ) { Text(if (previewingSavedVoiceId == voice.id) "■ Stop" else "▶ Play my recording") }
                         TextButton(onClick = {
                             if (previewingSavedVoiceId == voice.id) {
                                 runCatching { previewPlayer?.release() }
@@ -348,7 +722,9 @@ fun MyVoicesScreen() {
                 }
             }
         }
-        Text("These recordings are stored locally as audio samples. They do not create new speech in your recorded voice.", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
+        if (voices.any { it.sarvamVoiceId.isBlank() }) {
+            Text("Local recordings are stored on this device as audio samples. Register a recording with a cloud provider to generate speech in that voice.", color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp)
+        }
         
     }
 }

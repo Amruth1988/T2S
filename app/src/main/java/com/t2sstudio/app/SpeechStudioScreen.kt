@@ -2,6 +2,8 @@ package com.t2sstudio.app
 
 import android.content.ContentValues
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.AudioManager
 import androidx.media3.common.AudioAttributes as Media3AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -34,10 +36,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -47,6 +51,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
@@ -65,8 +73,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -81,6 +91,8 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 private data class SpeechLanguage(val label: String, val locale: Locale)
 
@@ -99,8 +111,8 @@ private data class PurohitPreset(
 
 private val purohitPresets = listOf(
     PurohitPreset("Purohit 1", "Deep, steady traditional recitation", 0.84f, 0.86f),
-    PurohitPreset("Purohit 2", "Slow, devotional verse delivery", 0.72f, 1.08f),
-    PurohitPreset("Purohit 3", "Clear, formal temple-style delivery", 0.96f, 0.98f)
+    PurohitPreset("Purohit 2", "Slow, devotional verse delivery", 0.72f, 0.90f),
+    PurohitPreset("Purohit 3", "Clear, formal temple-style delivery", 0.96f, 0.88f)
 )
 
 private fun voiceGender(name: String): String? {
@@ -125,11 +137,24 @@ fun SpeechStudioScreen(
     projects: List<T2SProject>,
     selectedProjectId: String?,
     onSelectedProjectIdChange: (String?) -> Unit,
-    onAudioGenerated: (AudioRecord) -> Unit
+    onAudioGenerated: (AudioRecord) -> Unit,
+    initialScriptText: String?,
+    onInitialScriptTextConsumed: () -> Unit,
+    onSaveDraft: (String, String, String, String, (Result<T2SScriptDraft>) -> Unit) -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
+    var isRegisteredUser by remember { mutableStateOf(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) }
+    val inputCharacterLimit = if (isRegisteredUser) 3000 else 2000
+    DisposableEffect(Unit) {
+        val firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        val listener = com.google.firebase.auth.FirebaseAuth.AuthStateListener { authState ->
+            isRegisteredUser = authState.currentUser != null
+        }
+        firebaseAuth.addAuthStateListener(listener)
+        onDispose { firebaseAuth.removeAuthStateListener(listener) }
+    }
     var selectedLanguage by remember { mutableStateOf("English") }
     var selectedGender by remember { mutableStateOf("All") }
     val voiceGenderOverrides = remember { mutableStateMapOf<String, String>().apply {
@@ -144,8 +169,20 @@ fun SpeechStudioScreen(
     var speechPitch by remember { mutableFloatStateOf(1f) }
     var engineReady by remember { mutableStateOf(false) }
     var isGenerating by remember { mutableStateOf(false) }
+    var isSavingDraft by remember { mutableStateOf(false) }
     var generatedFile by remember { mutableStateOf<File?>(null) }
     var statusMessage by remember { mutableStateOf("Enter text to create your first voice recording.") }
+    LaunchedEffect(initialScriptText) {
+        if (initialScriptText != null) {
+            inputText = initialScriptText.take(inputCharacterLimit)
+            statusMessage = if (initialScriptText.length > inputCharacterLimit) {
+                "This input is limited to $inputCharacterLimit characters. The loaded script was shortened to fit."
+            } else {
+                "Saved script loaded. Edit it and generate new speech when ready."
+            }
+            onInitialScriptTextConsumed()
+        }
+    }
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
     var mediaPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
@@ -154,8 +191,7 @@ fun SpeechStudioScreen(
     var outputFormat by remember { mutableStateOf("WAV") }
     var autoPlayAfterGeneration by remember { mutableStateOf(false) }
     var voiceSearch by remember { mutableStateOf("") }
-    var projectMenuExpanded by remember { mutableStateOf(false) }
-    val selectedProject = projects.firstOrNull { it.id == selectedProjectId }
+    var voiceLibraryTab by remember { mutableStateOf("Online") }
     var selectedVoice by remember { mutableStateOf<Voice?>(null) }
     var selectedPurohitPreset by remember { mutableStateOf<PurohitPreset?>(null) }
     var isPurohitMode by remember { mutableStateOf(false) }
@@ -164,25 +200,11 @@ fun SpeechStudioScreen(
     val onlineVoices = remember { mutableStateListOf<OnlineTtsVoice>() }
     var selectedOnlineVoice by remember { mutableStateOf<OnlineTtsVoice?>(null) }
     var onlineCatalogueStatus by remember { mutableStateOf("Checking online voices…") }
+    var onlineCatalogueLanguage by remember { mutableStateOf<String?>(null) }
+    var onlineCatalogueRefreshKey by remember { mutableStateOf(0) }
     val myVoices = remember { mutableStateListOf<SavedUserVoice>() }
-    val convertedTeluguPacks = remember { mutableStateListOf<TeluguVoicePacks.InstalledConvertedVoice>().apply { addAll(TeluguVoicePacks.installedConverted(context)) } }
-    var selectedTeluguPackId by remember { mutableStateOf(convertedTeluguPacks.firstOrNull()?.id) }
-    var importingTeluguPacks by remember { mutableStateOf(false) }
-    val importTeluguPackLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            importingTeluguPacks = true
-            coroutineScope.launch {
-                val result = runCatching { withContext(Dispatchers.IO) { TeluguVoicePacks.importConvertedArchive(context, uri) } }
-                result.onSuccess {
-                    convertedTeluguPacks.clear()
-                    convertedTeluguPacks.addAll(TeluguVoicePacks.installedConverted(context))
-                    selectedTeluguPackId = convertedTeluguPacks.firstOrNull()?.id
-                    statusMessage = "Imported " + convertedTeluguPacks.size + " converted Telugu voice pack(s)."
-                }.onFailure { statusMessage = "Voice-pack import failed: " + (it.message ?: "invalid archive") }
-                importingTeluguPacks = false
-            }
-        }
-    }
+    var selectedSavedVoice by remember { mutableStateOf<SavedUserVoice?>(null) }
+
 
     val languages = listOf(
         SpeechLanguage("English", Locale.US),
@@ -190,18 +212,37 @@ fun SpeechStudioScreen(
         SpeechLanguage("Hindi", Locale("hi", "IN"))
     )
 
+    // Android Voice metadata does not expose a dependable speaker-gender field.
+    // Never infer gender from the engine's voice name: names such as "male", "female",
+    // or numbered voice IDs are inconsistent across manufacturers and TTS engines.
+    // Only use a user's explicit, persisted audition-based classification.
     fun genderForVoice(voice: Voice): String? = when (voiceGenderOverrides[installedVoiceKey(voice)]) {
         "Male" -> "Male"
         "Female" -> "Female"
-        "Unknown" -> null
-        else -> voiceGender(voice.name)
+        else -> null
     }
 
-    fun saveVoiceGender(voice: Voice, gender: String) {
-        voiceGenderOverrides[installedVoiceKey(voice)] = gender
+    fun saveGenderOverride(key: String, displayName: String, gender: String) {
+        voiceGenderOverrides[key] = gender
         context.getSharedPreferences("t2s_voice_gender_overrides", android.content.Context.MODE_PRIVATE)
-            .edit().putStringSet("overrides", voiceGenderOverrides.map { (key, value) -> key + "=" + value }.toSet()).apply()
-        statusMessage = voice.name + " marked as " + gender + "."
+            .edit().putStringSet("overrides", voiceGenderOverrides.map { (entryKey, value) -> entryKey + "=" + value }.toSet()).apply()
+        statusMessage = displayName + " marked as " + gender + "."
+    }
+
+    fun saveVoiceGender(voice: Voice, gender: String) =
+        saveGenderOverride(installedVoiceKey(voice), voice.name, gender)
+
+    fun onlineVoiceGender(voice: OnlineTtsVoice): String? {
+        return when (voiceGenderOverrides["online|"+voice.provider+"|"+voice.id]) {
+            "Male" -> "Male"
+            "Female" -> "Female"
+            "Unknown" -> null
+            else -> when (voice.gender.trim().lowercase(Locale.ROOT)) {
+                "male", "masculine", "m", "man" -> "Male"
+                "female", "feminine", "f", "woman" -> "Female"
+                else -> voiceGender(voice.name)
+            }
+        }
     }
 
     fun refreshVoices(engine: TextToSpeech, locale: Locale) {
@@ -209,58 +250,141 @@ fun SpeechStudioScreen(
             engine.setLanguage(locale)
             val matching = engine.voices.orEmpty()
                 .filter { it.locale.language == locale.language }
+                .distinctBy { it.name }
                 .sortedBy { it.name.lowercase(Locale.ROOT) }
+            val previousName = selectedVoice?.name
             availableVoices.clear()
             availableVoices.addAll(matching)
-            selectedVoice = matching.firstOrNull { selectedGender == "All" || genderForVoice(it) == selectedGender }
+            selectedVoice = matching.firstOrNull { it.name == previousName } ?: matching.firstOrNull()
         }.onFailure {
             availableVoices.clear()
             selectedVoice = null
         }
     }
 
-    LaunchedEffect(Unit) {
-        runCatching { withContext(Dispatchers.IO) { MyVoicesClient.list(context) } }
-            .onSuccess { saved -> myVoices.clear(); myVoices.addAll(saved) }
+    // Initialise Android's actual TTS engine so voices installed on the phone
+    // are discovered and can be previewed/selected from the Installed tab.
+    DisposableEffect(context) {
+        var createdEngine: TextToSpeech? = null
+        val engine = TextToSpeech(context.applicationContext) { result ->
+            if (result == TextToSpeech.SUCCESS) {
+                createdEngine?.let { readyEngine ->
+                    ttsEngine = readyEngine
+                    engineReady = true
+                    refreshVoices(readyEngine, languages.first { it.label == selectedLanguage }.locale)
+                }
+            } else {
+                engineReady = false
+                statusMessage = "Android text-to-speech engine could not be initialized. Check your phone's Text-to-speech settings."
+            }
+        }
+        createdEngine = engine
+        onDispose {
+            engineReady = false
+            if (ttsEngine === engine) ttsEngine = null
+            runCatching { engine.stop(); engine.shutdown() }
+        }
     }
 
-    LaunchedEffect(selectedLanguage) {
-        onlineVoices.clear()
-        selectedOnlineVoice = null
+    LaunchedEffect(selectedLanguage, engineReady) {
+        if (engineReady) {
+            ttsEngine?.let { engine ->
+                val locale = languages.firstOrNull { it.label == selectedLanguage }?.locale ?: Locale.US
+                refreshVoices(engine, locale)
+            }
+        }
+    }
+
+    LaunchedEffect(voiceLibraryTab) {
+        if (voiceLibraryTab == "My Voices") {
+            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            if (uid.isNullOrBlank()) {
+                myVoices.clear()
+                statusMessage = "Sign in to load your saved Firebase voices."
+            } else {
+                runCatching {
+                    kotlinx.coroutines.suspendCancellableCoroutine<List<SavedUserVoice>> { continuation ->
+                        com.t2sstudio.app.data.firebase.T2SFirestoreRepository().loadVoiceMetadata(uid) { result ->
+                            if (continuation.isActive) result.fold(
+                                onSuccess = { continuation.resume(it) },
+                                onFailure = { continuation.resumeWithException(it) }
+                            )
+                        }
+                    }
+                }.onSuccess { saved ->
+                    myVoices.clear()
+                    myVoices.addAll(saved)
+                    if (saved.isEmpty()) statusMessage = "No saved Firebase voices found."
+                }.onFailure { error ->
+                    myVoices.clear()
+                    statusMessage = "Could not load My Voices from Firebase: ${error.localizedMessage ?: "unknown error"}"
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(selectedLanguage, voiceLibraryTab, onlineCatalogueRefreshKey) {
+        if (voiceLibraryTab != "Online") return@LaunchedEffect
+
         val languageCode = when (selectedLanguage) {
             "English" -> "en"
             "Hindi" -> "hi"
             "Telugu" -> "te"
             else -> "en"
         }
-        onlineCatalogueStatus = "Loading online " + selectedLanguage + " voices…"
-        runCatching { withContext(Dispatchers.IO) { TtsAiClient.listVoices(languageCode) } }
-            .onSuccess { voices ->
-                onlineVoices.addAll(voices)
-                selectedOnlineVoice = voices.firstOrNull { selectedGender == "All" || it.gender.equals(selectedGender, ignoreCase = true) }
-                onlineCatalogueStatus = if (voices.isEmpty()) "No online " + selectedLanguage + " voices returned. Showing installed voices where available."
-                    else voices.size.toString() + " online " + selectedLanguage + " voices available."
+        val languageChanged = onlineCatalogueLanguage != selectedLanguage
+        if (languageChanged) {
+            onlineVoices.clear()
+            selectedOnlineVoice = null
+            onlineCatalogueLanguage = selectedLanguage
+        }
+        onlineCatalogueStatus = "Loading free online " + selectedLanguage + " voices…"
+
+        suspend fun <T> loadWithRetry(load: suspend () -> T): Result<T> {
+            var result = runCatching { load() }
+            if (result.isFailure) {
+                kotlinx.coroutines.delay(700)
+                result = runCatching { load() }
             }
-            .onFailure { onlineCatalogueStatus = "Online " + selectedLanguage + " voice catalogue unavailable. Showing installed voices where available." }
+            return result
+        }
+
+        val indiaResult = loadWithRetry {
+            withContext(Dispatchers.IO) { CentralOnlineTtsClient.listVoices("India API", languageCode) }
+        }
+        val indiaVoices = indiaResult.getOrNull()
+        val vakyamResult = loadWithRetry {
+            withContext(Dispatchers.IO) { CentralOnlineTtsClient.listVoices("Vakyam", languageCode) }
+        }
+        val vakyamVoices = vakyamResult.getOrNull()
+
+        // Replace only provider catalogues that loaded successfully. A temporary
+        // failure from one provider must not erase voices already loaded from another.
+        if (indiaVoices != null) {
+            onlineVoices.removeAll { it.provider != "Vakyam" }
+            onlineVoices.addAll(indiaVoices)
+        }
+        if (vakyamVoices != null) {
+            onlineVoices.removeAll { it.provider == "Vakyam" }
+            onlineVoices.addAll(vakyamVoices)
+        }
+        selectedOnlineVoice = selectedOnlineVoice?.let { selected ->
+            onlineVoices.firstOrNull { it.provider == selected.provider && it.id == selected.id }
+        } ?: onlineVoices.firstOrNull { selectedGender == "All" || onlineVoiceGender(it) == selectedGender }
+            ?: onlineVoices.firstOrNull()
+
+        onlineCatalogueStatus = buildString {
+            if (onlineVoices.isNotEmpty()) append("${onlineVoices.size} online voices available • India API: ${onlineVoices.count { it.provider != "Vakyam" }} • Vakyam: ${onlineVoices.count { it.provider == "Vakyam" }}")
+            else append("No ${selectedLanguage} online voices are available. Check provider setup and internet, then tap Retry online voices.")
+            if (indiaResult.isFailure) append(" • India API: ${indiaResult.exceptionOrNull()?.message ?: "unavailable"}")
+            if (vakyamResult.isFailure) append(" • Vakyam: ${vakyamResult.exceptionOrNull()?.message ?: "unavailable"}")
+        }
     }
 
-    DisposableEffect(context) {
-        lateinit var engine: TextToSpeech
-        engine = TextToSpeech(context) { result ->
-            engineReady = result == TextToSpeech.SUCCESS
-            if (result == TextToSpeech.SUCCESS) {
-                refreshVoices(engine, languages.first { it.label == selectedLanguage }.locale)
-            } else {
-                statusMessage = "Text-to-speech engine could not start. Check Android speech settings."
-            }
-        }
-        ttsEngine = engine
+    DisposableEffect(Unit) {
         onDispose {
             mediaPlayer?.release()
             mediaPlayer = null
-            engine.stop()
-            engine.shutdown()
-            ttsEngine = null
         }
     }
 
@@ -268,13 +392,12 @@ fun SpeechStudioScreen(
         runCatching { mediaPlayer?.stop() }
         mediaPlayer?.release()
         mediaPlayer = null
-        ttsEngine?.stop()
         isPlaying = false
         isPreviewing = false
         activePreviewKey = null
     }
 
-    fun previewOnlineVoice(voiceId: String, previewKey: String = voiceId, localSamplePath: String? = null, languageOverride: String? = null) {
+    fun previewOnlineVoice(voiceId: String, previewKey: String = voiceId, localSamplePath: String? = null, languageOverride: String? = null, provider: String = "India API", sarvamVoiceId: String = "") {
         if (isPreviewing && activePreviewKey == previewKey) { stopVoicePreview(); statusMessage = "Preview stopped."; return }
         stopVoicePreview()
         val localSample = localSamplePath?.let { File(it) }?.takeIf { it.exists() && it.length() > 1024L }
@@ -293,7 +416,9 @@ fun SpeechStudioScreen(
                 withContext(Dispatchers.IO) {
                     when {
                         localSample != null -> localSample.copyTo(previewFile, overwrite = true)
-                        else -> TtsAiClient.generate(sample, voiceId, 1f, previewFile, format = "mp3", apiKey = IndiaApiKeyStore.get(context))
+                        sarvamVoiceId.startsWith("svc-") ->
+                            SarvamVoiceCloneClient.generateCentral(sarvamVoiceId, sample, languageCode, previewFile)
+                        else -> CentralOnlineTtsClient.generate(provider, sample, voiceId, languageCode, 1f, previewFile, format = "mp3")
                     }
                 }
             }
@@ -305,6 +430,9 @@ fun SpeechStudioScreen(
             if (activePreviewKey != previewKey) { previewFile.delete(); return@launch }
             runCatching {
                 val player = ExoPlayer.Builder(context).build()
+                            // Match the clean Add Voice audition path; ExoPlayer silence skipping can
+                // introduce a dead-air lead-in with some registered voice samples.
+                player.skipSilenceEnabled = false
                 mediaPlayer = player
                 player.setAudioAttributes(
                     Media3AudioAttributes.Builder()
@@ -351,71 +479,12 @@ fun SpeechStudioScreen(
         }
     }
 
-    fun previewPurohitPreset(preset: PurohitPreset) {
-        val engine = ttsEngine
-        // Prefer an explicitly male voice, but accept Telugu voices with unknown gender metadata.
-        val maleTeluguVoice = selectedPurohitVoice?.takeIf { it.locale.language == "te" }
-            ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" && voiceGender(it.name) == "Male" }
-            ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" }
-        if (engine == null || !engineReady) {
-            statusMessage = "Android speech engine is still starting. Try the preview again."
-            return
-        }
-        if (maleTeluguVoice == null) {
-            statusMessage = "No Telugu system voice is installed. Install Telugu speech data in Android speech settings, then retry."
-            return
-        }
-        stopVoicePreview()
-        selectedPurohitVoice = maleTeluguVoice
-        val languageResult = engine.setLanguage(Locale("te", "IN"))
-        if (languageResult == TextToSpeech.LANG_MISSING_DATA || languageResult == TextToSpeech.LANG_NOT_SUPPORTED) {
-            statusMessage = "Telugu voice data is missing. Install Telugu speech data in Android settings."
-            return
-        }
-        engine.voice = maleTeluguVoice
-        engine.setSpeechRate((speechRate * preset.speedMultiplier).coerceIn(0.5f, 2f))
-        engine.setPitch((speechPitch * preset.pitchMultiplier).coerceIn(0.5f, 2f))
-        val key = "purohit:${preset.name}"
-        activePreviewKey = key
-        isPreviewing = true
-        isPlaying = false
-        engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            private val main = Handler(Looper.getMainLooper())
-            override fun onStart(utteranceId: String?) {
-                main.post { isPlaying = true; statusMessage = "Playing ${preset.name} style preview using ${maleTeluguVoice.name}." }
-            }
-            override fun onDone(utteranceId: String?) {
-                main.post {
-                    isPlaying = false
-                    isPreviewing = false
-                    activePreviewKey = null
-                    statusMessage = "${preset.name} style preview finished. This uses the installed Android voice, not a dedicated priest-recitation model."
-                }
-            }
-            @Deprecated("Deprecated in Java")
-            override fun onError(utteranceId: String?) {
-                main.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Purohit-style preview failed. Check the installed Telugu voice." }
-            }
-            override fun onError(utteranceId: String?, errorCode: Int) {
-                main.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Purohit-style preview failed (code $errorCode)." }
-            }
-        })
-        val result = engine.speak("నమస్కారం. ఇది పూజారి శైలిలో తెలుగు స్వర పరీక్ష.", TextToSpeech.QUEUE_FLUSH, Bundle(), key)
-        if (result == TextToSpeech.ERROR) {
-            isPreviewing = false
-            isPlaying = false
-            activePreviewKey = null
-            statusMessage = "Android could not start the Telugu preview."
-        } else {
-            statusMessage = "Preparing ${preset.name} style preview…"
-        }
-    }
-
-    fun playGeneratedFile(file: File) {
+    fun playGeneratedFile(file: File, pitch: Float = 1f) {
         stopVoicePreview()
         runCatching {
             mediaPlayer?.release()
             val player = ExoPlayer.Builder(context).build()
+                            player.skipSilenceEnabled = true
             mediaPlayer = player
             player.setAudioAttributes(
                 Media3AudioAttributes.Builder()
@@ -425,6 +494,9 @@ fun SpeechStudioScreen(
                 true
             )
             player.volume = 1f
+            player.setPlaybackParameters(
+                androidx.media3.common.PlaybackParameters(1f, pitch.coerceIn(0.5f, 2f))
+            )
             player.addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     when (playbackState) {
@@ -474,93 +546,51 @@ fun SpeechStudioScreen(
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp).padding(top = 10.dp, bottom = 104.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text(
-            "Text to Speech",
-            modifier = Modifier.fillMaxWidth(),
-            fontSize = 25.sp,
-            fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 0.35.sp,
-            color = T2SText
-        )
-
-        if (projects.isNotEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = T2SBackground)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("Save to project", color = T2SText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                        Text(selectedProject?.name ?: "Unassigned", color = T2SSecondaryText, fontSize = 12.sp)
-                    }
-                    Box {
-                        OutlinedButton(onClick = { projectMenuExpanded = true }) {
-                            Text("Change")
-                        }
-                        DropdownMenu(
-                            expanded = projectMenuExpanded,
-                            onDismissRequest = { projectMenuExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Unassigned") },
-                                onClick = {
-                                    onSelectedProjectIdChange(null)
-                                    projectMenuExpanded = false
-                                }
-                            )
-                            projects.forEach { project ->
-                                DropdownMenuItem(
-                                    text = { Text(project.name) },
-                                    onClick = {
-                                        onSelectedProjectIdChange(project.id)
-                                        projectMenuExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFE)),
+            colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("Your text", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("Your text", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                            Box(
+                                modifier = Modifier
+                                    .background(T2SOrange, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                                    .height(28.dp)
+                                    .padding(horizontal = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("SCRIPT", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White, letterSpacing = 1.sp)
+                            }
+                        }
                         Text("Write or paste your script below", fontSize = 12.sp, color = T2SSecondaryText)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0xFFFFF0E5), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        Text("SCRIPT", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF47721), letterSpacing = 1.sp)
                     }
                 }
                 OutlinedTextField(
                     value = inputText,
-                    onValueChange = { inputText = it; generatedFile = null },
+                    onValueChange = { newText ->
+                        inputText = newText.take(inputCharacterLimit)
+                        generatedFile = null
+                        if (newText.length > inputCharacterLimit) {
+                            statusMessage = "Input limit reached: $inputCharacterLimit characters."
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth().height(190.dp),
                     placeholder = {
                         Text(
@@ -585,11 +615,32 @@ fun SpeechStudioScreen(
                         color = Color(0xFF101B35)
                     ),
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Text("${inputText.length} characters", fontSize = 11.sp, color = T2SSecondaryText)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("${inputText.length} / $inputCharacterLimit characters", fontSize = 11.sp, color = if (inputText.length >= inputCharacterLimit) T2SOrange else T2SSecondaryText)
+                    OutlinedButton(
+                        onClick = {
+                            if (isSavingDraft) return@OutlinedButton
+                            isSavingDraft = true
+                            statusMessage = "Saving draft to your Firebase account…"
+                            onSaveDraft(inputText, selectedLanguage, "", "Unassigned") { result ->
+                                isSavingDraft = false
+                                result.onSuccess { draft ->
+                                    statusMessage = "✓ Draft saved to your Firebase account and this device: ${draft.title}."
+                                    android.widget.Toast.makeText(context, "Draft saved on this device", android.widget.Toast.LENGTH_SHORT).show()
+                                }.onFailure { error ->
+                                    statusMessage = "Draft was NOT saved to Firebase: ${error.localizedMessage ?: "Unknown Firebase error."} A local recovery copy remains on this device. Sign in and retry."
+                                    android.widget.Toast.makeText(context, "Draft save failed", android.widget.Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        },
+                        enabled = inputText.isNotBlank() && !isGenerating && !isSavingDraft
+                    ) {
+                        if (isSavingDraft) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(6.dp))
+                            Text("Saving…")
+                        } else Text("Save as draft")
+                    }
                 }
             }
         }
@@ -601,9 +652,10 @@ fun SpeechStudioScreen(
         ) {
           Row(
             modifier = Modifier.fillMaxWidth().padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Bottom
           ) {
-            Column(modifier = Modifier.weight(1.15f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(modifier = Modifier.weight(0.78f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Language", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 var languageMenuExpanded by remember { mutableStateOf(false) }
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -612,32 +664,49 @@ fun SpeechStudioScreen(
                         onClick = { languageMenuExpanded = true },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                            .height(36.dp),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                         border = androidx.compose.foundation.BorderStroke(
                             if (languageMenuExpanded) 1.5.dp else 1.dp,
-                            if (languageMenuExpanded) T2SOrange else Color(0xFFD8D2CC)
+                            T2SOrange
                         ),
                         colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.White,
-                            contentColor = T2SText
+                            containerColor = Color(0xFFF47721),
+                            contentColor = Color.White
                         ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Text(
                             selectedLanguage,
                             modifier = Modifier.weight(1f),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                            maxLines = 1,
+                            softWrap = false
                         )
-                        Text(
-                            if (languageMenuExpanded) "⌃" else "⌄",
-                            color = T2SOrange,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Medium,
-                            lineHeight = 22.sp
-                        )
+                        Canvas(
+                            modifier = Modifier
+                                .size(18.dp)
+                                .graphicsLayer { rotationZ = if (languageMenuExpanded) 180f else 0f }
+                        ) {
+                            val stroke = 2.2.dp.toPx()
+                            drawLine(
+                                color = Color.White,
+                                start = androidx.compose.ui.geometry.Offset(size.width * 0.22f, size.height * 0.38f),
+                                end = androidx.compose.ui.geometry.Offset(size.width * 0.5f, size.height * 0.64f),
+                                strokeWidth = stroke,
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                            drawLine(
+                                color = Color.White,
+                                start = androidx.compose.ui.geometry.Offset(size.width * 0.5f, size.height * 0.64f),
+                                end = androidx.compose.ui.geometry.Offset(size.width * 0.78f, size.height * 0.38f),
+                                strokeWidth = stroke,
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                        }
                     }
                     DropdownMenu(
                         expanded = languageMenuExpanded,
@@ -650,13 +719,21 @@ fun SpeechStudioScreen(
                         languages.forEach { language ->
                             DropdownMenuItem(
                                 text = {
-                                    Text(
-                                        language.label,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        color = if (selectedLanguage == language.label) Color(0xFFF47721) else Color(0xFF101B35),
-                                        fontSize = 14.sp,
-                                        fontWeight = if (selectedLanguage == language.label) FontWeight.Bold else FontWeight.Medium
-                                    )
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                        shape = RoundedCornerShape(9.dp),
+                                        colors = CardDefaults.cardColors(containerColor = if (selectedLanguage == language.label) Color(0xFFFFEBDD) else Color(0xFFFFF7F0)),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, if (selectedLanguage == language.label) T2SOrange else Color(0xFFF0D7C2))
+                                    ) {
+                                        Text(
+                                            language.label,
+                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                                            color = if (selectedLanguage == language.label) Color(0xFFF47721) else Color(0xFF101B35),
+                                            fontSize = 14.sp,
+                                            fontWeight = if (selectedLanguage == language.label) FontWeight.Bold else FontWeight.Medium
+                                        )
+                                    }
                                 },
                                 onClick = {
                                     selectedLanguage = language.label
@@ -672,12 +749,12 @@ fun SpeechStudioScreen(
                     }
                 }
             }
-            Column(modifier = Modifier.weight(0.95f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(modifier = Modifier.weight(1.22f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Gender", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("All", "Male", "Female").forEach { gender ->
                         FilterChip(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).height(36.dp),
                             selected = selectedGender == gender,
                             colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color(0xFFF47721),
@@ -695,14 +772,27 @@ fun SpeechStudioScreen(
                             ),
                             onClick = {
                                 selectedGender = gender
-                                selectedVoice = availableVoices.firstOrNull { voice ->
-                                    gender == "All" || genderForVoice(voice) == gender
-                                }
+                                selectedVoice = availableVoices.firstOrNull()
                                 selectedOnlineVoice = onlineVoices.firstOrNull { voice ->
-                                    gender == "All" || voice.gender.equals(gender, ignoreCase = true)
+                                    gender == "All" || onlineVoiceGender(voice) == gender
                                 }
                             },
-                            label = { Text(gender, fontSize = 10.sp, maxLines = 1) }
+                            label = {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        gender,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
+                            }
                         )
                     }
                 }
@@ -710,89 +800,7 @@ fun SpeechStudioScreen(
           }
         }
 
-        if (selectedLanguage == "Telugu") {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = T2SCream),
-                border = androidx.compose.foundation.BorderStroke(1.dp, T2SOrange.copy(alpha = 0.35f))
-            ) {
-                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Purohit-style voice presets", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = T2SText)
-                    Text(
-                        "These presets adjust speed and pitch on an installed Telugu Android voice. Android may not identify the voice gender. They are previews, not a dedicated or verified priest-recitation model.",
-                        fontSize = 11.sp,
-                        color = T2SSecondaryText
-                    )
-                    purohitPresets.forEach { preset ->
-                        val selected = isPurohitMode && selectedPurohitPreset?.name == preset.name
-                        Card(
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                selectedPurohitPreset = preset
-                                isPurohitMode = true
-                                val engine = ttsEngine
-                                selectedPurohitVoice = selectedPurohitVoice?.takeIf { it.locale.language == "te" }
-                                    ?: availableVoices.firstOrNull { it.locale.language == "te" && voiceGender(it.name) == "Male" }
-                                    ?: availableVoices.firstOrNull { it.locale.language == "te" }
-                                    ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" && voiceGender(it.name) == "Male" }
-                                    ?: engine?.voices.orEmpty().firstOrNull { it.locale.language == "te" }
-                                engine?.let {
-                                    it.setLanguage(Locale("te", "IN"))
-                                    selectedPurohitVoice?.let { voice -> it.voice = voice }
-                                }
-                                statusMessage = if (selectedPurohitVoice == null) {
-                                    "${preset.name} selected, but no explicitly male Telugu voice is installed. Female voices are blocked for this preset."
-                                } else {
-                                    "${preset.name} selected with male Telugu voice ${selectedPurohitVoice?.name}. Preview it before generating audio."
-                                }
-                            },
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(13.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (selected) Color(0xFFFFE3CC) else Color.White
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (selected) T2SOrange else Color(0xFFE5D6C8)
-                            )
-                        ) {
-                            Row(
-                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                            ) {
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(preset.name, color = T2SText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Text(preset.description, color = T2SSecondaryText, fontSize = 11.sp)
-                                }
-                                if (selected) Text("SELECTED", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 9.sp)
-                            }
-                        }
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = {
-                                val preset = selectedPurohitPreset.takeIf { isPurohitMode }
-                                if (preset == null) statusMessage = "Select Purohit 1, 2 or 3 first."
-                                else previewPurohitPreset(preset)
-                            },
-                            enabled = isPurohitMode && selectedPurohitPreset != null && selectedPurohitVoice?.locale?.language == "te" && engineReady,
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = Color.White)
-                        ) {
-                            Text(if (isPreviewing && activePreviewKey?.startsWith("purohit:") == true) "Preview playing…" else "▶ Preview")
-                        }
-                        androidx.compose.material3.OutlinedButton(
-                            onClick = {
-                                stopVoicePreview()
-                                isPurohitMode = false
-                                statusMessage = "Purohit mode cleared. Your selected preset and voice-library choice are kept."
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Clear") }
-                    }
-                }
-            }
-        }
+
 
         Card(modifier = Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = T2SBackground)) {
           Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -800,18 +808,27 @@ fun SpeechStudioScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("Voice library", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 }
+                val visibleVoiceCount = when (voiceLibraryTab) {
+                    "Online" -> onlineVoices.count { selectedGender == "All" || onlineVoiceGender(it) == selectedGender }
+                    "Installed" -> availableVoices.size
+                    else -> myVoices.size
+                }
                 Text(
-                    "${availableVoices.size + onlineVoices.size + myVoices.size} voices",
+                    "$visibleVoiceCount voices",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = T2SOrange
                 )
             }
             val allInstalledForLanguage = availableVoices.toList()
-            val genderMatches = allInstalledForLanguage.filter { voice -> selectedGender == "All" || genderForVoice(voice) == selectedGender }
-            val installedPool = genderMatches
-            val onlineGenderMatches = onlineVoices.filter { voice -> selectedGender == "All" || voice.gender.equals(selectedGender, true) }
-            val onlinePool = onlineGenderMatches
+            // Installed Android voices are listed without gender labels or gender filtering.
+            // Android TTS does not provide reliable speaker-gender metadata.
+            val installedPool = allInstalledForLanguage
+            // Gender filters are strict: unknown/unclassified voices must not leak into
+            // Male or Female results. Users can correct a provider label from each voice card.
+            val onlinePool = onlineVoices.filter { voice ->
+                selectedGender == "All" || onlineVoiceGender(voice) == selectedGender
+            }
             val searchTerm = voiceSearch.trim().lowercase(Locale.ROOT)
             val searchedInstalled = installedPool.filter { voice ->
                 "${voice.name} ${voice.locale.displayName} ${voice.locale.toLanguageTag()}".lowercase(Locale.ROOT).contains(searchTerm)
@@ -819,31 +836,68 @@ fun SpeechStudioScreen(
             val searchedOnline = onlinePool.filter { voice ->
                 "${voice.name} ${voice.language}".lowercase(Locale.ROOT).contains(searchTerm)
             }
-            val filteredInstalled = if (searchedInstalled.isNotEmpty() || searchTerm.isBlank()) searchedInstalled else installedPool.take(5)
-            val filteredOnline = if (searchedOnline.isNotEmpty() || searchTerm.isBlank()) searchedOnline else onlinePool.take(5)
+            val filteredInstalled = if (searchTerm.isBlank()) installedPool else searchedInstalled
+            val filteredOnline = if (searchTerm.isBlank()) onlinePool else searchedOnline
             val filteredPersonal = myVoices.filter { voice ->
-                voice.name.lowercase(Locale.ROOT).contains(searchTerm)
+                (searchTerm.isBlank() || voice.name.lowercase(Locale.ROOT).contains(searchTerm))
             }
-            val showingSuggestions = searchTerm.isNotBlank() && searchedInstalled.isEmpty() && searchedOnline.isEmpty() && filteredPersonal.isEmpty()
 
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = voiceSearch,
-                    onValueChange = {
-                        voiceSearch = it
-                                },
-                    modifier = Modifier.fillMaxWidth(),
+                    onValueChange = { query ->
+                        voiceSearch = query
+                        // Search only filters the Online catalogue; it must never expose local Android voices.
+                    },
+                    modifier = Modifier.fillMaxWidth().height(46.dp),
                     singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = T2SText),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                    placeholder = { Text("Search by voice name") },
-                    label = { Text("Voice Search") },
-                    leadingIcon = { Text("⌕", fontSize = 25.sp, color = T2SOrange, fontWeight = FontWeight.Bold) },
+                    placeholder = { Text("Search by voice name", fontSize = 12.sp, maxLines = 1) },
+                    leadingIcon = { Text("⌕", fontSize = 19.sp, color = T2SOrange, fontWeight = FontWeight.Bold) },
                     trailingIcon = {
                         if (voiceSearch.isNotBlank()) {
-                            TextButton(onClick = { voiceSearch = ""; }) { Text("✕ Clear") }
+                            TextButton(
+                                onClick = {
+                                    stopVoicePreview()
+                                    voiceSearch = ""
+                                    voiceLibraryTab = "Online"
+                                    selectedSavedVoice = null
+                                    selectedOnlineVoice = null
+                                    selectedVoice = availableVoices.firstOrNull()
+                                    selectedVoice?.let { voice ->
+                                        ttsEngine?.let { engine ->
+                                            engine.stop()
+                                            engine.setLanguage(voice.locale)
+                                            engine.voice = voice
+                                        }
+                                    }
+                                    statusMessage = selectedVoice?.let { "Voice search cleared. ${it.name} is selected as the installed voice." }
+                                        ?: "Voice search cleared. Select an installed voice to continue."
+                                }
+                            ) { Text("✕ Clear") }
                         }
                     }
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("Online", "Installed", "My Voices").forEach { tab ->
+                        FilterChip(
+                            modifier = Modifier.weight(1f),
+                            selected = voiceLibraryTab == tab,
+                            onClick = { voiceLibraryTab = tab },
+                            label = { Text(tab, maxLines = 1, softWrap = false, fontSize = 11.sp) },
+                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = T2SOrange,
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFFFFF7F0),
+                                labelColor = Color(0xFF6B5546)
+                            )
+                        )
+                    }
+                }
                 Card(
                     modifier = Modifier.fillMaxWidth().heightIn(max = 390.dp),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
@@ -858,7 +912,7 @@ fun SpeechStudioScreen(
                         .padding(horizontal = 10.dp, vertical = 9.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                   ) {
-                    if (filteredInstalled.isNotEmpty()) {
+                    if (voiceLibraryTab == "Installed" && filteredInstalled.isNotEmpty()) {
                         DropdownMenuItem(
                             text = {
                                 Row(
@@ -866,7 +920,7 @@ fun SpeechStudioScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                                 ) {
-                                    Text(if (showingSuggestions) "SUGGESTED INSTALLED VOICES" else "INSTALLED VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    Text("INSTALLED VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                                     Text("${filteredInstalled.size}", color = Color(0xFF58677F), fontWeight = FontWeight.Bold, fontSize = 11.sp)
                                 }
                             },
@@ -874,99 +928,98 @@ fun SpeechStudioScreen(
                             enabled = false
                         )
                         filteredInstalled.forEach { voice ->
-                            DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(installedVoiceDisplayName(voice, genderForVoice(voice), filteredInstalled.filter { genderForVoice(it) == genderForVoice(voice) }.indexOf(voice) + 1), color = Color(0xFF101B35), fontWeight = FontWeight.Bold, maxLines = 1)
-                                        Text(voice.name + " • " + voice.locale.toLanguageTag(), color = Color(0xFF58677F), fontSize = 11.sp, maxLines = 1)
-                                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                            TextButton(onClick = { genderMenuVoiceKey = installedVoiceKey(voice) }) {
-                                                Text("Gender: " + (genderForVoice(voice) ?: "Not set") + " ▾", fontSize = 11.sp)
-                                            }
-                                            DropdownMenu(expanded = genderMenuVoiceKey == installedVoiceKey(voice), onDismissRequest = { genderMenuVoiceKey = null }) {
-                                                listOf("Male", "Female", "Unknown").forEach { genderOption ->
-                                                    DropdownMenuItem(text = { Text(genderOption) }, onClick = {
-                                                        if (genderOption == "Unknown") {
-                                                            voiceGenderOverrides[installedVoiceKey(voice)] = "Unknown"
-                                                            context.getSharedPreferences("t2s_voice_gender_overrides", android.content.Context.MODE_PRIVATE)
-                                                                .edit().putStringSet("overrides", voiceGenderOverrides.map { (key, value) -> key + "=" + value }.toSet()).apply()
-                                                            statusMessage = "Gender set to Unknown for " + voice.name + "."
-                                                        } else saveVoiceGender(voice, genderOption)
-                                                        genderMenuVoiceKey = null
-                                                    })
-                                                }
-                                            }
-                                        }
-                                        if (isPlaying && activePreviewKey == "installed:${voice.name}") {
-                                            VoicePlaybackWaveform()
-                                        }
-                                    }
-                                },
-                                onClick = {
-                                    isPurohitMode = false
-                                    selectedVoice = voice
-                                    selectedOnlineVoice = null
-                                    voiceSearch = voice.name
-                                    ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
-                                    statusMessage = "${voice.name} selected."
-                                },
-                                trailingIcon = {
-                                    TextButton(onClick = {
-                                        val engine = ttsEngine
-                                        if (engine != null && engineReady) {
-                                            if (isPreviewing && activePreviewKey == "installed:${voice.name}") { stopVoicePreview(); statusMessage = "Preview stopped."; return@TextButton }
-                                            stopVoicePreview()
-                                            activePreviewKey = "installed:${voice.name}"
-                                            isPreviewing = true
-                                            val mainHandler = Handler(Looper.getMainLooper())
-                                            engine.setLanguage(voice.locale)
-                                            engine.voice = voice
-                                            engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                                                override fun onStart(utteranceId: String?) {
-                                                    mainHandler.post { isPlaying = true; statusMessage = "Playing ${voice.name} preview." }
-                                                }
-                                                override fun onDone(utteranceId: String?) {
-                                                    mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "${voice.name} preview finished." }
-                                                }
-                                                @Deprecated("Deprecated in Java")
-                                                override fun onError(utteranceId: String?) {
-                                                    mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Could not play ${voice.name}. Check installed voice data." }
-                                                }
-                                                override fun onError(utteranceId: String?, errorCode: Int) {
-                                                    mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Voice preview failed (code $errorCode)." }
-                                                }
-                                            })
-                                            val sample = when (voice.locale.language) {
-                                                "te" -> "నమస్కారం. ఇది స్వర నమూనా."
-                                                "hi" -> "नमस्ते। यह आवाज़ का नमूना है।"
-                                                else -> "Hello. This is a sample voice preview."
-                                            }
-                                            val speakResult = engine.speak(sample, TextToSpeech.QUEUE_FLUSH, Bundle(), "t2s-preview-${voice.name}")
-                                            if (speakResult == TextToSpeech.ERROR) {
-                                                isPreviewing = false
-                                                isPlaying = false
-                                                statusMessage = "Android could not start this voice preview."
-                                            } else {
-                                                statusMessage = "Preparing ${voice.name} preview…"
-                                            }
-                                        } else {
-                                            statusMessage = "Android speech engine is not ready yet."
-                                        }
-                                    }, enabled = engineReady) {
+                            val isSelected = selectedVoice?.name == voice.name
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFFFFEBDD) else Color(0xFFFFF7F0)),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) T2SOrange else Color(0xFFF0D7C2))
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Column(Modifier.weight(1f).clickable {
+                                        isPurohitMode = false
+                                        selectedVoice = voice
+                                        selectedOnlineVoice = null
+                                        selectedSavedVoice = null
+                                        voiceSearch = voice.name
+                                        ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
+                                        statusMessage = "${voice.name} selected."
+                                    }) {
                                         Text(
-                                            if (isPreviewing && activePreviewKey == "installed:${voice.name}") "Ⅱ" else "▶",
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier
-                                                .background(Color(0xFFF47721), androidx.compose.foundation.shape.CircleShape)
-                                                .padding(horizontal = 13.dp, vertical = 8.dp)
+                                            installedVoiceDisplayName(voice, filteredInstalled.indexOf(voice) + 1),
+                                            color = T2SText,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1
+                                        )
+                                    }
+                                    if (isSelected) {
+                                        Text("✓", color = T2SOrange, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                                    }
+                                    TextButton(
+                                        onClick = {
+                                            val engine = ttsEngine
+                                            if (engine != null && engineReady) {
+                                                if (isPreviewing && activePreviewKey == "installed:${voice.name}") {
+                                                    stopVoicePreview()
+                                                    statusMessage = "Preview stopped."
+                                                    return@TextButton
+                                                }
+                                                stopVoicePreview()
+                                                activePreviewKey = "installed:${voice.name}"
+                                                isPreviewing = true
+                                                val mainHandler = Handler(Looper.getMainLooper())
+                                                engine.setLanguage(voice.locale)
+                                                engine.voice = voice
+                                                engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                                                    override fun onStart(utteranceId: String?) {
+                                                        mainHandler.post { isPlaying = true; statusMessage = "Playing ${voice.name} preview." }
+                                                    }
+                                                    override fun onDone(utteranceId: String?) {
+                                                        mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "${voice.name} preview finished." }
+                                                    }
+                                                    @Deprecated("Deprecated in Java")
+                                                    override fun onError(utteranceId: String?) {
+                                                        mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Could not play ${voice.name}. Check installed voice data." }
+                                                    }
+                                                    override fun onError(utteranceId: String?, errorCode: Int) {
+                                                        mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Voice preview failed (code $errorCode)." }
+                                                    }
+                                                })
+                                                val sample = when (voice.locale.language) {
+                                                    "te" -> "నమస్కారం. ఇది స్వర నమూనా."
+                                                    "hi" -> "नमस्ते। यह आवाज़ का नमूना है।"
+                                                    else -> "Hello. This is a sample voice preview."
+                                                }
+                                                val speakResult = engine.speak(sample, TextToSpeech.QUEUE_FLUSH, Bundle(), "t2s-preview-${voice.name}")
+                                                if (speakResult == TextToSpeech.ERROR) {
+                                                    isPreviewing = false
+                                                    isPlaying = false
+                                                    statusMessage = "Android could not start this voice preview."
+                                                } else {
+                                                    statusMessage = "Preparing ${voice.name} preview…"
+                                                }
+                                            } else {
+                                                statusMessage = "Android speech engine is not ready yet."
+                                            }
+                                        },
+                                        enabled = engineReady
+                                    ) {
+                                        Text(
+                                            if (isPreviewing && activePreviewKey == "installed:${voice.name}") "■ Stop" else "▶ Play",
+                                            color = T2SOrange,
+                                            fontWeight = FontWeight.Bold
                                         )
                                     }
                                 }
-                            )
+                            }
                         }
                     }
-                    if (filteredOnline.isNotEmpty()) {
+                    if (voiceLibraryTab == "Online" && filteredOnline.isNotEmpty()) {
                         DropdownMenuItem(
                             text = {
                                 Row(
@@ -974,7 +1027,7 @@ fun SpeechStudioScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                                 ) {
-                                    Text(if (showingSuggestions) "SUGGESTED ONLINE VOICES" else "ONLINE VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    Text("ONLINE VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                                     Text("${filteredOnline.size}", color = Color(0xFF58677F), fontWeight = FontWeight.Bold, fontSize = 11.sp)
                                 }
                             },
@@ -982,52 +1035,75 @@ fun SpeechStudioScreen(
                             enabled = false
                         )
                         filteredOnline.forEach { voice ->
+                            val isSelected = selectedOnlineVoice?.let { it.provider == voice.provider && it.id == voice.id } == true
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                                 shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FB)),
+                                colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFFFFEBDD) else Color(0xFFFFF7F0)),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDCE3EF))
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) T2SOrange else Color(0xFFF0D7C2))
                             ) {
-                              Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                              Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f).clickable {
                                     isPurohitMode = false
                                     selectedOnlineVoice = voice
                                     selectedVoice = null
+                                    selectedSavedVoice = null
                                     voiceSearch = voice.name
-                                    statusMessage = voice.name + " selected. Voice licence: " + voice.licence + ". " + voice.attribution
+                                    statusMessage = voice.name + " selected from " + voice.provider + ". Voice licence: " + voice.licence + ". " + voice.attribution
                                 }) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
-                                    Text("Free online • " + voice.language + " • " + voice.licence, color = Color(0xFF58677F), fontSize = 10.sp, maxLines = 2)
+                                if (isSelected) {
+                                    Text("✓", color = T2SOrange, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
                                 }
-                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.id}") }) {
-                                    Text(if (activePreviewKey == "online:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = Color(0xFFF47721), fontWeight = FontWeight.Bold)
+                                }
+                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.provider}:${voice.id}", provider = voice.provider) }) {
+                                    Text(if (activePreviewKey == "online:${voice.provider}:${voice.id}" && isPreviewing) "■ Stop" else "▶ Play", color = Color(0xFFF47721), fontWeight = FontWeight.Bold)
                                 }
                               }
                             }
                         }
                     }
-                    if (filteredPersonal.isNotEmpty()) {
+                    if (voiceLibraryTab == "My Voices" && filteredPersonal.isNotEmpty()) {
                         DropdownMenuItem(
-                            text = { Text("MY SAVED VOICE SAMPLES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                            text = { Text("MY VOICES", color = T2SOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
                             onClick = {},
                             enabled = false
                         )
                         filteredPersonal.forEach { voice ->
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
-                                    Text("Saved sample • " + voice.language.uppercase(), color = T2SSecondaryText, fontSize = 11.sp)
-                                }
-                                TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "personal:${voice.id}", localSamplePath = voice.localSamplePath, languageOverride = voice.language) }) {
-                                    Text(if (activePreviewKey == "personal:${voice.id}" && isPreviewing) "■ Stop" else "▶ Preview", color = T2SOrange)
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(containerColor = if (selectedSavedVoice?.id == voice.id) Color(0xFFFFEBDD) else Color(0xFFFFF7F0)),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (selectedSavedVoice?.id == voice.id) T2SOrange else Color(0xFFF0D7C2))
+                            ) {
+                                Row(Modifier.fillMaxWidth().clickable {
+                                    isPurohitMode = false
+                                    selectedSavedVoice = voice
+                                    selectedVoice = null
+                                    selectedOnlineVoice = null
+                                    val savedLanguage = when (voice.language.lowercase()) {
+                                        "te", "telugu" -> "Telugu"
+                                        "en", "english" -> "English"
+                                        "hi", "hindi" -> "Hindi"
+                                        else -> selectedLanguage
+                                    }
+                                    selectedLanguage = savedLanguage
+                                    voiceSearch = voice.name
+                                    statusMessage = "${voice.name} selected • ${voice.gender} • ${savedLanguage}. The saved sample will be used as the voice-cloning reference."
+                                }.heightIn(min = 56.dp).padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(voice.name + if (selectedSavedVoice?.id == voice.id) " ✓" else "", modifier = Modifier.weight(1f), color = T2SText, fontWeight = FontWeight.SemiBold)
+                                    TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "personal:${voice.id}", localSamplePath = voice.localSamplePath, languageOverride = voice.language, sarvamVoiceId = voice.sarvamVoiceId) }) {
+                                        Text(if (activePreviewKey == "personal:${voice.id}" && isPreviewing) "■ Stop" else "▶ Play", color = T2SOrange, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }
                     }
-                    if (filteredInstalled.isEmpty() && filteredOnline.isEmpty() && filteredPersonal.isEmpty()) {
+                    if ((voiceLibraryTab == "Installed" && filteredInstalled.isEmpty()) || (voiceLibraryTab == "Online" && filteredOnline.isEmpty()) || (voiceLibraryTab == "My Voices" && filteredPersonal.isEmpty())) {
                         DropdownMenuItem(
-                            text = { Text(if (onlineCatalogueStatus.startsWith("Loading")) "Loading voices…" else if (selectedGender != "All") "No $selectedGender voices match this language. Choose All or another gender." else "No voices are installed or available for this language yet. Try another language.", color = T2SSecondaryText) },
+                            text = { Text(when (voiceLibraryTab) { "Installed" -> if (filteredInstalled.isEmpty()) "No installed voices match this search and language." else ""; "Online" -> if (onlineCatalogueStatus.startsWith("Loading")) "Loading online voices…" else "No online voices match this search and language."; else -> "No saved voices match this search." }, color = T2SSecondaryText) },
                             onClick = {},
                             enabled = false
                         )
@@ -1045,12 +1121,21 @@ fun SpeechStudioScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text("Output format:", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-                listOf("WAV", "MP3").forEach { format ->
+                listOf("WAV", "MP3", "OGG").forEach { format ->
+                    val formatSupported = !(selectedOnlineVoice?.provider == "Vakyam" && format == "OGG")
                     FilterChip(
                         selected = outputFormat == format,
-                        enabled = selectedLanguage != "Telugu" || format == "WAV" || (!isPurohitMode && selectedOnlineVoice != null),
+                        enabled = formatSupported,
                         onClick = { outputFormat = format },
-                        label = { Text(format, fontSize = 12.sp) }
+                        label = { Text(format, fontSize = 12.sp) },
+                        colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = T2SOrange,
+                            selectedLabelColor = Color.White,
+                            containerColor = Color(0xFFFFF7F0),
+                            labelColor = Color(0xFF6B5546),
+                            disabledContainerColor = Color(0xFFF3EFEB),
+                            disabledLabelColor = Color(0xFFB8AAA0)
+                        )
                     )
                 }
             }
@@ -1067,193 +1152,121 @@ fun SpeechStudioScreen(
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row {
-                Text("Speaking speed", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-                Spacer(Modifier.weight(1f))
-                Text("${"%.1f".format(speechRate)}x", color = T2SOrange, fontWeight = FontWeight.Bold)
-            }
-            Slider(value = speechRate, onValueChange = { speechRate = it }, valueRange = 0.5f..2f)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Slow", color = T2SSecondaryText, fontSize = 11.sp)
-                Text("Fast", color = T2SSecondaryText, fontSize = 11.sp)
-            }
-        }
+        LabeledSpeechSlider(
+            title = "Speaking speed",
+            value = speechRate,
+            onValueChange = { speechRate = it },
+            lowLabel = "Slow",
+            highLabel = "Fast"
+        )
 
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row {
-                Text("Voice pitch", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-                Spacer(Modifier.weight(1f))
-                Text("${"%.1f".format(speechPitch)}x", color = T2SOrange, fontWeight = FontWeight.Bold)
-            }
-            Slider(value = speechPitch, onValueChange = { speechPitch = it }, valueRange = 0.5f..2f)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Low", color = T2SSecondaryText, fontSize = 11.sp)
-                Text("High", color = T2SSecondaryText, fontSize = 11.sp)
-            }
-        }
+        LabeledSpeechSlider(
+            title = "Voice pitch",
+            value = speechPitch,
+            onValueChange = { speechPitch = it },
+            lowLabel = "Low",
+            highLabel = "High"
+        )
+
+
 
         Button(
             onClick = {
                 val textToSpeak = inputText.trim()
-                val language = languages.first { it.label == selectedLanguage }
-                if (textToSpeak.isBlank()) {
-                    statusMessage = "Please enter some text first."
-                } else if (selectedLanguage == "Telugu" && !isPurohitMode && outputFormat == "WAV" && convertedTeluguPacks.any { it.id == selectedTeluguPackId }) {
-                    val pack = convertedTeluguPacks.firstOrNull { it.id == selectedTeluguPackId }
-                    if (pack == null) {
-                        statusMessage = "Import and select a converted Telugu voice pack first."
-                    } else {
-                        val directory = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir, "T2SStudio").apply { mkdirs() }
-                        val output = File(directory, "telugu_speech_" + System.currentTimeMillis() + ".wav")
+                val languageCode = when (selectedLanguage) {
+                    "English" -> "en"
+                    "Hindi" -> "hi"
+                    "Telugu" -> "te"
+                    else -> ""
+                }
+                val personalVoice = selectedSavedVoice
+                val onlineVoice = selectedOnlineVoice
+                val usingPersonalVoice = personalVoice != null
+                val outputFormatForRequest = if (usingPersonalVoice) "wav" else outputFormat.lowercase(Locale.ROOT)
+                val directory = File(
+                    context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
+                    "T2SStudio"
+                ).apply { mkdirs() }
+                val output = File(directory, "speech_" + System.currentTimeMillis() + "." + outputFormatForRequest)
+                when {
+                    textToSpeak.isBlank() -> statusMessage = "Please enter some text first."
+                    languageCode.isBlank() -> statusMessage = "This language is not supported by the speech service."
+                    personalVoice != null && languageCode !in setOf("te", "en") ->
+                        statusMessage = "My Voices generation currently supports Telugu and English. Choose one of those languages."
+                    personalVoice != null && (when (personalVoice.language.lowercase(Locale.ROOT).substringBefore('-')) {
+                        "te", "telugu" -> "te"
+                        "en", "english" -> "en"
+                        "hi", "hindi" -> "hi"
+                        else -> ""
+                    }) != languageCode ->
+                        statusMessage = "The selected My Voice profile language does not match the script language."
+                    personalVoice != null && personalVoice.sarvamVoiceId.isBlank() ->
+                        statusMessage = "${personalVoice.name} is saved locally but is not registered with Sarvam yet. Open My Voices and complete voice registration before generating."
+                    personalVoice != null && textToSpeak.length > 1000 ->
+                        statusMessage = "My Voices supports up to 1,000 characters per generation. Shorten your text and try again."
+                    personalVoice == null && textToSpeak.length > 3000 ->
+                        statusMessage = "Online TTS supports up to 3,000 characters per request. Shorten your text and try again."
+                    personalVoice == null && (onlineVoice == null || !onlineVoice.language.substringBefore('-').equals(languageCode, ignoreCase = true)) ->
+                        statusMessage = "Choose an online ${selectedLanguage} voice before generating speech."
+                    else -> {
                         isGenerating = true
                         generatedFile = null
                         stopVoicePreview()
-                        statusMessage = "Generating offline Telugu speech with " + pack.displayName + "…"
+                        statusMessage = if (personalVoice != null) {
+                            "Generating speech with your voice: ${personalVoice.name}…"
+                        } else {
+                            "Generating ${selectedLanguage} speech online…"
+                        }
                         coroutineScope.launch {
-                            val result = runCatching { withContext(Dispatchers.IO) { TeluguOfflineTtsEngine(context, pack.model, pack.tokens).use { it.synthesizeToWav(textToSpeak, output, speechRate) } } }
-                            result.onSuccess {
+                            val result = runCatching {
+                                withContext(Dispatchers.IO) {
+                                    if (personalVoice != null) {
+                                        SarvamVoiceCloneClient.generateCentral(
+                                            voiceId = personalVoice.sarvamVoiceId,
+                                            text = textToSpeak,
+                                            language = languageCode,
+                                            output = output
+                                        )
+                                    } else if (onlineVoice!!.provider == "Vakyam") {
+                                        CentralOnlineTtsClient.generate(
+                                            "Vakyam", textToSpeak, onlineVoice.id, languageCode,
+                                            speechRate, output, format = outputFormatForRequest
+                                        )
+                                    } else {
+                                        CentralOnlineTtsClient.generate(
+                                            "India API", textToSpeak, onlineVoice.id, languageCode,
+                                            speechRate, output, format = outputFormatForRequest
+                                        )
+                                    }
+                                }
+                            }
+                            if (result.isSuccess && output.isFile && output.length() > 1024L) {
                                 isGenerating = false
                                 generatedFile = output
-                                onAudioGenerated(AudioRecord(id = java.util.UUID.randomUUID().toString(), filePath = output.absolutePath, textPreview = textToSpeak.take(180), language = "Telugu", createdAt = System.currentTimeMillis(), projectId = selectedProject?.id.orEmpty(), projectName = selectedProject?.name ?: "Unassigned"))
-                                statusMessage = "Offline Telugu WAV is ready."
-                                if (autoPlayAfterGeneration) playGeneratedFile(output)
-                            }.onFailure { output.delete(); isGenerating = false; statusMessage = "Offline Telugu generation failed: " + (it.message ?: "engine error") }
-                        }
-                    }
-                } else if (!engineReady || ttsEngine == null) {
-                    statusMessage = "Speech engine is still starting. Please try again."
-                } else {
-                    val audioDirectory = File(
-                        context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
-                        "T2SStudio"
-                    ).apply { mkdirs() }
-                    val output = File(audioDirectory, "speech_" + System.currentTimeMillis() + "." + outputFormat.lowercase())
-                    isGenerating = true
-                    generatedFile = null
-                    statusMessage = "Trying online speech…"
-                    coroutineScope.launch {
-                        val onlineLanguage = if (isPurohitMode) null else when (selectedLanguage) {
-                            "English" -> "en"
-                            "Hindi" -> "hi"
-                            "Telugu" -> "te"
-                            else -> null
-                        }
-                        var onlineSuccess = false
-                        val chosenOnlineVoice = selectedOnlineVoice
-                        val voiceId = chosenOnlineVoice?.id
-                        if (onlineLanguage != null && voiceId != null && textToSpeak.length <= 3000) {
-                            val onlineResult = runCatching {
-                                withContext(Dispatchers.IO) {
-                                    TtsAiClient.generate(
-                                        textToSpeak, voiceId, speechRate, output,
-                                        format = outputFormat.lowercase(),
-                                        apiKey = IndiaApiKeyStore.get(context)
+                                onAudioGenerated(
+                                    AudioRecord(
+                                        id = java.util.UUID.randomUUID().toString(),
+                                        filePath = output.absolutePath,
+                                        textPreview = textToSpeak.take(180),
+                                        language = selectedLanguage,
+                                        createdAt = System.currentTimeMillis(),
+                                        projectId = "",
+                                        projectName = "Unassigned",
+                                        scriptContent = textToSpeak
                                     )
-                                }
-                            }
-                            onlineSuccess = onlineResult.isSuccess && output.isFile && output.length() > 0L
-                            if (!onlineSuccess) {
-                                statusMessage = "Online unavailable (" +
-                                    (onlineResult.exceptionOrNull()?.message ?: "service error") +
-                                    "). Switching to Android voice…"
-                            }
-                        } else if (onlineLanguage != null && textToSpeak.length > 3000) {
-                            statusMessage = "Text exceeds the free online 3,000-character limit. Switching to Android voice…"
-                        } else {
-                            statusMessage = "Using Android voice for Telugu…"
-                        }
-
-                        if (onlineSuccess) {
-                            isGenerating = false
-                            generatedFile = output
-                            onAudioGenerated(
-                                AudioRecord(
-                                    id = java.util.UUID.randomUUID().toString(),
-                                    filePath = output.absolutePath,
-                                    textPreview = textToSpeak.take(180),
-                                    language = selectedLanguage,
-                                    createdAt = System.currentTimeMillis(),
-                                    projectId = selectedProject?.id.orEmpty(),
-                                    projectName = selectedProject?.name ?: "Unassigned"
                                 )
-                            )
-                            statusMessage = "Online speech audio is ready and saved in T2S Studio."
-                            if (autoPlayAfterGeneration) playGeneratedFile(output)
-                        } else {
-                            output.delete()
-                            val fallbackOutput = if (outputFormat == "MP3") File(output.parentFile, output.nameWithoutExtension + ".wav") else output
-                            val engine = ttsEngine
-                            if (engine == null || !engineReady) {
-                                isGenerating = false
-                                statusMessage = "Online speech failed and Android speech engine is unavailable."
+                                statusMessage = if (personalVoice != null) {
+                                    "Speech generated with ${personalVoice.name}. Your audio is ready in Preview."
+                                } else {
+                                    "Online speech audio is ready and saved in T2S Studio."
+                                }
+                                if (autoPlayAfterGeneration || personalVoice != null) playGeneratedFile(output)
                             } else {
-                                val preset = selectedPurohitPreset.takeIf { isPurohitMode }
-                                val presetVoice = if (preset != null) {
-                                    selectedPurohitVoice?.takeIf {
-                                        it.locale.language == "te" && voiceGender(it.name) == "Male"
-                                    } ?: engine.voices.orEmpty().firstOrNull {
-                                        it.locale.language == "te" && voiceGender(it.name) == "Male"
-                                    }
-                                } else null
-                                if (preset != null && presetVoice == null) {
-                                    isGenerating = false
-                                    statusMessage = "Cannot generate ${preset.name}: no explicitly male Telugu voice is installed. Female voices are blocked. Install a male Telugu TTS voice first."
-                                } else {
-                                val languageResult = engine.setLanguage(language.locale)
-                                if (languageResult == TextToSpeech.LANG_MISSING_DATA ||
-                                    languageResult == TextToSpeech.LANG_NOT_SUPPORTED
-                                ) {
-                                    isGenerating = false
-                                    statusMessage = language.label + " voice data is not installed or supported on this device."
-                                } else {
-                                    (presetVoice ?: selectedVoice)?.let { engine.voice = it }
-                                    engine.setSpeechRate((speechRate * (preset?.speedMultiplier ?: 1f)).coerceIn(0.5f, 2f))
-                                    engine.setPitch((speechPitch * (preset?.pitchMultiplier ?: 1f)).coerceIn(0.5f, 2f))
-                                    engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                                        override fun onStart(utteranceId: String?) { }
-                                        override fun onDone(utteranceId: String?) {
-                                            if (!fallbackOutput.isFile || fallbackOutput.length() <= 0L) {
-                                                fallbackOutput.delete()
-                                                isGenerating = false
-                                                statusMessage = "Android speech engine finished without producing a valid audio file."
-                                                return
-                                            }
-                                            isGenerating = false
-                                            generatedFile = fallbackOutput
-                                            onAudioGenerated(
-                                                AudioRecord(
-                                                    id = java.util.UUID.randomUUID().toString(),
-                                                    filePath = fallbackOutput.absolutePath,
-                                                    textPreview = textToSpeak.take(180),
-                                                    language = selectedLanguage,
-                                                    createdAt = System.currentTimeMillis(),
-                                                    projectId = selectedProject?.id.orEmpty(),
-                                                    projectName = selectedProject?.name ?: "Unassigned"
-                                                )
-                                            )
-                                            statusMessage = if (outputFormat == "MP3") "MP3 generation was unavailable; Android fallback saved as WAV." else "Android speech audio is ready and saved in T2S Studio."
-                                            if (autoPlayAfterGeneration) playGeneratedFile(fallbackOutput)
-                                        }
-                                        @Deprecated("Deprecated in Java")
-                                        override fun onError(utteranceId: String?) {
-                                            fallbackOutput.delete()
-                                            isGenerating = false
-                                            statusMessage = "Could not generate audio with either speech provider."
-                                        }
-                                        override fun onError(utteranceId: String?, errorCode: Int) {
-                                            fallbackOutput.delete()
-                                            isGenerating = false
-                                            statusMessage = "Android speech generation failed (code " + errorCode + ")."
-                                        }
-                                    })
-                                    val result = engine.synthesizeToFile(textToSpeak, Bundle(), fallbackOutput, "t2s-" + fallbackOutput.name)
-                                    if (result != TextToSpeech.SUCCESS) {
-                                        isGenerating = false
-                                        statusMessage = "Android speech engine could not generate this audio."
-                                    }
-                                }
-                                }
+                                output.delete()
+                                isGenerating = false
+                                statusMessage = (if (personalVoice != null) "My Voice generation failed: " else "Online TTS failed: ") +
+                                    (result.exceptionOrNull()?.message ?: "The service returned invalid audio.") +
+                                    " Check the selected voice and try again."
                             }
                         }
                     }
@@ -1283,7 +1296,17 @@ fun SpeechStudioScreen(
                 Spacer(Modifier.width(10.dp))
                 Text("✨ Creating your audio…", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             } else {
-                Text("🎙️  Generate Speech  ✨", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Mic,
+                        contentDescription = "Generate speech",
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text("Generate Speech", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                }
             }
         }
 
@@ -1342,10 +1365,48 @@ fun SpeechStudioScreen(
 
         Text(statusMessage, fontSize = 13.sp, color = T2SSecondaryText)
         Text(
-            "Use free online Piper voices when available, or installed Android voices and imported Telugu offline packs. Online requests need internet; audio stays in app storage.",
+            "Online-only speech generation. An internet connection is required; generated audio is saved in app storage.",
             fontSize = 11.sp,
             color = T2SSecondaryText
         )
+    }
+}
+
+@Composable
+private fun LabeledSpeechSlider(
+    title: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    lowLabel: String,
+    highLabel: String
+) {
+    val tickLabels = listOf("0.5x", "0.75x", "1.0x", "1.25x", "1.5x", "1.75x", "2.0x")
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+            Spacer(Modifier.weight(1f))
+            Text("${"%.2f".format(value).trimEnd('0').trimEnd('.')}x", color = T2SOrange, fontWeight = FontWeight.Bold)
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = 0.5f..2f,
+            steps = 5
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            tickLabels.forEach { label ->
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Box(Modifier.size(4.dp).background(T2SOrange, RoundedCornerShape(50)))
+                        Text(label, color = T2SSecondaryText, fontSize = 8.sp, maxLines = 1)
+                    }
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(lowLabel, color = T2SSecondaryText, fontSize = 11.sp)
+            Text(highLabel, color = T2SSecondaryText, fontSize = 11.sp)
+        }
     }
 }
 
@@ -1384,11 +1445,6 @@ private fun VoicePlaybackWaveform() {
 
 private fun installedVoiceKey(voice: Voice): String = voice.locale.toLanguageTag() + "|" + voice.name
 
-private fun installedVoiceDisplayName(voice: Voice, gender: String?, index: Int): String {
-    val label = when (gender) {
-        "Male" -> "Male Voice " + index
-        "Female" -> "Female Voice " + index
-        else -> "Unclassified Voice " + index
-    }
-    return label + " (" + voice.locale.toLanguageTag() + ")"
+private fun installedVoiceDisplayName(voice: Voice, index: Int): String {
+    return "Voice " + index + " (" + voice.locale.toLanguageTag() + ")"
 }

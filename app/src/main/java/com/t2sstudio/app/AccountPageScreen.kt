@@ -1,0 +1,172 @@
+package com.t2sstudio.app
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.google.firebase.auth.FirebaseAuth
+import com.t2sstudio.app.ui.theme.T2SBackground
+import com.t2sstudio.app.ui.theme.T2SCream
+import com.t2sstudio.app.ui.theme.T2SOrange
+import com.t2sstudio.app.ui.theme.T2SSecondaryText
+import com.t2sstudio.app.ui.theme.T2SText
+
+@Composable
+fun AccountPageScreen(
+    onBack: () -> Unit,
+    onSignIn: () -> Unit,
+    onNavigate: (Int) -> Unit
+) {
+    val auth = remember { FirebaseAuth.getInstance() }
+    var user by remember { mutableStateOf(auth.currentUser) }
+    var showProfile by remember { mutableStateOf(false) }
+    if (showProfile) {
+        UserProfileScreen(onBack = { showProfile = false })
+        return
+    }
+    DisposableEffect(auth) {
+        val listener = FirebaseAuth.AuthStateListener { user = it.currentUser }
+        auth.addAuthStateListener(listener)
+        onDispose { auth.removeAuthStateListener(listener) }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize().background(T2SBackground).padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("‹", modifier = Modifier.clickable(onClick = onBack).padding(end = 18.dp), color = T2SText, fontSize = 34.sp)
+            Text("My Account", color = T2SText, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Surface(modifier = Modifier.size(112.dp), shape = CircleShape, color = T2SCream) {
+                Icon(Icons.Filled.AccountCircle, contentDescription = "Profile", tint = T2SOrange, modifier = Modifier.padding(10.dp))
+            }
+            Text(user?.displayName ?: if (user == null) "Guest user" else "T2S Studio user",
+                color = T2SText, fontSize = 29.sp, fontWeight = FontWeight.Bold)
+            Text(user?.email ?: user?.phoneNumber ?: "Not signed in",
+                color = T2SSecondaryText, fontSize = 16.sp)
+            Text("Text to Speech Studio", color = T2SText, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            QuickAccountAction("Projects", Icons.Filled.Folder, Modifier.weight(1f)) { onNavigate(1) }
+            QuickAccountAction("My Voices", Icons.Filled.RecordVoiceOver, Modifier.weight(1f)) { onNavigate(3) }
+            QuickAccountAction("Recent", Icons.Filled.AccessTime, Modifier.weight(1f)) { onNavigate(2) }
+        }
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = T2SCream,
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Surface(shape = RoundedCornerShape(16.dp), color = T2SBackground) {
+                    Icon(Icons.Filled.RecordVoiceOver, contentDescription = null, tint = T2SOrange,
+                        modifier = Modifier.padding(16.dp).size(30.dp))
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text("Your voice, your creativity", color = T2SText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Create, manage and revisit your speech projects.",
+                        color = T2SSecondaryText, fontSize = 14.sp)
+                }
+            }
+        }
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = androidx.compose.ui.graphics.Color.White,
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Column {
+                Text("Your information", color = T2SText, fontSize = 23.sp,
+                    fontWeight = FontWeight.Bold, modifier = Modifier.padding(20.dp))
+                AccountMenuRow("Profile", "Update your personal details", Icons.Filled.AccountCircle) { showProfile = true }
+                Text("Your T2S workspace", color = T2SText, fontSize = 23.sp,
+                    fontWeight = FontWeight.Bold, modifier = Modifier.padding(20.dp))
+                AccountMenuRow("Projects", "Manage your projects", Icons.Filled.Folder) { onNavigate(1) }
+                AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
+                AccountMenuRow("Recent audio", "Listen to your generated speech", Icons.Filled.AccessTime) { onNavigate(2) }
+                AccountMenuRow("Drafts", "Continue your saved scripts", Icons.Filled.Description) { onNavigate(4) }
+                Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.Center) {
+                    Button(onClick = onSignIn, colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground)) {
+                        Text(if (user == null) "Sign in / Create account" else "Account sign-in options")
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.size(8.dp))
+    }
+}
+
+@Composable
+private fun QuickAccountAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, onClick: () -> Unit) {
+    Surface(modifier = modifier.clickable(onClick = onClick), color = androidx.compose.ui.graphics.Color.White,
+        shape = RoundedCornerShape(22.dp)) {
+        Column(modifier = Modifier.padding(vertical = 18.dp, horizontal = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, contentDescription = null, tint = T2SOrange, modifier = Modifier.size(27.dp))
+            Text(label, color = T2SText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun AccountMenuRow(label: String, description: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 17.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = T2SOrange, modifier = Modifier.size(25.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(label, color = T2SText, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text(description, color = T2SSecondaryText, fontSize = 13.sp)
+        }
+        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = T2SSecondaryText)
+    }
+}

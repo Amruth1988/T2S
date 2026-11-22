@@ -1,0 +1,153 @@
+package com.t2sstudio.app
+
+import android.content.Context
+import java.io.BufferedOutputStream
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+
+/** Stores the optional self-hosted Volt-TTS server URL (not an API credential). */
+object VoiceCloneServerSettings {
+    private const val PREFS = "t2s_voice_clone_settings"
+    private const val ENDPOINT = "server_url"
+
+    fun get(context: Context): String = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        .getString(ENDPOINT, "").orEmpty()
+
+    fun save(context: Context, value: String) {
+        val clean = value.trim().trimEnd('/')
+        if (clean.isNotEmpty()) {
+            val parsed = URL(clean)
+            require(parsed.protocol == "https" || parsed.protocol == "http") {
+                "Server URL must start with https:// or http://."
+            }
+            require(parsed.host.isNotBlank()) { "Enter a valid server URL." }
+            require(parsed.protocol == "https" || parsed.host == "localhost" || parsed.host == "127.0.0.1") {
+                "Use HTTPS for a remote server. Plain HTTP is allowed only for localhost."
+            }
+        }
+        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putString(ENDPOINT, clean).commit()) { "Could not save the voice-cloning server URL." }
+    }
+}
+
+/** Multipart client for the T2S self-hosted Volt-TTS API in voice-clone-server/. */
+object VoiceCloneClient {
+    fun generate(
+        serverUrl: String,
+        text: String,
+        language: String,
+        referenceAudio: File,
+        output: File,
+        connectTimeoutMs: Int = 20_000,
+        readTimeoutMs: Int = 180_000,
+    ) {
+        require(text.isNotBlank()) { "Enter text to generate speech." }
+        require(text.length <= 3000) { "Voice cloning supports up to 3,000 characters per request." }
+        require(language == "te" || language == "en") { "Voice cloning currently supports Telugu and English." }
+        require(referenceAudio.isFile && referenceAudio.length() > 1024L) {
+            "The saved voice recording is missing or empty. Re-record it in My Voices."
+        }
+        val base = serverUrl.trim().trimEnd('/')
+        require(base.startsWith("https://") || base.startsWith("http://")) {
+            "Configure your self-hosted Volt-TTS server in My Voices first."
+        }
+        val parsedBase = URL(base)
+        require(parsedBase.protocol == "https" || parsedBase.host == "localhost" || parsedBase.host == "127.0.0.1") {
+            "Use HTTPS for a remote server. Plain HTTP is allowed only for localhost."
+        }
+
+        val boundary = "T2SVoiceClone" + System.currentTimeMillis().toString()
+        val connection = URL("$base/v1/clone/tts").openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "POST"
+            connection.connectTimeout = connectTimeoutMs
+            connection.readTimeout = readTimeoutMs
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+            connection.setRequestProperty("Accept", "audio/wav")
+            BufferedOutputStream(connection.outputStream).use { out ->
+                fun field(name: String, value: String) {
+                    out.write("--$boundary\r\n".toByteArray())
+                    out.write("Content-Disposition: form-data; name=\"$name\"\r\n\r\n".toByteArray())
+                    out.write(value.toByteArray(Charsets.UTF_8))
+                    out.write("\r\n".toByteArray())
+                }
+                field("text", text)
+                field("language", language)
+                field("speed", "1.0")
+                val filename = referenceAudio.name.replace("\"", "")
+                val mime = when (referenceAudio.extension.lowercase()) {
+                    "wav" -> "audio/wav"
+                    "mp3" -> "audio/mpeg"
+                    "m4a", "mp4" -> "audio/mp4"
+                    "flac" -> "audio/flac"
+                    "ogg" -> "audio/ogg"
+                    else -> "application/octet-stream"
+                }
+                out.write("--$boundary\r\n".toByteArray())
+                out.write("Content-Disposition: form-data; name=\"audio\"; filename=\"$filename\"\r\n".toByteArray())
+                out.write("Content-Type: $mime\r\n\r\n".toByteArray())
+                referenceAudio.inputStream().use { input -> input.copyTo(out) }
+                out.write("\r\n--$boundary--\r\n".toByteArray())
+                out.flush()
+            }
+
+            val code = connection.responseCode
+            if (code !in 200..299) {
+                val detail = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                error(explainServerError(code, detail))
+            }
+            val bytes = connection.inputStream.use { it.readBytes() }
+            require(bytes.size > 1024 &&
+                String(bytes, 0, 4, Charsets.US_ASCII) == "RIFF" &&
+                String(bytes, 8, 4, Charsets.US_ASCII) == "WAVE"
+            ) { "Volt-TTS returned an invalid WAV file. Check the server logs and try again." }
+            output.parentFile?.mkdirs()
+            output.writeBytes(bytes)
+        } catch (error: Exception) {
+            output.delete()
+            throw error
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    fun checkServer(serverUrl: String): String {
+        val base = serverUrl.trim().trimEnd('/')
+        require(base.startsWith("https://") || base.startsWith("http://")) { "Enter a server URL first." }
+        val parsedBase = URL(base)
+        require(parsedBase.protocol == "https" || parsedBase.host == "localhost" || parsedBase.host == "127.0.0.1") {
+            "Use HTTPS for a remote server. Plain HTTP is allowed only for localhost."
+        }
+        val connection = URL("$base/health").openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 8_000
+            connection.readTimeout = 8_000
+            val code = connection.responseCode
+            val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
+                ?.bufferedReader()?.use { it.readText() }.orEmpty()
+            require(code in 200..299 && body.contains("\"status\"") && body.contains("\"ok\"")) {
+                if (code == 404) "This URL does not expose the T2S Volt-TTS /health endpoint."
+                else explainServerError(code, body)
+            }
+            return "Volt-TTS server connected. CUDA: " +
+                if (body.contains("\"cuda\":true")) "available." else "not detected by server."
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun explainServerError(code: Int, detail: String): String {
+        val clean = detail.trim().take(500)
+        return when (code) {
+            400 -> "Volt-TTS rejected the request: " + clean.ifBlank { "check the language and recording." }
+            413 -> "Voice recording or text exceeds the server limit."
+            422 -> "Volt-TTS request is incomplete. Check the saved voice recording and input text."
+            502 -> "Volt-TTS generation failed: " + clean.ifBlank { "check GPU memory and server logs." }
+            503 -> "Volt-TTS server is not ready. Wait for model loading and retry."
+            else -> clean.ifBlank { "Voice-cloning server failed (HTTP $code)." }
+        }
+    }
+}

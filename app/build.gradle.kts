@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.gms.google-services")
 }
 
 val signingStoreFile = providers.gradleProperty("T2S_KEYSTORE_FILE")
@@ -17,12 +18,9 @@ val signingKeyPassword = providers.gradleProperty("T2S_KEY_PASSWORD")
     .orElse(providers.environmentVariable("T2S_KEY_PASSWORD"))
     .orNull
 
-if (listOf(signingStoreFile, signingStorePassword, signingKeyAlias, signingKeyPassword).any { it.isNullOrBlank() }) {
-    throw GradleException(
-        "Shared T2S signing credentials are required. Set T2S_KEYSTORE_FILE, " +
-            "T2S_KEYSTORE_PASSWORD, T2S_KEY_ALIAS and T2S_KEY_PASSWORD."
-    )
-}
+val hasSharedSigning = listOf(
+    signingStoreFile, signingStorePassword, signingKeyAlias, signingKeyPassword
+).all { !it.isNullOrBlank() }
 
 android {
     namespace = "com.t2sstudio.app"
@@ -36,26 +34,32 @@ android {
         versionName = "1.0"
     }
 
-    signingConfigs {
-        create("shared") {
-            storeFile = file(signingStoreFile!!)
-            storePassword = signingStorePassword
-            keyAlias = signingKeyAlias
-            keyPassword = signingKeyPassword
+    if (hasSharedSigning) {
+        signingConfigs {
+            create("shared") {
+                storeFile = file(signingStoreFile!!)
+                storePassword = signingStorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
         }
     }
 
     buildTypes {
         getByName("debug") {
-            signingConfig = signingConfigs.getByName("shared")
+            if (hasSharedSigning) signingConfig = signingConfigs.getByName("shared")
         }
         getByName("release") {
-            signingConfig = signingConfigs.getByName("shared")
+            if (hasSharedSigning) signingConfig = signingConfigs.getByName("shared")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 
-    // Keep native Sherpa-ONNX libraries out of unrelated CPU architectures.
-    // Publish one small installable APK per supported Android ARM ABI.
     splits {
         abi {
             isEnable = true
@@ -80,6 +84,13 @@ android {
 }
 
 dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-functions")
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.activity:activity-compose:1.10.0")
     implementation("androidx.core:core-ktx:1.15.0")
@@ -89,10 +100,5 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.media3:media3-exoplayer:1.8.0")
-    implementation("com.github.k2-fsa:sherpa-onnx:v2.0.1") {
-        exclude(group = "com.github.k2-fsa.sherpa-onnx", module = "sherpa-onnx-jvm")
-    }
-    // Official Sherpa-ONNX Android sample dependency: Piper/eSpeak text frontend.
-    implementation("com.github.csukuangfj.piper-phonemize:piper-phonemize:v1.5.9")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

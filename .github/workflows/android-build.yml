@@ -2,9 +2,9 @@ name: Android build
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   workflow_dispatch:
 
 permissions:
@@ -54,8 +54,28 @@ jobs:
       - name: Build Debug and Release APKs
         run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease
 
+      - name: Report APK signing certificate SHA-1
+        run: |
+          set -euo pipefail
+          apksigner="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$apksigner"
+          echo "## APK signing certificate (Firebase Android OAuth)" >> "$GITHUB_STEP_SUMMARY"
+          for abi in arm64-v8a armeabi-v7a; do
+            apk="app/build/outputs/apk/release/app-${abi}-release.apk"
+            test -s "$apk"
+            echo "### ${abi}" >> "$GITHUB_STEP_SUMMARY"
+            "$apksigner" verify --print-certs "$apk" | tee "$RUNNER_TEMP/${abi}-cert.txt"
+            grep -E 'certificate SHA-1 digest|certificate SHA-256 digest' "$RUNNER_TEMP/${abi}-cert.txt" >> "$GITHUB_STEP_SUMMARY"
+          done
+          arm64_sha1="$(grep 'certificate SHA-1 digest' "$RUNNER_TEMP/arm64-v8a-cert.txt" | awk '{print tolower($NF)}')"
+          armv7_sha1="$(grep 'certificate SHA-1 digest' "$RUNNER_TEMP/armeabi-v7a-cert.txt" | awk '{print tolower($NF)}')"
+          test -n "$arm64_sha1" && test "$arm64_sha1" = "$armv7_sha1"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Both release APKs use the same SHA-1: `$arm64_sha1`" >> "$GITHUB_STEP_SUMMARY"
+
+      # GitHub Actions artifacts are always ZIP files. Publish APKs as
+      # individual GitHub Release assets so Android users can download .apk directly.
       - name: Prepare ABI-specific APK downloads
-        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           mkdir -p dist
@@ -65,8 +85,7 @@ jobs:
             cp "$apk" "dist/T2S-${abi}.apk"
           done
 
-      - name: Publish T2S.apk as a direct download
-        if: github.event_name != 'pull_request'
+      - name: Publish T2S APK files as direct downloads
         uses: softprops/action-gh-release@v2
         with:
           tag_name: t2s-build-${{ github.run_number }}
@@ -79,7 +98,7 @@ jobs:
           make_latest: false
 
       - name: Add direct APK link to build summary
-        if: success() && github.event_name != 'pull_request'
+        if: success()
         env:
           GH_REPOSITORY: ${{ github.repository }}
           GH_RUN_NUMBER: ${{ github.run_number }}
