@@ -86,52 +86,79 @@ private object T2SSplashMusic {
     fun start() {
         if (track?.playState == AudioTrack.PLAYSTATE_PLAYING) return
         stop()
-        val totalSamples = SAMPLE_RATE * LOOP_SECONDS
-        val pcm = ShortArray(totalSamples)
-        // Original, locally synthesized gentle flute-like melody over warm piano-like chords.
-        val melody = listOf(523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 783.99, 659.25)
-        val chordRoots = listOf(130.81, 164.81, 196.00, 146.83)
-        for (i in 0 until totalSamples) {
-            val time = i.toDouble() / SAMPLE_RATE
-            val beat = (time / 1.0).toInt()
-            val note = melody[beat % melody.size]
-            val within = time % 1.0
-            val attack = (within / 0.12).coerceIn(0.0, 1.0)
-            val release = ((1.0 - within) / 0.22).coerceIn(0.0, 1.0)
-            val envelope = attack * release
-            val flute = sin(2.0 * PI * note * time) * 0.58 +
-                sin(2.0 * PI * note * 2.0 * time) * 0.12 +
-                sin(2.0 * PI * note * 3.0 * time) * 0.035
-            val root = chordRoots[(beat / 2) % chordRoots.size]
-            val chord = sin(2.0 * PI * root * time) * 0.16 +
-                sin(2.0 * PI * root * 1.5 * time) * 0.07 +
-                sin(2.0 * PI * root * 2.0 * time) * 0.04
-            val fade = minOf((time / 0.8).coerceIn(0.0, 1.0), ((LOOP_SECONDS - time) / 0.8).coerceIn(0.0, 1.0))
-            pcm[i] = ((flute * envelope * 0.12 + chord * 0.12) * fade * Short.MAX_VALUE)
-                .toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+
+        var audio: AudioTrack? = null
+        try {
+            val totalSamples = SAMPLE_RATE * LOOP_SECONDS
+            val pcm = ShortArray(totalSamples)
+            // Original locally synthesized flute-like melody with warm sustained harmony.
+            val melody = listOf(523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 783.99, 659.25)
+            val chordRoots = listOf(130.81, 164.81, 196.00, 146.83)
+            for (i in 0 until totalSamples) {
+                val time = i.toDouble() / SAMPLE_RATE
+                val beat = (time / 1.0).toInt()
+                val note = melody[beat % melody.size]
+                val within = time % 1.0
+                val attack = (within / 0.12).coerceIn(0.0, 1.0)
+                val release = ((1.0 - within) / 0.22).coerceIn(0.0, 1.0)
+                val envelope = attack * release
+                val flute = sin(2.0 * PI * note * time) * 0.58 +
+                    sin(2.0 * PI * note * 2.0 * time) * 0.12 +
+                    sin(2.0 * PI * note * 3.0 * time) * 0.035
+                val root = chordRoots[(beat / 2) % chordRoots.size]
+                val chord = sin(2.0 * PI * root * time) * 0.16 +
+                    sin(2.0 * PI * root * 1.5 * time) * 0.07 +
+                    sin(2.0 * PI * root * 2.0 * time) * 0.04
+                val fade = minOf(
+                    (time / 0.8).coerceIn(0.0, 1.0),
+                    ((LOOP_SECONDS - time) / 0.8).coerceIn(0.0, 1.0)
+                )
+                // Raise the signal level; the player volume is also set independently below.
+                val sample = (flute * envelope * 0.28 + chord * 0.22) * fade
+                pcm[i] = (sample * Short.MAX_VALUE)
+                    .toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+
+            audio = AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        // Use the media stream so normal media volume controls this music.
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setSampleRate(SAMPLE_RATE)
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build()
+                )
+                .setBufferSizeInBytes(pcm.size * 2)
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .build()
+
+            check(audio.state == AudioTrack.STATE_INITIALIZED) {
+                "Splash AudioTrack could not initialize"
+            }
+            val written = audio.write(pcm, 0, pcm.size, AudioTrack.WRITE_BLOCKING)
+            check(written == pcm.size) {
+                "Splash audio buffer write incomplete: " + written + "/" + pcm.size
+            }
+            check(audio.setLoopPoints(0, pcm.size, -1) == AudioTrack.SUCCESS) {
+                "Splash audio loop could not be configured"
+            }
+            audio.setVolume(0.65f)
+            track = audio
+            audio.play()
+            check(audio.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                "Splash AudioTrack did not enter playing state"
+            }
+        } catch (error: Exception) {
+            android.util.Log.e("T2SSplashMusic", "Unable to start splash music", error)
+            track = null
+            try { audio?.release() } catch (_: Exception) { }
         }
-        val audio = AudioTrack.Builder()
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
-            )
-            .setAudioFormat(
-                AudioFormat.Builder()
-                    .setSampleRate(SAMPLE_RATE)
-                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                    .build()
-            )
-            .setBufferSizeInBytes(pcm.size * 2)
-            .setTransferMode(AudioTrack.MODE_STATIC)
-            .build()
-        audio.write(pcm, 0, pcm.size)
-        audio.setLoopPoints(0, pcm.size, -1)
-        audio.setVolume(0.22f)
-        audio.play()
-        track = audio
     }
 
     @Synchronized
@@ -139,9 +166,8 @@ private object T2SSplashMusic {
         track?.let { audio ->
             try {
                 if (audio.playState == AudioTrack.PLAYSTATE_PLAYING) audio.pause()
-                audio.flush()
             } catch (_: IllegalStateException) { }
-            audio.release()
+            try { audio.release() } catch (_: IllegalStateException) { }
         }
         track = null
     }
