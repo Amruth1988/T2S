@@ -564,15 +564,22 @@ fun SpeechStudioScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("Your text", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("Your text", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                            Box(
+                                modifier = Modifier
+                                    .background(T2SOrange, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                                    .height(28.dp)
+                                    .padding(horizontal = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("SCRIPT", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White, letterSpacing = 1.sp)
+                            }
+                        }
                         Text("Write or paste your script below", fontSize = 12.sp, color = T2SSecondaryText)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0xFFFFF0E5), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        Text("SCRIPT", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF47721), letterSpacing = 1.sp)
                     }
                 }
                 OutlinedTextField(
