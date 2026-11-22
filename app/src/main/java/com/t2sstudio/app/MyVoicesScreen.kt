@@ -64,7 +64,7 @@ import kotlin.coroutines.resumeWithException
 fun MyVoicesScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var voiceName by remember { mutableStateOf("My Voice") }
+    var voiceName by remember { mutableStateOf("") }
     var selectedAddTab by remember { mutableStateOf("Add Voice") }
     var showSarvamForm by remember { mutableStateOf(false) }
     var showVoltSettings by remember { mutableStateOf(false) }
@@ -218,8 +218,22 @@ fun MyVoicesScreen() {
         Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("Add a voice", fontWeight = FontWeight.SemiBold, color = T2SText)
-                OutlinedTextField(value = voiceName, onValueChange = { voiceName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Voice name") }, singleLine = true)
-                Text("Voice gender (required)", color = T2SText, fontSize = 13.sp)
+                OutlinedTextField(
+                    value = voiceName,
+                    onValueChange = { voiceName = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = {
+                        Row {
+                            Text("Voice name")
+                            Text(" *", color = androidx.compose.ui.graphics.Color.Red)
+                        }
+                    },
+                    singleLine = true
+                )
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text("Voice Gender", color = T2SText, fontSize = 13.sp)
+                    Text(" *", color = androidx.compose.ui.graphics.Color.Red, fontSize = 13.sp)
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("Male", "Female").forEach { gender ->
                         androidx.compose.material3.FilterChip(
@@ -241,7 +255,10 @@ fun MyVoicesScreen() {
                         )
                     }
                 }
-                Text("Voice sample language (required)", color = T2SText, fontSize = 13.sp)
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text("Voice Language", color = T2SText, fontSize = 13.sp)
+                    Text(" *", color = androidx.compose.ui.graphics.Color.Red, fontSize = 13.sp)
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("en" to "English", "te" to "Telugu", "hi" to "Hindi").forEach { (code, label) ->
                         androidx.compose.material3.FilterChip(
