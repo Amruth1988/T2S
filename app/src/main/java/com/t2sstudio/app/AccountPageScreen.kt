@@ -123,11 +123,11 @@ fun AccountPageScreen(
             shape = RoundedCornerShape(24.dp)
         ) {
             Column {
-                Text("Your information", color = T2SText, fontSize = 23.sp,
-                    fontWeight = FontWeight.Bold, modifier = Modifier.padding(20.dp))
+                Text("Your information", color = T2SText, fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(20.dp))
                 AccountMenuRow("Profile", "Update your personal details", Icons.Filled.AccountCircle) { showProfile = true }
-                Text("Your T2S workspace", color = T2SText, fontSize = 23.sp,
-                    fontWeight = FontWeight.Bold, modifier = Modifier.padding(20.dp))
+                Text("Your T2S workspace", color = T2SText, fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(20.dp))
                 AccountMenuRow("Projects", "Manage your projects", Icons.Filled.Folder) { onNavigate(1) }
                 AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
                 AccountMenuRow("Recent audio", "Listen to your generated speech", Icons.Filled.AccessTime) { onNavigate(2) }
