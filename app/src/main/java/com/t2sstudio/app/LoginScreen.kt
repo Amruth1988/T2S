@@ -135,9 +135,10 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
         ) {
-            // Minimal brand area: show only the app logo.
+            // Logo-only header. Do not render a second "Studio", microphone,
+            // or "Text to Speech" title beneath the logo.
             androidx.compose.foundation.layout.Box(
-                modifier = Modifier.fillMaxWidth().height(150.dp)
+                modifier = Modifier.fillMaxWidth().height(126.dp)
                     .background(androidx.compose.ui.graphics.Color.White),
                 contentAlignment = androidx.compose.ui.Alignment.Center
             ) {
