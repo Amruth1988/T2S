@@ -135,25 +135,18 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
         ) {
-            // Clean white brand area: centered logo without the large shaded banner.
+            // Minimal brand area: show only the app logo.
             androidx.compose.foundation.layout.Box(
-                modifier = Modifier.fillMaxWidth().height(220.dp)
+                modifier = Modifier.fillMaxWidth().height(150.dp)
                     .background(androidx.compose.ui.graphics.Color.White),
                 contentAlignment = androidx.compose.ui.Alignment.Center
             ) {
-                Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                    Image(
-                        painter = painterResource(id = R.drawable.app_logo),
-                        contentDescription = "T2S app logo",
-                        modifier = Modifier.size(104.dp),
-                        contentScale = ContentScale.Fit
-                    )
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Studio", color = T2SText, fontSize = 36.sp, fontWeight = FontWeight.Bold)
-                        Text("🎙️", fontSize = 28.sp)
-                    }
-                    Text("Text to Speech", color = T2SSecondaryText, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                }
+                Image(
+                    painter = painterResource(id = R.drawable.app_logo),
+                    contentDescription = "T2S app logo",
+                    modifier = Modifier.size(104.dp),
+                    contentScale = ContentScale.Fit
+                )
             }
 
             Column(
