@@ -207,6 +207,7 @@ private fun T2SApp() {
     var showAccountPage by remember { mutableStateOf(false) }
     var showAboutPage by remember { mutableStateOf(false) }
     var showPrivacyPage by remember { mutableStateOf(false) }
+    var showTermsPage by remember { mutableStateOf(false) }
     var returnToAccountOnBack by remember { mutableStateOf(false) }
     val audioRecords = remember {
         mutableStateListOf<AudioRecord>().apply { addAll(AudioHistoryStore.load(context)) }
@@ -288,9 +289,11 @@ private fun T2SApp() {
         }
     }
 
-    BackHandler(enabled = showLoginPage || showAccountPage || showAboutPage || showPrivacyPage || destinationBackStack.isNotEmpty()) {
+    BackHandler(enabled = showLoginPage || showAccountPage || showAboutPage || showPrivacyPage || showTermsPage || destinationBackStack.isNotEmpty()) {
         if (showLoginPage) {
             showLoginPage = false
+        } else if (showTermsPage) {
+            showTermsPage = false
         } else if (showPrivacyPage) {
             showPrivacyPage = false
         } else if (showAboutPage) {
@@ -323,12 +326,17 @@ private fun T2SApp() {
         PrivacyPageScreen(onBack = { showPrivacyPage = false })
         return
     }
+    if (showTermsPage) {
+        TermsPageScreen(onBack = { showTermsPage = false })
+        return
+    }
     if (showAccountPage) {
         AccountPageScreen(
             onBack = { showAccountPage = false },
             onSignIn = { showLoginPage = true },
             onAbout = { showAboutPage = true },
             onPrivacy = { showPrivacyPage = true },
+            onTerms = { showTermsPage = true },
             onNavigate = { destination ->
                 // Keep the account page as the return destination for system Back.
                 returnToAccountOnBack = true
