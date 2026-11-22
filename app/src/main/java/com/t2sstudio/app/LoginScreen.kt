@@ -158,8 +158,8 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
             Column(
                 modifier = Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color.White,
                     androidx.compose.foundation.shape.RoundedCornerShape(topStart = 38.dp, topEnd = 38.dp))
-                    .padding(horizontal = 24.dp, vertical = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp),
                 horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
             ) {
                 Text("Welcome to T2S Studio", color = T2SText, fontSize = 25.sp, fontWeight = FontWeight.Bold)
@@ -175,21 +175,21 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().height(54.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = T2SOrange)) { Text("Sign out", fontSize = 17.sp) }
                 } else {
-                    Row(modifier = Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFFF1EFED), androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(4.dp)) {
-                        Button(onClick = { isRegister = false; status = "" }, modifier = Modifier.weight(1f).height(48.dp),
+                    Row(modifier = Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFFF1EFED), androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).padding(3.dp)) {
+                        Button(onClick = { isRegister = false; status = "" }, modifier = Modifier.weight(1f).height(42.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = if (!isRegister) T2SOrange else androidx.compose.ui.graphics.Color.Transparent,
                                 contentColor = if (!isRegister) androidx.compose.ui.graphics.Color.White else T2SText),
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) { Text("Sign In", fontWeight = FontWeight.SemiBold) }
-                        Button(onClick = { isRegister = true; status = "" }, modifier = Modifier.weight(1f).height(48.dp),
+                        Button(onClick = { isRegister = true; status = "" }, modifier = Modifier.weight(1f).height(42.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = if (isRegister) T2SOrange else androidx.compose.ui.graphics.Color.Transparent,
                                 contentColor = if (isRegister) androidx.compose.ui.graphics.Color.White else T2SText),
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) { Text("Create Account", fontWeight = FontWeight.SemiBold) }
                     }
-                    OutlinedTextField(value = email, onValueChange = { email = it }, modifier = Modifier.fillMaxWidth(),
+                    OutlinedTextField(value = email, onValueChange = { email = it }, modifier = Modifier.fillMaxWidth().height(58.dp),
                         singleLine = true, label = { Text("Email address") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
-                    OutlinedTextField(value = password, onValueChange = { password = it }, modifier = Modifier.fillMaxWidth(),
+                    OutlinedTextField(value = password, onValueChange = { password = it }, modifier = Modifier.fillMaxWidth().height(58.dp),
                         singleLine = true, label = { Text("Password") },
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -216,13 +216,14 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
                             }
                             if (isRegister) auth.registerWithEmail(email, password, callback) else auth.signInWithEmail(email, password, callback)
                         }
-                    }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(58.dp),
+                    }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(50.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = T2SOrange),
                         shape = androidx.compose.foundation.shape.RoundedCornerShape(30.dp)) {
                         Text(if (busy) "Please wait…" else if (isRegister) "Create Account" else "➜  Sign In", fontSize = 19.sp, fontWeight = FontWeight.Bold)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f), color = T2SBorder)
                         Text("OR", color = T2SSecondaryText, fontSize = 13.sp)
                         androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f), color = T2SBorder)
@@ -255,7 +256,8 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
                                 } catch (error: Exception) { busy = false; status = error.localizedMessage ?: "Google sign-in was cancelled or unavailable." }
                             }
                         }
-                    }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(54.dp),
+                    }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(48.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                         shape = androidx.compose.foundation.shape.RoundedCornerShape(30.dp)) {
                         Text("🌐   Continue with Google", color = T2SText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
