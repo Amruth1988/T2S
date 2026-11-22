@@ -124,12 +124,6 @@ fun AccountPageScreen(onBack: () -> Unit, onSignIn: () -> Unit) {
                 ) {
                     Text(if (user == null) "Sign in / Create account" else "Account sign-in options")
                 }
-                androidx.compose.material3.OutlinedButton(
-                    onClick = { showSettingsHub = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("App settings", color = T2SText)
-                }
             }
         }
     }
