@@ -219,6 +219,13 @@ private fun T2SApp() {
             if (auth.currentUser != null) {
                 showLoginPage = false
                 showAccountPage = false
+            } else {
+                // Signing out always returns directly to the login screen.
+                showAccountPage = false
+                showLoginPage = true
+                returnToAccountOnBack = false
+                destinationBackStack.clear()
+                selectedDestination = 0
             }
         }
         firebaseAuth.addAuthStateListener(listener)
