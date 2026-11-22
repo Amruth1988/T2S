@@ -489,15 +489,24 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🧑🏻‍💻", fontSize = 48.sp)
-                    Text("THE STORY BEGINS", color = ink, fontSize = 9.sp,
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🧑🏻", fontSize = 42.sp)
+                        Box(
+                            Modifier.width(48.dp).height(25.dp).clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp))
+                                .background(Color.White),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("A", color = Color(0xFFFF7417), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
+                    Text("THE STORY BEGINS", color = Color.White, fontSize = 9.sp,
                         fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("✍️", fontSize = 27.sp, modifier = Modifier.offset(y = penTilt.dp))
                     Box(
                         Modifier.width(116.dp).height(9.dp).clip(RoundedCornerShape(8.dp))
-                            .background(orange)
+                            .background(Color.White)
                     )
                     Box(
                         Modifier.padding(top = 6.dp).clip(RoundedCornerShape(9.dp))
@@ -505,7 +514,7 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
                     ) {
                         Text("Aa  అక్షరం", color = ink, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
-                    Text("WORDS ON PAPER", color = muted, fontSize = 8.sp, letterSpacing = 1.sp,
+                    Text("WORDS ON PAPER", color = Color.White, fontSize = 8.sp, letterSpacing = 1.sp,
                         modifier = Modifier.padding(top = 5.dp))
                 }
             }
@@ -546,7 +555,18 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(")))", color = orange, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(bottom = 5.dp)
+                    ) {
+                        listOf(12, 22, 30, 22, 12).forEach { barHeight ->
+                            Box(
+                                Modifier.width(3.dp).height(barHeight.dp)
+                                    .clip(CircleShape).background(Color.White)
+                            )
+                        }
+                    }
                     Box(
                         Modifier.clip(RoundedCornerShape(12.dp))
                             .background(Color(0xFFFFEBDD))
@@ -555,12 +575,12 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
                         Text("నమస్కారం  •  Hello", color = ink, fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold)
                     }
-                    Text("WORDS COME ALIVE", color = muted, fontSize = 8.sp,
+                    Text("WORDS COME ALIVE", color = Color.White, fontSize = 8.sp,
                         letterSpacing = 0.9.sp, modifier = Modifier.padding(top = 5.dp))
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("🧔🏻", fontSize = 51.sp, modifier = Modifier.offset(y = speakerBob.dp))
-                    Text("YOUR VOICE", color = ink, fontSize = 10.sp,
+                    Text("YOUR VOICE", color = Color.White, fontSize = 10.sp,
                         fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                 }
             }
@@ -571,7 +591,7 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text("From your words to a voice that speaks",
-                    color = ink, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 Box(
                     Modifier.fillMaxWidth(0.76f).height(4.dp).clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.38f))
