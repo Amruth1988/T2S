@@ -928,90 +928,92 @@ fun SpeechStudioScreen(
                             enabled = false
                         )
                         filteredInstalled.forEach { voice ->
-                            DropdownMenuItem(
-                                modifier = Modifier.fillMaxWidth().padding(0.dp),
-                                contentPadding = PaddingValues(0.dp),
-                                text = {
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7F0)),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0D7C2))
-                                    ) {
-                                        Row(
-                                            Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 12.dp, vertical = 6.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Text(installedVoiceDisplayName(voice, filteredInstalled.indexOf(voice) + 1), modifier = Modifier.weight(1f), color = T2SText, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                            if (isPlaying && activePreviewKey == "installed:${voice.name}") VoicePlaybackWaveform()
-                                        }
-                                    }
-                                },
-                                onClick = {
-                                    isPurohitMode = false
-                                    selectedVoice = voice
-                                    selectedOnlineVoice = null
-                                    selectedSavedVoice = null
-                                    voiceSearch = voice.name
-                                    ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
-                                    statusMessage = "${voice.name} selected."
-                                },
-                                trailingIcon = {
-                                    TextButton(onClick = {
-                                        val engine = ttsEngine
-                                        if (engine != null && engineReady) {
-                                            if (isPreviewing && activePreviewKey == "installed:${voice.name}") { stopVoicePreview(); statusMessage = "Preview stopped."; return@TextButton }
-                                            stopVoicePreview()
-                                            activePreviewKey = "installed:${voice.name}"
-                                            isPreviewing = true
-                                            val mainHandler = Handler(Looper.getMainLooper())
-                                            engine.setLanguage(voice.locale)
-                                            engine.voice = voice
-                                            engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                                                override fun onStart(utteranceId: String?) {
-                                                    mainHandler.post { isPlaying = true; statusMessage = "Playing ${voice.name} preview." }
-                                                }
-                                                override fun onDone(utteranceId: String?) {
-                                                    mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "${voice.name} preview finished." }
-                                                }
-                                                @Deprecated("Deprecated in Java")
-                                                override fun onError(utteranceId: String?) {
-                                                    mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Could not play ${voice.name}. Check installed voice data." }
-                                                }
-                                                override fun onError(utteranceId: String?, errorCode: Int) {
-                                                    mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Voice preview failed (code $errorCode)." }
-                                                }
-                                            })
-                                            val sample = when (voice.locale.language) {
-                                                "te" -> "నమస్కారం. ఇది స్వర నమూనా."
-                                                "hi" -> "नमस्ते। यह आवाज़ का नमूना है।"
-                                                else -> "Hello. This is a sample voice preview."
-                                            }
-                                            val speakResult = engine.speak(sample, TextToSpeech.QUEUE_FLUSH, Bundle(), "t2s-preview-${voice.name}")
-                                            if (speakResult == TextToSpeech.ERROR) {
-                                                isPreviewing = false
-                                                isPlaying = false
-                                                statusMessage = "Android could not start this voice preview."
-                                            } else {
-                                                statusMessage = "Preparing ${voice.name} preview…"
-                                            }
-                                        } else {
-                                            statusMessage = "Android speech engine is not ready yet."
-                                        }
-                                    }, enabled = engineReady) {
+                            val isSelected = selectedVoice?.name == voice.name
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFFFFEBDD) else Color(0xFFFFF7F0)),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) T2SOrange else Color(0xFFF0D7C2))
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Column(Modifier.weight(1f).clickable {
+                                        isPurohitMode = false
+                                        selectedVoice = voice
+                                        selectedOnlineVoice = null
+                                        selectedSavedVoice = null
+                                        voiceSearch = voice.name
+                                        ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
+                                        statusMessage = "${voice.name} selected."
+                                    }) {
                                         Text(
-                                            if (isPreviewing && activePreviewKey == "installed:${voice.name}") "Ⅱ" else "▶",
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier
-                                                .background(Color(0xFFF47721), androidx.compose.foundation.shape.CircleShape)
-                                                .padding(horizontal = 13.dp, vertical = 8.dp)
+                                            installedVoiceDisplayName(voice, filteredInstalled.indexOf(voice) + 1) + if (isSelected) " ✓" else "",
+                                            color = T2SText,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1
+                                        )
+                                    }
+                                    TextButton(
+                                        onClick = {
+                                            val engine = ttsEngine
+                                            if (engine != null && engineReady) {
+                                                if (isPreviewing && activePreviewKey == "installed:${voice.name}") {
+                                                    stopVoicePreview()
+                                                    statusMessage = "Preview stopped."
+                                                    return@TextButton
+                                                }
+                                                stopVoicePreview()
+                                                activePreviewKey = "installed:${voice.name}"
+                                                isPreviewing = true
+                                                val mainHandler = Handler(Looper.getMainLooper())
+                                                engine.setLanguage(voice.locale)
+                                                engine.voice = voice
+                                                engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                                                    override fun onStart(utteranceId: String?) {
+                                                        mainHandler.post { isPlaying = true; statusMessage = "Playing ${voice.name} preview." }
+                                                    }
+                                                    override fun onDone(utteranceId: String?) {
+                                                        mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "${voice.name} preview finished." }
+                                                    }
+                                                    @Deprecated("Deprecated in Java")
+                                                    override fun onError(utteranceId: String?) {
+                                                        mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Could not play ${voice.name}. Check installed voice data." }
+                                                    }
+                                                    override fun onError(utteranceId: String?, errorCode: Int) {
+                                                        mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Voice preview failed (code $errorCode)." }
+                                                    }
+                                                })
+                                                val sample = when (voice.locale.language) {
+                                                    "te" -> "నమస్కారం. ఇది స్వర నమూనా."
+                                                    "hi" -> "नमस्ते। यह आवाज़ का नमूना है।"
+                                                    else -> "Hello. This is a sample voice preview."
+                                                }
+                                                val speakResult = engine.speak(sample, TextToSpeech.QUEUE_FLUSH, Bundle(), "t2s-preview-${voice.name}")
+                                                if (speakResult == TextToSpeech.ERROR) {
+                                                    isPreviewing = false
+                                                    isPlaying = false
+                                                    statusMessage = "Android could not start this voice preview."
+                                                } else {
+                                                    statusMessage = "Preparing ${voice.name} preview…"
+                                                }
+                                            } else {
+                                                statusMessage = "Android speech engine is not ready yet."
+                                            }
+                                        },
+                                        enabled = engineReady
+                                    ) {
+                                        Text(
+                                            if (isPreviewing && activePreviewKey == "installed:${voice.name}") "■ Stop" else "▶ Play",
+                                            color = T2SOrange,
+                                            fontWeight = FontWeight.Bold
                                         )
                                     }
                                 }
-                            )
+                            }
                         }
                     }
                     if (voiceLibraryTab == "Online" && filteredOnline.isNotEmpty()) {
