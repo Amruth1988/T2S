@@ -28,4 +28,23 @@ npm run typecheck
 npm run dev
 ```
 
-The Android app must be updated to call this Worker URL and attach the current Firebase ID token. Do not deploy until the provider keys have been set as secrets.
+## Android integration
+
+The Android app is already configured to call `https://t2s.amruth4official.workers.dev` through `CentralOnlineTtsClient`. It obtains the signed-in user's current Firebase ID token and sends it as `Authorization: Bearer <token>`. The Worker verifies the token's signature, issuer, audience and subject against Firebase project `t2s-studio`. Provider credentials are never included in the Android app.
+
+## Deployment
+
+The repository includes a manual GitHub Actions workflow: **Deploy Cloudflare TTS Worker**. Before running it:
+
+1. Add GitHub Actions repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The API token needs permission to edit/deploy Workers for the target account.
+2. In the Cloudflare account, set the Worker secrets from this directory:
+   ```bash
+   npx wrangler secret put VAKYAM_API_KEY
+   npx wrangler secret put INDIA_API_KEY
+   ```
+   Vakyam is required. India TTS currently accepts keyless requests, but its published notice says a key will be required from 15 December 2026.
+3. Run **Actions → Deploy Cloudflare TTS Worker → Run workflow** on the `develop` branch.
+
+The workflow type-checks and deploys the Worker, then checks the public health endpoint. The health response reports only whether each provider secret is configured; it never returns secret values. A successful health check confirms deployment and Vakyam secret presence, not provider account validity or live audio generation. Test both voice-list and speech-generation routes from the Android app after deployment.
+
+Never commit provider keys, add them to GitHub repository secrets, or paste them into chat. Keep provider credentials in Cloudflare Worker secrets only.
