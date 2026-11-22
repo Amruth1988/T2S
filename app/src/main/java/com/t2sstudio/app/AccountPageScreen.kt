@@ -71,8 +71,8 @@ fun AccountPageScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Surface(modifier = Modifier.size(112.dp), shape = CircleShape, color = T2SCream) {
-                Icon(Icons.Filled.AccountCircle, contentDescription = "Profile", tint = T2SOrange, modifier = Modifier.padding(10.dp))
+            Surface(modifier = Modifier.size(76.dp), shape = CircleShape, color = T2SCream) {
+                Icon(Icons.Filled.AccountCircle, contentDescription = "Profile", tint = T2SOrange, modifier = Modifier.padding(7.dp))
             }
             Text(user?.displayName ?: if (user == null) "Guest user" else "T2S Studio user",
                 color = T2SText, fontSize = 29.sp, fontWeight = FontWeight.Bold)
