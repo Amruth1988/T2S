@@ -849,12 +849,12 @@ fun SpeechStudioScreen(
                         voiceSearch = query
                         // Search only filters the Online catalogue; it must never expose local Android voices.
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(46.dp),
                     singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = T2SText),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                    placeholder = { Text("Search by voice name") },
-                    
-                    leadingIcon = { Text("⌕", fontSize = 25.sp, color = T2SOrange, fontWeight = FontWeight.Bold) },
+                    placeholder = { Text("Search by voice name", fontSize = 12.sp, maxLines = 1) },
+                    leadingIcon = { Text("⌕", fontSize = 19.sp, color = T2SOrange, fontWeight = FontWeight.Bold) },
                     trailingIcon = {
                         if (voiceSearch.isNotBlank()) {
                             TextButton(
