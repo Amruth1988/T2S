@@ -1145,31 +1145,23 @@ fun SpeechStudioScreen(
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row {
-                Text("Speaking speed", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-                Spacer(Modifier.weight(1f))
-                Text("${"%.1f".format(speechRate)}x", color = T2SOrange, fontWeight = FontWeight.Bold)
-            }
-            Slider(value = speechRate, onValueChange = { speechRate = it }, valueRange = 0.5f..2f)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Slow", color = T2SSecondaryText, fontSize = 11.sp)
-                Text("Fast", color = T2SSecondaryText, fontSize = 11.sp)
-            }
-        }
+        LabeledSpeechSlider(
+            title = "Speaking speed",
+            value = speechRate,
+            onValueChange = { speechRate = it },
+            lowLabel = "Slow",
+            highLabel = "Fast"
+        )
 
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row {
-                Text("Voice pitch", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-                Spacer(Modifier.weight(1f))
-                Text("${"%.1f".format(speechPitch)}x", color = T2SOrange, fontWeight = FontWeight.Bold)
-            }
-            Slider(value = speechPitch, onValueChange = { speechPitch = it }, valueRange = 0.5f..2f)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Low", color = T2SSecondaryText, fontSize = 11.sp)
-                Text("High", color = T2SSecondaryText, fontSize = 11.sp)
-            }
-        }
+        LabeledSpeechSlider(
+            title = "Voice pitch",
+            value = speechPitch,
+            onValueChange = { speechPitch = it },
+            lowLabel = "Low",
+            highLabel = "High"
+        )
+
+
 
         Button(
             onClick = {
@@ -1370,6 +1362,44 @@ fun SpeechStudioScreen(
             fontSize = 11.sp,
             color = T2SSecondaryText
         )
+    }
+}
+
+@Composable
+private fun LabeledSpeechSlider(
+    title: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    lowLabel: String,
+    highLabel: String
+) {
+    val tickLabels = listOf("0.5x", "0.75x", "1.0x", "1.25x", "1.5x", "1.75x", "2.0x")
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+            Spacer(Modifier.weight(1f))
+            Text("${"%.2f".format(value).trimEnd('0').trimEnd('.')}x", color = T2SOrange, fontWeight = FontWeight.Bold)
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = 0.5f..2f,
+            steps = 5
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            tickLabels.forEach { label ->
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Box(Modifier.size(4.dp).background(T2SOrange, RoundedCornerShape(50)))
+                        Text(label, color = T2SSecondaryText, fontSize = 8.sp, maxLines = 1)
+                    }
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(lowLabel, color = T2SSecondaryText, fontSize = 11.sp)
+            Text(highLabel, color = T2SSecondaryText, fontSize = 11.sp)
+        }
     }
 }
 
