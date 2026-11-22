@@ -14,6 +14,7 @@ import java.io.File
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -292,10 +293,15 @@ fun MyVoicesScreen() {
                             androidx.compose.foundation.layout.Box(
                                 Modifier.size(46.dp).background(T2SOrange.copy(alpha = 0.14f), RoundedCornerShape(15.dp)),
                                 contentAlignment = androidx.compose.ui.Alignment.Center
-                            ) { Text("🎙️", fontSize = 24.sp) }
+                            ) {
+                                Image(
+                                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_t2s_mark),
+                                    contentDescription = "T2S logo",
+                                    modifier = Modifier.size(40.dp)
+                                )
+                            }
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text("Record with your phone microphone", fontWeight = FontWeight.Bold, color = T2SText, fontSize = 15.sp)
-                                Text("Capture a clear sample using your device", color = T2SSecondaryText, fontSize = 11.sp)
+                                Text("Record", fontWeight = FontWeight.Bold, color = T2SText, fontSize = 15.sp)
                             }
                             Text(if (recording) "● LIVE" else "READY", color = if (recording) androidx.compose.ui.graphics.Color(0xFFC62828) else T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
                                 modifier = Modifier.background(T2SBackground, RoundedCornerShape(20.dp)).padding(horizontal = 9.dp, vertical = 6.dp))
