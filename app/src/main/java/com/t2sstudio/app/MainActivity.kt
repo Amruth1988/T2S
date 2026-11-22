@@ -200,7 +200,12 @@ private fun T2SApp() {
     if (showAccountPage) {
         AccountPageScreen(
             onBack = { showAccountPage = false },
-            onSignIn = { showLoginPage = true }
+            onSignIn = { showLoginPage = true },
+            onNavigate = { destination ->
+                showAccountPage = false
+                selectedDestination = destination
+                destinationBackStack.clear()
+            }
         )
         return
     }
