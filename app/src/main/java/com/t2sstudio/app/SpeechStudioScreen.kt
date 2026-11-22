@@ -914,10 +914,6 @@ fun SpeechStudioScreen(
                         lineHeight = 16.sp,
                         color = T2SText
                     ),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 12.dp,
-                        vertical = 0.dp
-                    ),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                     placeholder = {
                         Text(
