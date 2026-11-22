@@ -126,6 +126,44 @@ private fun T2SApp() {
     var pendingScriptText by remember { mutableStateOf<String?>(null) }
     val scriptDrafts = remember { mutableStateListOf<T2SScriptDraft>() }
     val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+
+    // Reconcile local metadata with the signed-in account on every app launch/sign-in.
+    // Audio bytes remain local; only project and script descriptors/content are uploaded.
+    LaunchedEffect(currentUid) {
+        val uid = currentUid ?: return@LaunchedEffect
+        val cloud = com.t2sstudio.app.data.firebase.T2SFirestoreRepository()
+        val localProjects = ProjectStore.load(context)
+        val localRecordings = AudioHistoryStore.load(context)
+
+        localProjects.forEach { project ->
+            cloud.saveProject(uid, project.id, project.name, project.createdAt) { }
+        }
+        localRecordings.forEach { recording ->
+            cloud.saveScriptMetadata(
+                uid = uid,
+                scriptId = recording.id,
+                projectId = recording.projectId.takeIf { it.isNotBlank() },
+                title = recording.textPreview.ifBlank { "Untitled script" },
+                content = recording.scriptContent.take(180_000),
+                language = recording.language
+            ) { }
+        }
+
+        cloud.loadProjects(uid) { result ->
+            result.onSuccess { cloudProjects ->
+                val merged = (cloudProjects + ProjectStore.load(context))
+                    .distinctBy { it.id }
+                    .sortedByDescending { it.createdAt }
+                projects.clear()
+                projects.addAll(merged)
+                ProjectStore.save(context, merged)
+                if (selectedProjectId == null || merged.none { it.id == selectedProjectId }) {
+                    selectedProjectId = merged.firstOrNull()?.id
+                }
+            }
+        }
+    }
+
     LaunchedEffect(currentUid, selectedDestination) {
         if (currentUid != null && selectedDestination == 4) {
             com.t2sstudio.app.data.firebase.T2SFirestoreRepository().loadDrafts(currentUid) { result ->
