@@ -132,38 +132,27 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
         ) {
-            // Warm illustrated brand header, matching the approved concept.
+            // Clean white brand area: centered logo without the large shaded banner.
             androidx.compose.foundation.layout.Box(
-                modifier = Modifier.fillMaxWidth().height(300.dp)
-                    .background(
-                        androidx.compose.ui.graphics.Brush.verticalGradient(
-                            listOf(androidx.compose.ui.graphics.Color(0xFFFFE7B8), androidx.compose.ui.graphics.Color(0xFFFFF4D9), T2SOrange)
-                        )
-                    ),
+                modifier = Modifier.fillMaxWidth().height(220.dp)
+                    .background(androidx.compose.ui.graphics.Color.White),
                 contentAlignment = androidx.compose.ui.Alignment.Center
             ) {
-                Text("🌿", modifier = Modifier.align(androidx.compose.ui.Alignment.TopStart).padding(16.dp), fontSize = 34.sp)
-                Text("🌿", modifier = Modifier.align(androidx.compose.ui.Alignment.TopEnd).padding(16.dp), fontSize = 34.sp)
                 Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                        Text("🧘🏻‍♂️", fontSize = 66.sp)
-                        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                            androidx.compose.foundation.layout.Box(
-                                modifier = Modifier.size(78.dp).background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.RoundedCornerShape(22.dp))
-                                    .border(2.dp, T2SOrange, androidx.compose.foundation.shape.RoundedCornerShape(22.dp)),
-                                contentAlignment = androidx.compose.ui.Alignment.Center
-                            ) { Text("T2S", color = T2SOrange, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold) }
-                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                Text("Studio", color = T2SText, fontSize = 38.sp, fontWeight = FontWeight.Bold)
-                                Text("🎙️", fontSize = 32.sp)
-                            }
-                            Text("Text to Speech", color = T2SText, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                        }
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier.size(78.dp)
+                            .background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.RoundedCornerShape(22.dp))
+                            .border(2.dp, T2SOrange, androidx.compose.foundation.shape.RoundedCornerShape(22.dp)),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        Text("T2S", color = T2SOrange, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
                     }
-                    Text("✍️     Aa     〰️     ▶", color = T2SOrange, fontSize = 27.sp, modifier = Modifier.padding(top = 12.dp))
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Studio", color = T2SText, fontSize = 36.sp, fontWeight = FontWeight.Bold)
+                        Text("🎙️", fontSize = 28.sp)
+                    }
+                    Text("Text to Speech", color = T2SSecondaryText, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                 }
-                Text("WORDS BECOME VOICES", color = T2SText, fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter).padding(bottom = 28.dp), letterSpacing = 2.sp)
             }
 
             Column(
