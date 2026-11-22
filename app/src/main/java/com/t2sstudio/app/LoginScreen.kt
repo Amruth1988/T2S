@@ -145,7 +145,7 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
                 Image(
                     painter = painterResource(id = R.drawable.app_logo),
                     contentDescription = "T2S app logo",
-                    modifier = Modifier.size(104.dp),
+                    modifier = Modifier.size(120.dp),
                     contentScale = ContentScale.Fit
                 )
             }
