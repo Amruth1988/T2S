@@ -929,6 +929,8 @@ fun SpeechStudioScreen(
                         )
                         filteredInstalled.forEach { voice ->
                             DropdownMenuItem(
+                                modifier = Modifier.fillMaxWidth().padding(0.dp),
+                                contentPadding = PaddingValues(0.dp),
                                 text = {
                                     Card(
                                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
