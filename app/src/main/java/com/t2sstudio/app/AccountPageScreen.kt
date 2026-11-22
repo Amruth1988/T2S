@@ -64,12 +64,12 @@ fun AccountPageScreen(
 
     Column(
         modifier = Modifier.fillMaxSize().background(T2SBackground).padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Surface(modifier = Modifier.size(112.dp), shape = CircleShape, color = T2SCream) {
                 Icon(Icons.Filled.AccountCircle, contentDescription = "Profile", tint = T2SOrange, modifier = Modifier.padding(10.dp))
@@ -116,10 +116,10 @@ fun AccountPageScreen(
         ) {
             Column {
                 Text("Your information", color = T2SText, fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(20.dp))
+                    fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
                 AccountMenuRow("Profile", "Update your personal details", Icons.Filled.AccountCircle) { showProfile = true }
                 Text("Your T2S workspace", color = T2SText, fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(20.dp))
+                    fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
                 AccountMenuRow("Projects", "Manage your projects", Icons.Filled.Folder) { onNavigate(1) }
                 AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
                 AccountMenuRow("Recent audio", "Listen to your generated speech", Icons.Filled.AccessTime) { onNavigate(2) }
@@ -139,8 +139,8 @@ fun AccountPageScreen(
 private fun QuickAccountAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, onClick: () -> Unit) {
     Surface(modifier = modifier.clickable(onClick = onClick), color = androidx.compose.ui.graphics.Color.White,
         shape = RoundedCornerShape(22.dp)) {
-        Column(modifier = Modifier.padding(vertical = 18.dp, horizontal = 6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(modifier = Modifier.padding(vertical = 12.dp, horizontal = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Icon(icon, contentDescription = null, tint = T2SOrange, modifier = Modifier.size(27.dp))
             Text(label, color = T2SText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         }
@@ -150,9 +150,9 @@ private fun QuickAccountAction(label: String, icon: androidx.compose.ui.graphics
 @Composable
 private fun AccountMenuRow(label: String, description: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 17.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(18.dp)
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Icon(icon, contentDescription = null, tint = T2SOrange, modifier = Modifier.size(25.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
