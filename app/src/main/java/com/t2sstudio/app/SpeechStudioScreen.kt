@@ -312,13 +312,37 @@ fun SpeechStudioScreen(
                             )
                         }
                     }
-                }.onSuccess { saved ->
+                }.onSuccess { cloudSaved ->
+                    // Firebase stores voice metadata only; the original sample audio stays
+                    // in app-private storage. Reattach local sample paths by stable voice ID
+                    // so My Voices previews play the user's actual recording after cloud load.
+                    val localSaved = MyVoicesClient.list(context)
+                    val localById = localSaved.associateBy { it.id }
+                    val merged = cloudSaved.map { cloud ->
+                        localById[cloud.id]?.let { local ->
+                            cloud.copy(
+                                localSamplePath = local.localSamplePath,
+                                name = local.name.ifBlank { cloud.name },
+                                language = local.language.ifBlank { cloud.language },
+                                gender = local.gender.ifBlank { cloud.gender }
+                            )
+                        } ?: cloud
+                    }.toMutableList()
+                    val cloudIds = cloudSaved.mapTo(mutableSetOf()) { it.id }
+                    merged.addAll(localSaved.filterNot { it.id in cloudIds })
                     myVoices.clear()
-                    myVoices.addAll(saved)
-                    if (saved.isEmpty()) statusMessage = "No saved Firebase voices found."
+                    myVoices.addAll(merged.distinctBy { it.id })
+                    if (merged.isEmpty()) statusMessage = "No saved voices found on this device or in Firebase."
                 }.onFailure { error ->
+                    // Even if Firebase is offline, local voice recordings remain playable.
+                    val localSaved = MyVoicesClient.list(context)
                     myVoices.clear()
-                    statusMessage = "Could not load My Voices from Firebase: ${error.localizedMessage ?: "unknown error"}"
+                    myVoices.addAll(localSaved)
+                    statusMessage = if (localSaved.isNotEmpty()) {
+                        "Showing your locally saved voices. Cloud sync is unavailable."
+                    } else {
+                    "Could not load My Voices from Firebase: ${error.localizedMessage ?: "unknown error"}"
+                    }
                 }
             }
         }
@@ -419,7 +443,10 @@ fun SpeechStudioScreen(
                         localSample != null -> localSample.copyTo(previewFile, overwrite = true)
                         sarvamVoiceId.startsWith("svc-") ->
                             SarvamVoiceCloneClient.generateCentral(sarvamVoiceId, sample, languageCode, previewFile)
-                        else -> CentralOnlineTtsClient.generate(provider, sample, voiceId, languageCode, 1f, previewFile, format = "mp3")
+                        localSamplePath != null ->
+                            error("This voice's saved recording is missing. Re-add the voice sample to preview it.")
+                        else ->
+                            error("This saved voice has no playable recording or registered voice ID. Re-add or register it before previewing.")
                     }
                 }
             }
