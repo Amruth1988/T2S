@@ -66,14 +66,6 @@ fun AccountPageScreen(
         modifier = Modifier.fillMaxSize().background(T2SBackground).padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("‹", modifier = Modifier.clickable(onClick = onBack).padding(end = 18.dp), color = T2SText, fontSize = 34.sp)
-            Text("My Account", color = T2SText, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-        }
-
         Column(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
