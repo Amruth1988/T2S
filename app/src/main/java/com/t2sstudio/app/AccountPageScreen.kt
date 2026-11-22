@@ -60,7 +60,8 @@ fun AccountPageScreen(
     onNavigate: (Int) -> Unit,
     onAbout: () -> Unit,
     onPrivacy: () -> Unit,
-    onTerms: () -> Unit
+    onTerms: () -> Unit,
+    onContact: () -> Unit
 ) {
     val auth = remember { FirebaseAuth.getInstance() }
     var user by remember { mutableStateOf(auth.currentUser) }
@@ -152,9 +153,7 @@ fun AccountPageScreen(
             AccountMenuRow("About", "About T2S Studio", Icons.Filled.Info, onAbout)
             AccountMenuRow("Privacy", "How your audio and information are handled", Icons.Filled.PrivacyTip, onPrivacy)
             AccountMenuRow("Terms & Conditions", "Read the terms for using T2S Studio", Icons.Filled.Gavel, onTerms)
-            AccountMenuRow("Contact", "Get help or report an issue", Icons.Filled.MailOutline) {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Amruth1988/T2S/issues")))
-            }
+            AccountMenuRow("Contact", "Email or call T2S Studio support", Icons.Filled.MailOutline, onContact)
             AccountMenuRow("Sign out", "Sign out of your T2S account", Icons.Filled.Logout) { auth.signOut() }
         }
 
