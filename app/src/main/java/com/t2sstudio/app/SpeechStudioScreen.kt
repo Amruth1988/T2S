@@ -169,6 +169,7 @@ fun SpeechStudioScreen(
     var speechPitch by remember { mutableFloatStateOf(1f) }
     var engineReady by remember { mutableStateOf(false) }
     var isGenerating by remember { mutableStateOf(false) }
+    var dailyGenerationLimitReached by remember { mutableStateOf(false) }
     var isSavingDraft by remember { mutableStateOf(false) }
     var generatedFile by remember { mutableStateOf<File?>(null) }
     var statusMessage by remember { mutableStateOf("Enter text to create your first voice recording.") }
@@ -424,7 +425,11 @@ fun SpeechStudioScreen(
             }
             if (result.isFailure) {
                 previewFile.delete(); isPreviewing = false; activePreviewKey = null
-                statusMessage = "Preview failed: ${result.exceptionOrNull()?.message ?: "voice service unavailable"}"
+                val previewError = result.exceptionOrNull()?.message ?: "voice service unavailable"
+                if (previewError.contains("Daily limit reached", ignoreCase = true)) {
+                    dailyGenerationLimitReached = true
+                }
+                statusMessage = "Preview failed: $previewError"
                 return@launch
             }
             if (activePreviewKey != previewKey) { previewFile.delete(); return@launch }
@@ -615,6 +620,32 @@ fun SpeechStudioScreen(
                         color = Color(0xFF101B35)
                     ),
                 )
+                if (dailyGenerationLimitReached) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1E5)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, T2SOrange.copy(alpha = 0.35f))
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Text(
+                                "Daily generation limit reached",
+                                color = T2SText,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                            Text(
+                                "You've used today's speech allowance. You can still edit your text and manage voices. Generation resets at 5:30 AM IST.",
+                                color = T2SSecondaryText,
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
+                }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("${inputText.length} / $inputCharacterLimit characters", fontSize = 11.sp, color = if (inputText.length >= inputCharacterLimit) T2SOrange else T2SSecondaryText)
                     OutlinedButton(
@@ -1264,15 +1295,19 @@ fun SpeechStudioScreen(
                             } else {
                                 output.delete()
                                 isGenerating = false
+                                val generationError = result.exceptionOrNull()?.message ?: "The service returned invalid audio."
+                                if (generationError.contains("Daily limit reached", ignoreCase = true)) {
+                                    dailyGenerationLimitReached = true
+                                }
                                 statusMessage = (if (personalVoice != null) "My Voice generation failed: " else "Online TTS failed: ") +
-                                    (result.exceptionOrNull()?.message ?: "The service returned invalid audio.") +
-                                    " Check the selected voice and try again."
+                                    generationError +
+                                    if (dailyGenerationLimitReached) "" else " Check the selected voice and try again."
                             }
                         }
                     }
                 }
             },
-            enabled = !isGenerating && inputText.isNotBlank(),
+            enabled = !isGenerating && !dailyGenerationLimitReached && inputText.isNotBlank(),
             modifier = Modifier.fillMaxWidth().height(58.dp),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
             elevation = ButtonDefaults.buttonElevation(
