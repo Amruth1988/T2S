@@ -280,8 +280,6 @@ fun MyVoicesScreen() {
                         )
                     }
                 }
-                Text(if (selectedAddTab == "Add AI Voice") "Record or upload a sample to create your AI voice." else "Record or upload your own voice sample. It will be saved on this device.", fontSize = 12.sp, color = T2SSecondaryText)
-                Text("Record your voice directly here, or select an existing file. Speak naturally in a quiet room for 10–30 seconds.", fontSize = 12.sp, color = T2SSecondaryText)
                 Card(
                     colors = CardDefaults.cardColors(containerColor = T2SCream),
                     modifier = Modifier.fillMaxWidth(),
