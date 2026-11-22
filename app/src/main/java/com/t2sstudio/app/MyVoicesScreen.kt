@@ -735,7 +735,7 @@ fun MyVoicesScreen() {
                             }
                                 }
                             }
-                        ) { Text(if (previewingSavedVoiceId == voice.id) "■ Stop" "▶ Play my recording") }
+                        ) { Text(if (previewingSavedVoiceId == voice.id) "■ Stop" else "▶ Play my recording") }
                         TextButton(onClick = {
                             if (previewingSavedVoiceId == voice.id) {
                                 runCatching { previewPlayer?.release() }
