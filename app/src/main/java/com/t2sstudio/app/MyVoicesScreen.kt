@@ -224,7 +224,7 @@ fun MyVoicesScreen() {
                     modifier = Modifier.fillMaxWidth(),
                     label = {
                         Row {
-                            Text("Voice name")
+                            Text("Voice Name")
                             Text(" *", color = androidx.compose.ui.graphics.Color.Red)
                         }
                     },
