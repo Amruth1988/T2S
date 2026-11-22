@@ -355,6 +355,46 @@ class T2SFirestoreRepository(
             .addOnFailureListener { onComplete(Result.failure(it)) }
     }
 
+    fun loadUserProfile(uid: String, onComplete: (Result<Map<String, String>>) -> Unit) {
+        if (uid.isBlank()) {
+            onComplete(Result.failure(IllegalStateException("Sign in to load your profile.")))
+            return
+        }
+        firestore.collection("users").document(uid).get()
+            .addOnSuccessListener { snapshot ->
+                val profile = listOf("firstName", "lastName", "mobile", "city", "gender")
+                    .associateWith { snapshot.getString(it).orEmpty() }
+                onComplete(Result.success(profile))
+            }
+            .addOnFailureListener { onComplete(Result.failure(it)) }
+    }
+
+    fun saveUserProfile(
+        uid: String,
+        firstName: String,
+        lastName: String,
+        mobile: String,
+        city: String,
+        gender: String,
+        onComplete: (Result<Unit>) -> Unit
+    ) {
+        if (uid.isBlank()) {
+            onComplete(Result.failure(IllegalStateException("Sign in to save your profile.")))
+            return
+        }
+        val data = mapOf(
+            "firstName" to firstName.trim(),
+            "lastName" to lastName.trim(),
+            "mobile" to mobile.trim(),
+            "city" to city.trim(),
+            "gender" to gender,
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+        firestore.collection("users").document(uid).set(data, SetOptions.merge())
+            .addOnSuccessListener { onComplete(Result.success(Unit)) }
+            .addOnFailureListener { onComplete(Result.failure(it)) }
+    }
+
     fun savePreferences(
         uid: String,
         preferences: Map<String, Any>,
