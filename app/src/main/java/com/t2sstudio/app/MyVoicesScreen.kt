@@ -305,7 +305,7 @@ fun MyVoicesScreen() {
                                 modifier = Modifier.background(T2SBackground, RoundedCornerShape(20.dp)).padding(horizontal = 9.dp, vertical = 6.dp))
                         }
                         androidx.compose.material3.HorizontalDivider(color = T2SOrange.copy(alpha = 0.18f))
-                        Text("Speak naturally for 10–30 seconds in a quiet room.", color = T2SSecondaryText, fontSize = 12.sp)
+                        Text("Speak for 10–30 sec in a quiet room.", color = T2SSecondaryText, fontSize = 12.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = {
                                 if (!hasMicPermission) micPermission.launch(Manifest.permission.RECORD_AUDIO)
