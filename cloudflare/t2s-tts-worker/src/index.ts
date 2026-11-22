@@ -53,7 +53,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
   if (url.pathname === "/health" && request.method === "GET") {
-    return json({ ok: true, service: "t2s-tts-worker", providers: ["vakyam", "india"] });
+    return json({ ok: true, service: "t2s-tts-worker", providers: { vakyam: Boolean(env.VAKYAM_API_KEY), india: Boolean(env.INDIA_API_KEY) } });
   }
 
   await authenticate(request, env);
