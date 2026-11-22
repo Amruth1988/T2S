@@ -446,10 +446,6 @@ fun MyVoicesScreen() {
                 ) { Text(if (selectedAddTab == "Add AI Voice") "Create AI Voice" else "Save My Voice") }
             }
         }
-            TextButton(onClick = { showVoltSettings = false }) { Text("Close server settings") }
-            }
-        }
-        if (busy) CircularProgressIndicator()
         if (busy) CircularProgressIndicator()
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text("My saved voices", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
