@@ -174,11 +174,11 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
                         Button(onClick = { isRegister = false; status = "" }, modifier = Modifier.weight(1f).height(42.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = if (!isRegister) T2SOrange else androidx.compose.ui.graphics.Color.Transparent,
                                 contentColor = if (!isRegister) androidx.compose.ui.graphics.Color.White else T2SText),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) { Text("Sign In", fontWeight = FontWeight.SemiBold) }
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)) { Text("Sign In", fontWeight = FontWeight.SemiBold) }
                         Button(onClick = { isRegister = true; status = "" }, modifier = Modifier.weight(1f).height(42.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = if (isRegister) T2SOrange else androidx.compose.ui.graphics.Color.Transparent,
                                 contentColor = if (isRegister) androidx.compose.ui.graphics.Color.White else T2SText),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) { Text("Create Account", fontWeight = FontWeight.SemiBold) }
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)) { Text("Create Account", fontWeight = FontWeight.SemiBold) }
                     }
                     OutlinedTextField(value = email, onValueChange = { email = it }, modifier = Modifier.fillMaxWidth().height(58.dp),
                         singleLine = true, label = { Text("Email address") },
@@ -216,7 +216,7 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
                     }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(50.dp),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = T2SOrange),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(30.dp)) {
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)) {
                         Text(if (busy) "Please wait…" else if (isRegister) "Create Account" else "➜  Sign In", fontSize = 19.sp, fontWeight = FontWeight.Bold)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
@@ -255,7 +255,7 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
                         }
                     }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(48.dp),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(30.dp)) {
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)) {
                         Text("🌐   Continue with Google", color = T2SText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
