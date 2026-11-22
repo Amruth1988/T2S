@@ -300,9 +300,7 @@ fun MyVoicesScreen() {
                                     modifier = Modifier.size(40.dp)
                                 )
                             }
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text("Record", fontWeight = FontWeight.Bold, color = T2SText, fontSize = 15.sp)
-                            }
+                            Text("Record", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, color = T2SText, fontSize = 15.sp)
                             Text(if (recording) "● LIVE" else "READY", color = if (recording) androidx.compose.ui.graphics.Color(0xFFC62828) else T2SOrange, fontSize = 10.sp, fontWeight = FontWeight.Bold,
                                 modifier = Modifier.background(T2SBackground, RoundedCornerShape(20.dp)).padding(horizontal = 9.dp, vertical = 6.dp))
                         }
