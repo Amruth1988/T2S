@@ -1,6 +1,11 @@
 package com.t2sstudio.app
 
 import android.os.Bundle
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioTrack
+import kotlin.math.PI
+import kotlin.math.sin
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -71,6 +76,76 @@ import com.t2sstudio.app.ui.theme.T2SOrange
 import com.t2sstudio.app.ui.theme.T2SSecondaryText
 import com.t2sstudio.app.ui.theme.T2SStudioTheme
 import java.io.File
+
+private object T2SSplashMusic {
+    private const val SAMPLE_RATE = 22_050
+    private const val LOOP_SECONDS = 8
+    private var track: AudioTrack? = null
+
+    @Synchronized
+    fun start() {
+        if (track?.playState == AudioTrack.PLAYSTATE_PLAYING) return
+        stop()
+        val totalSamples = SAMPLE_RATE * LOOP_SECONDS
+        val pcm = ShortArray(totalSamples)
+        // Original, locally synthesized gentle flute-like melody over warm piano-like chords.
+        val melody = listOf(523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 783.99, 659.25)
+        val chordRoots = listOf(130.81, 164.81, 196.00, 146.83)
+        for (i in 0 until totalSamples) {
+            val time = i.toDouble() / SAMPLE_RATE
+            val beat = (time / 1.0).toInt()
+            val note = melody[beat % melody.size]
+            val within = time % 1.0
+            val attack = (within / 0.12).coerceIn(0.0, 1.0)
+            val release = ((1.0 - within) / 0.22).coerceIn(0.0, 1.0)
+            val envelope = attack * release
+            val flute = sin(2.0 * PI * note * time) * 0.58 +
+                sin(2.0 * PI * note * 2.0 * time) * 0.12 +
+                sin(2.0 * PI * note * 3.0 * time) * 0.035
+            val root = chordRoots[(beat / 2) % chordRoots.size]
+            val chord = sin(2.0 * PI * root * time) * 0.16 +
+                sin(2.0 * PI * root * 1.5 * time) * 0.07 +
+                sin(2.0 * PI * root * 2.0 * time) * 0.04
+            val fade = minOf((time / 0.8).coerceIn(0.0, 1.0), ((LOOP_SECONDS - time) / 0.8).coerceIn(0.0, 1.0))
+            pcm[i] = ((flute * envelope * 0.12 + chord * 0.12) * fade * Short.MAX_VALUE)
+                .toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+        }
+        val audio = AudioTrack.Builder()
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setSampleRate(SAMPLE_RATE)
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                    .build()
+            )
+            .setBufferSizeInBytes(pcm.size * 2)
+            .setTransferMode(AudioTrack.MODE_STATIC)
+            .build()
+        audio.write(pcm, 0, pcm.size)
+        audio.setLoopPoints(0, pcm.size, -1)
+        audio.setVolume(0.22f)
+        audio.play()
+        track = audio
+    }
+
+    @Synchronized
+    fun stop() {
+        track?.let { audio ->
+            try {
+                if (audio.playState == AudioTrack.PLAYSTATE_PLAYING) audio.pause()
+                audio.flush()
+            } catch (_: IllegalStateException) { }
+            audio.release()
+        }
+        track = null
+    }
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -439,6 +514,10 @@ private fun T2SApp() {
 @Composable
 private fun T2SSplashScreen(onFinished: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    DisposableEffect(Unit) {
+        T2SSplashMusic.start()
+        onDispose { T2SSplashMusic.stop() }
+    }
     LaunchedEffect(Unit) {
         delay(8_000)
         onFinished()
