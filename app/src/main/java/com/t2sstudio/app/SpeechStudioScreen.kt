@@ -432,6 +432,7 @@ fun SpeechStudioScreen(
             if (activePreviewKey != previewKey) { previewFile.delete(); return@launch }
             runCatching {
                 val player = ExoPlayer.Builder(context).build()
+                            player.skipSilenceEnabled = true
                 mediaPlayer = player
                 player.setAudioAttributes(
                     Media3AudioAttributes.Builder()
@@ -483,6 +484,7 @@ fun SpeechStudioScreen(
         runCatching {
             mediaPlayer?.release()
             val player = ExoPlayer.Builder(context).build()
+                            player.skipSilenceEnabled = true
             mediaPlayer = player
             player.setAudioAttributes(
                 Media3AudioAttributes.Builder()
