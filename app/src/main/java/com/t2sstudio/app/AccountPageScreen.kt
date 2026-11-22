@@ -115,6 +115,7 @@ fun AccountPageScreen(
             icon = Icons.Filled.AccountCircle
         ) {
             AccountMenuRow("Profile", "Update your personal details", Icons.Filled.AccountCircle) { showProfile = true }
+            AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
             AccountMenuRow("My Drafts", "Continue your saved scripts", Icons.Filled.Description) { onNavigate(4) }
         }
 
@@ -156,7 +157,7 @@ private fun AccountSectionCard(
     ) {
         Column {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -168,8 +169,8 @@ private fun AccountSectionCard(
                     Icon(icon, contentDescription = null, tint = T2SOrange, modifier = Modifier.padding(9.dp))
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(title, color = T2SText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Text(subtitle, color = T2SSecondaryText, fontSize = 11.sp)
+                    Text(title, color = T2SText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(subtitle, color = T2SSecondaryText, fontSize = 12.sp)
                 }
             }
             androidx.compose.material3.HorizontalDivider(
@@ -196,7 +197,7 @@ private fun QuickAccountAction(label: String, icon: androidx.compose.ui.graphics
 @Composable
 private fun AccountMenuRow(label: String, description: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
