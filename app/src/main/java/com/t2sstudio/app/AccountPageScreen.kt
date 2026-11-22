@@ -37,6 +37,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
+import com.t2sstudio.app.ui.theme.T2SBackground
+import com.t2sstudio.app.ui.theme.T2SCream
+import com.t2sstudio.app.ui.theme.T2SOrange
+import com.t2sstudio.app.ui.theme.T2SSecondaryText
+import com.t2sstudio.app.ui.theme.T2SText
 
 @Composable
 fun AccountPageScreen(
