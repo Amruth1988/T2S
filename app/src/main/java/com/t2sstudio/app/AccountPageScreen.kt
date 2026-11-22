@@ -57,7 +57,8 @@ import com.t2sstudio.app.ui.theme.T2SText
 fun AccountPageScreen(
     onBack: () -> Unit,
     onSignIn: () -> Unit,
-    onNavigate: (Int) -> Unit
+    onNavigate: (Int) -> Unit,
+    onAbout: () -> Unit
 ) {
     val auth = remember { FirebaseAuth.getInstance() }
     var user by remember { mutableStateOf(auth.currentUser) }
@@ -146,7 +147,7 @@ fun AccountPageScreen(
             subtitle = "Learn more and get support",
             icon = Icons.Filled.Info
         ) {
-            AccountMenuRow("About", "About T2S Studio", Icons.Filled.Info) { infoDialog = "About" }
+            AccountMenuRow("About", "About T2S Studio", Icons.Filled.Info, onAbout)
             AccountMenuRow("Privacy", "How your audio and information are handled", Icons.Filled.PrivacyTip) { infoDialog = "Privacy" }
             AccountMenuRow("Terms & Conditions", "Read the terms for using T2S Studio", Icons.Filled.Gavel) { infoDialog = "Terms & Conditions" }
             AccountMenuRow("Contact", "Get help or report an issue", Icons.Filled.MailOutline) {
@@ -164,7 +165,7 @@ fun AccountPageScreen(
                 text = {
                     Text(
                         when {
-                            about -> "T2S Studio is an Android text-to-speech studio. Create speech in supported languages and manage your voice profiles, projects and drafts."
+                            about -> ""
                             privacy -> "Generated audio is saved on your device. Speech generation uses an online service, so the text you submit is sent to that service for processing. Avoid submitting private or sensitive text unless you are comfortable with the provider's data handling. Optional API keys are encrypted with Android Keystore."
                             else -> "By using T2S Studio, you agree to use the app lawfully and responsibly. You are responsible for the text and audio you create and for ensuring you have the rights to use any content or voice recordings you submit. Speech generation may require an internet connection and may depend on third-party services, which can have their own terms and availability. Do not use the app to create deceptive, abusive, or unlawful content. Features may change over time. Use of the app is at your discretion."
                         }
