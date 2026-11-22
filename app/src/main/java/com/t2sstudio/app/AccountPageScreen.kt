@@ -78,7 +78,7 @@ fun AccountPageScreen(
                 color = T2SText, fontSize = 29.sp, fontWeight = FontWeight.Bold)
             Text(user?.email ?: user?.phoneNumber ?: "Not signed in",
                 color = T2SSecondaryText, fontSize = 16.sp)
-            Text("Text to Speech Studio", color = T2SText, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text("Text to Speech Studio", color = T2SText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         }
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -109,29 +109,75 @@ fun AccountPageScreen(
             }
         }
 
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = androidx.compose.ui.graphics.Color.White,
-            shape = RoundedCornerShape(24.dp)
+        AccountSectionCard(
+            title = "Your information",
+            subtitle = "Personal account details",
+            icon = Icons.Filled.AccountCircle
         ) {
-            Column {
-                Text("Your information", color = T2SText, fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
-                AccountMenuRow("Profile", "Update your personal details", Icons.Filled.AccountCircle) { showProfile = true }
-                Text("Your T2S workspace", color = T2SText, fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
-                AccountMenuRow("Projects", "Manage your projects", Icons.Filled.Folder) { onNavigate(1) }
-                AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
-                AccountMenuRow("Recent audio", "Listen to your generated speech", Icons.Filled.AccessTime) { onNavigate(2) }
-                AccountMenuRow("Drafts", "Continue your saved scripts", Icons.Filled.Description) { onNavigate(4) }
-                Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.Center) {
-                    Button(onClick = onSignIn, colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground)) {
-                        Text(if (user == null) "Sign in / Create account" else "Account sign-in options")
-                    }
-                }
+            AccountMenuRow("Profile", "Update your personal details", Icons.Filled.AccountCircle) { showProfile = true }
+        }
+
+        AccountSectionCard(
+            title = "Your T2S workspace",
+            subtitle = "Your creative tools and activity",
+            icon = Icons.Filled.Folder
+        ) {
+            AccountMenuRow("Projects", "Manage your projects", Icons.Filled.Folder) { onNavigate(1) }
+            AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
+            AccountMenuRow("Recent audio", "Listen to your generated speech", Icons.Filled.AccessTime) { onNavigate(2) }
+            AccountMenuRow("Drafts", "Continue your saved scripts", Icons.Filled.Description) { onNavigate(4) }
+        }
+
+        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center) {
+            Button(
+                onClick = onSignIn,
+                colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Text(if (user == null) "Sign in / Create account" else "Account sign-in options", fontSize = 11.sp)
             }
         }
         Spacer(Modifier.size(8.dp))
+    }
+}
+
+@Composable
+private fun AccountSectionCard(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    content: @Composable () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = androidx.compose.ui.graphics.Color.White,
+        shape = RoundedCornerShape(20.dp),
+        shadowElevation = 2.dp
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = T2SCream,
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Icon(icon, contentDescription = null, tint = T2SOrange, modifier = Modifier.padding(9.dp))
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(title, color = T2SText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(subtitle, color = T2SSecondaryText, fontSize = 11.sp)
+                }
+            }
+            androidx.compose.material3.HorizontalDivider(
+                color = T2SBackground,
+                thickness = 1.dp
+            )
+            content()
+        }
     }
 }
 
@@ -154,7 +200,7 @@ private fun AccountMenuRow(label: String, description: String, icon: androidx.co
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Icon(icon, contentDescription = null, tint = T2SOrange, modifier = Modifier.size(25.dp))
+        Icon(icon, contentDescription = null, tint = T2SOrange, modifier = Modifier.size(22.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(label, color = T2SText, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
             Text(description, color = T2SSecondaryText, fontSize = 13.sp)
