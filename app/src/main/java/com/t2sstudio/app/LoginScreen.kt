@@ -192,13 +192,15 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Text("🔒  Keep me signed in", color = T2SText, fontSize = 13.sp)
-                        androidx.compose.material3.TextButton(onClick = {
-                            if (email.isBlank()) status = "Enter your email address first to receive a password reset link."
-                            else { busy = true; auth.sendPasswordReset(email) { result ->
-                                busy = false
-                                status = result.fold({ "Password reset email sent. Check your inbox." }, { it.localizedMessage ?: "Could not send the reset email." })
-                            } }
-                        }, enabled = !busy) { Text("Forgot password?", color = T2SOrange, fontSize = 13.sp) }
+                        if (!isRegister) {
+                            androidx.compose.material3.TextButton(onClick = {
+                                if (email.isBlank()) status = "Enter your email address first to receive a password reset link."
+                                else { busy = true; auth.sendPasswordReset(email) { result ->
+                                    busy = false
+                                    status = result.fold({ "Password reset email sent. Check your inbox." }, { it.localizedMessage ?: "Could not send the reset email." })
+                                } }
+                            }, enabled = !busy) { Text("Forgot password?", color = T2SOrange, fontSize = 13.sp) }
+                        }
                     }
                     Button(onClick = {
                         if (email.isBlank() || password.length < 6) status = "Enter a valid email and a password with at least 6 characters."
