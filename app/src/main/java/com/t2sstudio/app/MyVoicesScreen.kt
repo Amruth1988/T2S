@@ -361,7 +361,6 @@ fun MyVoicesScreen() {
                         else runCatching {
                             previewPlayer?.release()
                             val player = ExoPlayer.Builder(context).build()
-                            player.skipSilenceEnabled = true
                             previewPlayer = player
                             player.setAudioAttributes(
                                 Media3AudioAttributes.Builder()
@@ -671,7 +670,6 @@ fun MyVoicesScreen() {
                                             ?: error("Saved voice sample file is missing.")
                                         require(sampleFile.exists() && sampleFile.length() > 1024L) { "Saved voice sample file is missing or empty." }
                                         val player = ExoPlayer.Builder(context).build()
-                                        player.skipSilenceEnabled = true
                                         previewPlayer = player
                                         player.setAudioAttributes(
                                             Media3AudioAttributes.Builder()
