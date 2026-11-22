@@ -129,6 +129,36 @@ class T2SFirestoreRepository(
             .addOnFailureListener { onComplete(Result.failure(it)) }
     }
 
+    fun loadProjects(
+        uid: String,
+        onComplete: (Result<List<com.t2sstudio.app.T2SProject>>) -> Unit
+    ) {
+        if (uid.isBlank()) {
+            onComplete(Result.failure(IllegalStateException("Sign in to load your cloud projects.")))
+            return
+        }
+        userCollection(uid, "projects").get()
+            .addOnSuccessListener { snapshot ->
+                val projects = snapshot.documents
+                    .filter { it.getBoolean("isArchived") != true }
+                    .mapNotNull { document ->
+                        val name = document.getString("name")?.trim().orEmpty()
+                        if (name.isBlank()) return@mapNotNull null
+                        val createdAt = document.getTimestamp("createdAt")?.toDate()?.time
+                            ?: document.getDate("createdAt")?.time
+                            ?: 0L
+                        com.t2sstudio.app.T2SProject(
+                            id = document.id,
+                            name = name,
+                            createdAt = createdAt
+                        )
+                    }
+                    .sortedByDescending { it.createdAt }
+                onComplete(Result.success(projects))
+            }
+            .addOnFailureListener { onComplete(Result.failure(it)) }
+    }
+
     fun archiveProject(
         uid: String,
         projectId: String,
