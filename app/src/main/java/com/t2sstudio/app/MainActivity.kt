@@ -476,9 +476,8 @@ private fun T2SSplashScreen(onFinished: () -> Unit) {
                     painter = painterResource(id = R.drawable.app_logo),
                     contentDescription = "T2S Studio — Text to Speech",
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height((112f * logoScale).dp)
-                        .padding(horizontal = 4.dp),
+                        .width((190f * logoScale).dp)
+                        .height((76f * logoScale).dp),
                     contentScale = ContentScale.Fit
                 )
 
