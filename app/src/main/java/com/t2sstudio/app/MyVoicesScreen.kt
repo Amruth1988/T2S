@@ -102,7 +102,7 @@ fun MyVoicesScreen() {
             Toast.makeText(
                 context,
                 message,
-                if (messageIsError) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
+                Toast.LENGTH_SHORT
             ).show()
             lastToastMessage = message
         }
@@ -409,7 +409,17 @@ fun MyVoicesScreen() {
                                     message = if (saved.sarvamVoiceId.isNotBlank()) "${saved.name} AI voice created and saved. Sarvam voice ID: ${saved.sarvamVoiceId}" else "${saved.name} saved as a local voice."
                                 }.onFailure { error ->
                                     loadVoices()
-                                    message = "Not fully saved: ${error.message ?: "registration or Firebase save failed"}. Your local recording is retained; retry Firebase sync if Sarvam registration completed."
+                                    val details = error.message.orEmpty()
+                                    message = when {
+                                        details.contains("Total speech duration is too short", ignoreCase = true) ->
+                                            "Recording too short. Please record at least 4 seconds and try again."
+                                        details.contains("VALIDATION_FAILED", ignoreCase = true) ||
+                                            details.contains("Audio validation failed", ignoreCase = true) ->
+                                            "Audio validation failed. Please use a clear recording of at least 4 seconds."
+                                        details.contains("HTTP 422", ignoreCase = true) ->
+                                            "Voice sample was rejected. Please check the recording and try again."
+                                        else -> "Could not create AI voice. Your local recording is saved; please try again."
+                                    }
                                 }
                                 busy = false
                             }
@@ -423,25 +433,7 @@ fun MyVoicesScreen() {
             }
         }
         if (busy) CircularProgressIndicator()
-        if (busy || messageIsError) Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (messageIsError)
-                    androidx.compose.material3.MaterialTheme.colorScheme.errorContainer
-                else T2SCream
-            )
-        ) {
-            Text(
-                message,
-                modifier = Modifier.padding(12.dp),
-                color = if (messageIsError)
-                    androidx.compose.material3.MaterialTheme.colorScheme.onErrorContainer
-                else T2SText,
-                fontSize = 13.sp,
-                lineHeight = 18.sp
-            )
-        }
+        if (busy) CircularProgressIndicator()
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text("My saved voices", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
             TextButton(onClick = { loadVoices() }, enabled = !busy, modifier = Modifier.padding(0.dp)) { Text("↻ Refresh") }
