@@ -65,7 +65,7 @@ fun MyVoicesScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var voiceName by remember { mutableStateOf("My Voice") }
-    var showAddVoiceOptions by remember { mutableStateOf(false) }
+    var selectedAddTab by remember { mutableStateOf("Add Voice") }
     var showSarvamForm by remember { mutableStateOf(false) }
     var showVoltSettings by remember { mutableStateOf(false) }
     var cloneServerUrl by remember { mutableStateOf(VoiceCloneServerSettings.get(context)) }
@@ -143,38 +143,23 @@ fun MyVoicesScreen() {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
-        Button(
-            onClick = { showAddVoiceOptions = !showAddVoiceOptions },
-            enabled = !busy && !recording,
-            modifier = Modifier.fillMaxWidth()
-        ) { Text(if (showAddVoiceOptions) "Close Add Voice" else "+ Add Voice") }
-
-        if (showAddVoiceOptions) {
-            Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Choose how to add a voice", fontWeight = FontWeight.SemiBold, color = T2SText)
-                    Button(
-                        onClick = {
-                            showSarvamForm = true
-                            showVoltSettings = false
-                            showAddVoiceOptions = false
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("Create an AI voice") }
-                    TextButton(
-                        onClick = {
-                            showVoltSettings = true
-                            showSarvamForm = false
-                            showAddVoiceOptions = false
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("Use my own voice server") }
-                }
+        androidx.compose.material3.TabRow(selectedTabIndex = if (selectedAddTab == "Add Voice") 0 else 1) {
+            listOf("Add Voice", "Add AI Voice").forEach { tab ->
+                androidx.compose.material3.Tab(
+                    selected = selectedAddTab == tab,
+                    onClick = {
+                        selectedAddTab = tab
+                        showVoltSettings = false
+                        showSarvamForm = false
+                    },
+                    text = { Text(tab, maxLines = 1, fontSize = 13.sp) },
+                    enabled = !busy && !recording
+                )
             }
         }
 
-        if (showVoltSettings) {
-            if (showSarvamForm) {
+        if (selectedAddTab == "Add Voice" || selectedAddTab == "Add AI Voice") {
+            if (showVoltSettings) {
         Card(colors = CardDefaults.cardColors(containerColor = T2SBackground), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Text("Voice server settings", fontWeight = FontWeight.SemiBold, color = T2SText)
@@ -262,7 +247,7 @@ fun MyVoicesScreen() {
                         )
                     }
                 }
-                Text("Record or upload a sample to create your AI voice.", fontSize = 12.sp, color = T2SSecondaryText)
+                Text(if (selectedAddTab == "Add AI Voice") "Record or upload a sample to create your AI voice." else "Record or upload your own voice sample. It will be saved on this device.", fontSize = 12.sp, color = T2SSecondaryText)
                 Text("Record your voice directly here, or select an existing file. Speak naturally in a quiet room for 10–30 seconds.", fontSize = 12.sp, color = T2SSecondaryText)
                 Card(
                     colors = CardDefaults.cardColors(containerColor = T2SCream),
@@ -389,35 +374,29 @@ fun MyVoicesScreen() {
                             scope.launch {
                                 runCatching {
                                     withContext(Dispatchers.IO) {
-                                        val signedInUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-                                            ?: error("Sign in to T2S before registering a voice with Sarvam.")
-                                        // Keep a local recovery copy, but do not report success until
-                                        // Sarvam returns an ID and Firestore confirms the metadata write.
                                         val saved = MyVoicesClient.createLocal(context, voiceName, uri, cloneLanguage, voiceGender)
-                                        val sample = saved.localSamplePath?.let(::File)
-                                            ?: error("Saved recording could not be read.")
-                                        val sarvamId = SarvamVoiceCloneClient.createCentralVoice(
-                                            sample, saved.name, saved.language, saved.gender
-                                        )
-                                        require(sarvamId.startsWith("svc-")) { "Sarvam did not return a valid voice ID." }
-                                        MyVoicesClient.attachSarvamVoiceId(context, saved.id, sarvamId)
-                                        suspendCancellableCoroutine<Unit> { continuation ->
-                                            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveVoiceMetadata(
-                                                uid = signedInUid,
-                                                voiceId = saved.id,
-                                                name = saved.name,
-                                                gender = saved.gender,
-                                                language = saved.language,
-                                                sarvamVoiceId = sarvamId
-                                            ) { cloudResult ->
-                                                if (continuation.isActive) cloudResult.fold(
-                                                    onSuccess = { continuation.resume(Unit) },
-                                                    onFailure = { continuation.resumeWithException(it) }
-                                                )
+                                        if (selectedAddTab == "Add AI Voice") {
+                                            val signedInUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                                ?: error("Sign in to T2S before creating an AI voice.")
+                                            val sample = saved.localSamplePath?.let(::File)
+                                                ?: error("Saved recording could not be read.")
+                                            val sarvamId = SarvamVoiceCloneClient.createCentralVoice(sample, saved.name, saved.language, saved.gender)
+                                            require(sarvamId.startsWith("svc-")) { "Sarvam did not return a valid voice ID." }
+                                            MyVoicesClient.attachSarvamVoiceId(context, saved.id, sarvamId)
+                                            suspendCancellableCoroutine<Unit> { continuation ->
+                                                com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveVoiceMetadata(
+                                                    uid = signedInUid, voiceId = saved.id, name = saved.name,
+                                                    gender = saved.gender, language = saved.language, sarvamVoiceId = sarvamId
+                                                ) { cloudResult ->
+                                                    if (continuation.isActive) cloudResult.fold(
+                                                        onSuccess = { continuation.resume(Unit) },
+                                                        onFailure = { continuation.resumeWithException(it) }
+                                                    )
+                                                }
                                             }
-                                        }
-                                        MyVoicesClient.markFirebaseSynced(context, saved.id)
-                                        MyVoicesClient.list(context).first { it.id == saved.id }
+                                            MyVoicesClient.markFirebaseSynced(context, saved.id)
+                                            MyVoicesClient.list(context).first { it.id == saved.id }
+                                        } else saved
                                     }
                                 }.onSuccess { saved ->
                                     loadVoices()
@@ -427,7 +406,7 @@ fun MyVoicesScreen() {
                                     pickedUri = null
                                     pickedLabel = "No audio selected"
                                     consentConfirmed = false
-                                    message = "${saved.name} Saved successfully. Sarvam voice ID: ${saved.sarvamVoiceId}"
+                                    message = if (saved.sarvamVoiceId.isNotBlank()) "${saved.name} AI voice created and saved. Sarvam voice ID: ${saved.sarvamVoiceId}" else "${saved.name} saved as a local voice."
                                 }.onFailure { error ->
                                     loadVoices()
                                     message = "Not fully saved: ${error.message ?: "registration or Firebase save failed"}. Your local recording is retained; retry Firebase sync if Sarvam registration completed."
@@ -437,10 +416,11 @@ fun MyVoicesScreen() {
                         }
                     },
                     enabled = !busy && !recording && pickedUri != null && consentConfirmed && voiceName.trim().length in 2..40 && voiceGender in listOf("Male", "Female") && cloneLanguage in listOf("en", "te", "hi")
-                ) { Text("Create voice") }
+                ) { Text(if (selectedAddTab == "Add AI Voice") "Create AI Voice" else "Save My Voice") }
             }
         }
-            TextButton(onClick = { showSarvamForm = false }) { Text("Cancel") }
+            TextButton(onClick = { showVoltSettings = false }) { Text("Close server settings") }
+            }
         }
         if (busy) CircularProgressIndicator()
         if (busy || messageIsError) Card(
