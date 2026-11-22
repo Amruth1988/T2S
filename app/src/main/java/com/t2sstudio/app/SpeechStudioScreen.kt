@@ -754,13 +754,7 @@ fun SpeechStudioScreen(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("All", "Male", "Female").forEach { gender ->
                         FilterChip(
-                            modifier = Modifier.weight(
-                                 when (gender) {
-                                     "All" -> 0.78f
-                                     "Male" -> 1.05f
-                                     else -> 1.25f
-                                 }
-                             ).height(36.dp),
+                            modifier = Modifier.weight(1f).height(36.dp),
                             selected = selectedGender == gender,
                             colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color(0xFFF47721),
@@ -783,7 +777,22 @@ fun SpeechStudioScreen(
                                     gender == "All" || onlineVoiceGender(voice) == gender
                                 }
                             },
-                            label = { Text(gender, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false) }
+                            label = {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        gender,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
+                            }
                         )
                     }
                 }
