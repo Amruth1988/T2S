@@ -124,9 +124,25 @@ fun MyVoicesScreen() {
         }
         com.t2sstudio.app.data.firebase.T2SFirestoreRepository().loadVoiceMetadata(uid) { result ->
             result.onSuccess { saved ->
+                // Firebase stores cloud metadata, while the original audio remains local.
+                // Merge by profile ID so refreshing cloud metadata never discards the
+                // local recording path needed to replay the user's actual sample.
+                val localProfiles = MyVoicesClient.list(context)
+                val localById = localProfiles.associateBy { it.id }
+                val mergedCloud = saved.map { cloud ->
+                    val local = localById[cloud.id]
+                    if (local != null) cloud.copy(
+                        localSamplePath = local.localSamplePath,
+                        name = local.name.ifBlank { cloud.name },
+                        language = local.language.ifBlank { cloud.language },
+                        gender = local.gender.ifBlank { cloud.gender }
+                    ) else cloud
+                }
+                val cloudIds = mergedCloud.map { it.id }.toSet()
+                val localOnly = localProfiles.filter { it.id !in cloudIds }
                 voices.clear()
-                voices.addAll(saved)
-                if (saved.isEmpty()) message = "No voice profiles were found in your Firebase account."
+                voices.addAll(mergedCloud + localOnly)
+                if (voices.isEmpty()) message = "No voice profiles were found in your account."
             }.onFailure { error ->
                 voices.clear()
                 message = "Could not load voice profiles from Firebase: ${error.localizedMessage ?: "check your connection"}"
@@ -613,9 +629,11 @@ fun MyVoicesScreen() {
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(
-                            enabled = sampleAvailable || voice.sarvamVoiceId.startsWith("svc-"),
+                            enabled = sampleAvailable,
                             onClick = {
-                                if (!sampleAvailable && voice.sarvamVoiceId.startsWith("svc-")) {
+                                if (!sampleAvailable) {
+                                    message = "Original recording is not available on this device. Restore the voice backup to play it."
+                                } else if (!sampleAvailable && voice.sarvamVoiceId.startsWith("svc-")) {
                                     busy = true
                                     scope.launch {
                                         val result = runCatching {
@@ -717,7 +735,7 @@ fun MyVoicesScreen() {
                             }
                                 }
                             }
-                        ) { Text(if (previewingSavedVoiceId == voice.id) "■ Stop" else if (sampleAvailable) "▶ Preview sample" else "▶ Test voice") }
+                        ) { Text(if (previewingSavedVoiceId == voice.id) "■ Stop" "▶ Play my recording") }
                         TextButton(onClick = {
                             if (previewingSavedVoiceId == voice.id) {
                                 runCatching { previewPlayer?.release() }
