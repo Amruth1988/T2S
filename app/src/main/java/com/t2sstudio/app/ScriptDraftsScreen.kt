@@ -99,11 +99,11 @@ fun ScriptDraftsScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(bottom = 16.dp)
+                contentPadding = PaddingValues(start = 4.dp, top = 8.dp, end = 4.dp, bottom = 20.dp)
             ) {
                 items(drafts, key = { it.id }) { draft ->
                     Card(
-                        modifier = Modifier.fillMaxWidth().shadow(2.dp, RoundedCornerShape(18.dp), clip = false),
+                        modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(18.dp), clip = false),
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
