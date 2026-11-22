@@ -51,6 +51,11 @@ fun AccountPageScreen(
 ) {
     val auth = remember { FirebaseAuth.getInstance() }
     var user by remember { mutableStateOf(auth.currentUser) }
+    var showProfile by remember { mutableStateOf(false) }
+    if (showProfile) {
+        UserProfileScreen(onBack = { showProfile = false })
+        return
+    }
     DisposableEffect(auth) {
         val listener = FirebaseAuth.AuthStateListener { user = it.currentUser }
         auth.addAuthStateListener(listener)
@@ -118,6 +123,9 @@ fun AccountPageScreen(
             shape = RoundedCornerShape(24.dp)
         ) {
             Column {
+                Text("Your information", color = T2SText, fontSize = 23.sp,
+                    fontWeight = FontWeight.Bold, modifier = Modifier.padding(20.dp))
+                AccountMenuRow("Profile", "Update your personal details", Icons.Filled.AccountCircle) { showProfile = true }
                 Text("Your T2S workspace", color = T2SText, fontSize = 23.sp,
                     fontWeight = FontWeight.Bold, modifier = Modifier.padding(20.dp))
                 AccountMenuRow("Projects", "Manage your projects", Icons.Filled.Folder) { onNavigate(1) }
