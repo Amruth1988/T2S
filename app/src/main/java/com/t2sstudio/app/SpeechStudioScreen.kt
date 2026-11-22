@@ -951,11 +951,14 @@ fun SpeechStudioScreen(
                                         statusMessage = "${voice.name} selected."
                                     }) {
                                         Text(
-                                            installedVoiceDisplayName(voice, filteredInstalled.indexOf(voice) + 1) + if (isSelected) " ✓" else "",
+                                            installedVoiceDisplayName(voice, filteredInstalled.indexOf(voice) + 1),
                                             color = T2SText,
                                             fontWeight = FontWeight.SemiBold,
                                             maxLines = 1
                                         )
+                                    }
+                                    if (isSelected) {
+                                        Text("✓", color = T2SOrange, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
                                     }
                                     TextButton(
                                         onClick = {
@@ -1032,12 +1035,13 @@ fun SpeechStudioScreen(
                             enabled = false
                         )
                         filteredOnline.forEach { voice ->
+                            val isSelected = selectedOnlineVoice?.let { it.provider == voice.provider && it.id == voice.id } == true
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                                 shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7F0)),
+                                colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFFFFEBDD) else Color(0xFFFFF7F0)),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0D7C2))
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) T2SOrange else Color(0xFFF0D7C2))
                             ) {
                               Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f).clickable {
@@ -1049,6 +1053,9 @@ fun SpeechStudioScreen(
                                     statusMessage = voice.name + " selected from " + voice.provider + ". Voice licence: " + voice.licence + ". " + voice.attribution
                                 }) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
+                                if (isSelected) {
+                                    Text("✓", color = T2SOrange, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                                }
                                 }
                                 TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.provider}:${voice.id}", provider = voice.provider) }) {
                                     Text(if (activePreviewKey == "online:${voice.provider}:${voice.id}" && isPreviewing) "■ Stop" else "▶ Play", color = Color(0xFFF47721), fontWeight = FontWeight.Bold)
