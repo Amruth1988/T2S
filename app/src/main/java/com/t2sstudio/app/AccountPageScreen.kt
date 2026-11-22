@@ -19,12 +19,20 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -53,6 +61,8 @@ fun AccountPageScreen(
     val auth = remember { FirebaseAuth.getInstance() }
     var user by remember { mutableStateOf(auth.currentUser) }
     var showProfile by remember { mutableStateOf(false) }
+    var infoDialog by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
     if (showProfile) {
         UserProfileScreen(onBack = { showProfile = false })
         return
@@ -126,9 +136,38 @@ fun AccountPageScreen(
             icon = Icons.Filled.Folder
         ) {
             AccountMenuRow("Projects", "Manage your projects", Icons.Filled.Folder) { onNavigate(1) }
-            AccountMenuRow("Sign out", "Sign out of your T2S account", Icons.Filled.Logout) { auth.signOut() }
             AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
             AccountMenuRow("Recent audio", "Listen to your generated speech", Icons.Filled.AccessTime) { onNavigate(2) }
+        }
+
+        AccountSectionCard(
+            title = "T2S Studio",
+            subtitle = "Learn more and get support",
+            icon = Icons.Filled.Info
+        ) {
+            AccountMenuRow("About", "About T2S Studio", Icons.Filled.Info) { infoDialog = "About" }
+            AccountMenuRow("Privacy", "How your audio and information are handled", Icons.Filled.PrivacyTip) { infoDialog = "Privacy" }
+            AccountMenuRow("Contact", "Get help or report an issue", Icons.Filled.MailOutline) {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Amruth1988/T2S/issues")))
+            }
+            AccountMenuRow("Sign out", "Sign out of your T2S account", Icons.Filled.Logout) { auth.signOut() }
+        }
+
+        infoDialog?.let { section ->
+            val about = section == "About"
+            AlertDialog(
+                onDismissRequest = { infoDialog = null },
+                title = { Text(if (about) "About T2S Studio" else "Privacy") },
+                text = {
+                    Text(
+                        if (about) "T2S Studio is an Android text-to-speech studio built with Kotlin and Jetpack Compose. Create speech in supported languages and save generated audio on your device."
+                        else "Generated audio is saved on your device. Speech generation uses an online service, so the text you submit is sent to that service for processing. Avoid submitting private or sensitive text unless you are comfortable with the provider's data handling. Optional API keys are encrypted with Android Keystore."
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { infoDialog = null }) { Text("Close") }
+                }
+            )
         }
 
         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center) {
