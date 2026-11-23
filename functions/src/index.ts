@@ -18,6 +18,7 @@ const PROVIDERS = {
 type Provider = keyof typeof PROVIDERS;
 const providerIds = Object.keys(PROVIDERS) as Provider[];
 const providerRef = (id: Provider) => db.collection("provider_keys").doc(id);
+const USER_GENERATION_UNAVAILABLE = "Generation temporarily unavailable. Please try again later.";
 
 function requireAdmin(request: { auth?: { uid: string; token: Record<string, unknown> } | null }): string {
   if (!request.auth) throw new HttpsError("unauthenticated", "Sign in is required.");
@@ -171,21 +172,21 @@ async function reserveProviderUsage(provider: Provider, uid: string, characters:
     ]);
     const limits = limitsSnap.data();
     if (!limitsSnap.exists || limits?.enabled !== true) {
-      throw new HttpsError("resource-exhausted", `${PROVIDERS[provider].name} generation is paused until an administrator configures a usage budget.`);
+      throw new HttpsError("resource-exhausted", USER_GENERATION_UNAVAILABLE);
     }
     const dailyCharacters = Number(limits.dailyCharacters);
     const monthlyCharacters = Number(limits.monthlyCharacters);
     const dailyRequests = Number(limits.dailyRequests);
     if (![dailyCharacters, monthlyCharacters, dailyRequests].every(Number.isSafeInteger) ||
         dailyCharacters <= 0 || monthlyCharacters <= 0 || dailyRequests <= 0) {
-      throw new HttpsError("failed-precondition", "Provider usage limits are invalid. Ask a T2S administrator to review them.");
+      throw new HttpsError("resource-exhausted", USER_GENERATION_UNAVAILABLE);
     }
     const usedToday = Number(daySnap.get("characters") ?? 0);
     const requestsToday = Number(daySnap.get("requests") ?? 0);
     const usedMonth = Number(monthSnap.get("characters") ?? 0);
     if (usedToday + characters > dailyCharacters || requestsToday + 1 > dailyRequests ||
         usedMonth + characters > monthlyCharacters) {
-      throw new HttpsError("resource-exhausted", `${PROVIDERS[provider].name} usage limit reached. Generation is paused to prevent paid usage.`);
+      throw new HttpsError("resource-exhausted", USER_GENERATION_UNAVAILABLE);
     }
     const reservation = {
       provider, characters, requests: FieldValue.increment(1),
@@ -205,7 +206,7 @@ async function reserveSarvamUsage(uid: string, characters: number): Promise<void
     const calls = Number(snapshot.get("calls") ?? 0);
     const usedCharacters = Number(snapshot.get("characters") ?? 0);
     if (calls >= 10 || usedCharacters + characters > 10000) {
-      throw new HttpsError("resource-exhausted", "Daily shared Sarvam limit reached (10 generations or 10,000 characters). Try again tomorrow.");
+      throw new HttpsError("resource-exhausted", USER_GENERATION_UNAVAILABLE);
     }
     transaction.set(ref, {
       provider: "sarvam",
@@ -331,8 +332,8 @@ export const generateCentralSarvamClone = onCall({
   });
   const body = await response.text();
   if (!response.ok) {
-    throw new HttpsError(response.status === 429 ? "resource-exhausted" : "unavailable",
-      `Sarvam speech generation failed (HTTP ${response.status}).`);
+    throw new HttpsError(response.status === 429 || response.status === 402 ? "resource-exhausted" : "unavailable",
+      response.status === 429 || response.status === 402 ? USER_GENERATION_UNAVAILABLE : "Speech generation failed. Please try again later.");
   }
   let payload: Record<string, unknown>;
   try {
@@ -454,8 +455,8 @@ export const generateCentralIndiaTts = onCall({
   });
   if (!response.ok) {
     const detail = await response.text();
-    throw new HttpsError(response.status === 429 ? "resource-exhausted" : "unavailable",
-      detail.slice(0, 300) || `India TTS generation failed (HTTP ${response.status}).`);
+    throw new HttpsError(response.status === 429 || response.status === 402 ? "resource-exhausted" : "unavailable",
+      response.status === 429 || response.status === 402 ? USER_GENERATION_UNAVAILABLE : "Speech generation failed. Please try again later.");
   }
   const bytes = Buffer.from(await response.arrayBuffer());
   if (bytes.length < 1024 || bytes.length > 7_000_000) {
@@ -488,8 +489,8 @@ export const generateCentralVakyamTts = onCall({
   });
   const body = await response.text();
   if (!response.ok) {
-    throw new HttpsError(response.status === 429 ? "resource-exhausted" : "unavailable",
-      `Vakyam speech generation failed (HTTP ${response.status}).`);
+    throw new HttpsError(response.status === 429 || response.status === 402 ? "resource-exhausted" : "unavailable",
+      response.status === 429 || response.status === 402 ? USER_GENERATION_UNAVAILABLE : "Speech generation failed. Please try again later.");
   }
   let payload: Record<string, unknown>;
   try { payload = JSON.parse(body) as Record<string, unknown>; }
