@@ -388,14 +388,14 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                                     player.release()
                                     if (previewPlayer === player) previewPlayer = null
-                                    message = "Recording preview failed: ${error.message ?: "audio playback error"}"
+                                    message = "Recording preview failed. Please try again."
                                 }
                             })
                             player.setMediaItem(MediaItem.fromUri(uri))
                             player.prepare()
                             player.play()
                             message = "Playing your recording…"
-                        }.onFailure { message = "Preview failed: " + (it.localizedMessage ?: "audio could not be played") }
+                        }.onFailure { message = "Preview failed. Please try again." }
                     }, enabled = pickedUri != null && !recording) { Text("▶ Preview recording") }
                     TextButton(onClick = { picker.launch("audio/*") }, enabled = !recording) { Text("Upload audio") }
                 }
@@ -709,7 +709,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                         message = "Playing saved sample for ${voice.name}. This is the original recording, not generated speech."
                                     }.onFailure {
                                         previewingSavedVoiceId = null
-                                        message = "Could not preview saved voice: ${it.localizedMessage ?: "audio playback error"}"
+                                        message = "Could not preview saved voice. Please try again."
                                     }
                                 }
                             }
