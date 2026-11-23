@@ -102,8 +102,7 @@ jobs:
           make_latest: false
 
       - name: Add direct APK link to build summary
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        if: success()
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && success()
         env:
           GH_REPOSITORY: ${{ github.repository }}
           GH_RUN_NUMBER: ${{ github.run_number }}
