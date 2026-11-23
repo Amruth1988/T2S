@@ -540,3 +540,43 @@ export const generateCentralVakyamTts = onCall({
   }
   return { audioBase64, contentType: input.format === "wav" ? "audio/wav" : "audio/mpeg" };
 });
+
+
+/**
+ * Permanently deletes the caller's T2S account and all data below users/{uid}.
+ * A recent sign-in is required so a stolen long-lived ID token cannot erase an
+ * account. Firestore recursiveDelete removes every nested user collection.
+ */
+export const deleteT2SAccount = onCall({
+  region: REGION,
+  enforceAppCheck: true,
+}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in before deleting your account.");
+  const uid = request.auth.uid;
+  const authTime = Number(request.auth.token.auth_time ?? 0);
+  if (!Number.isFinite(authTime) || authTime <= 0 || Math.floor(Date.now() / 1000) - authTime > 300) {
+    throw new HttpsError(
+      "failed-precondition",
+      "For your security, sign in again and retry account deletion."
+    );
+  }
+
+  const uidHash = createHash("sha256").update(uid).digest("hex");
+  const userRef = db.collection("users").doc(uid);
+
+  // Remove all UID-owned Firestore data, including nested projects, scripts,
+  // voiceProfiles and any future subcollections below the user document.
+  await db.recursiveDelete(userRef);
+
+  // Remove hashed quota ledgers without exposing the original Firebase UID.
+  const usage = await db.collection("provider_usage").where("uidHash", "==", uidHash).get();
+  for (let offset = 0; offset < usage.docs.length; offset += 400) {
+    const batch = db.batch();
+    usage.docs.slice(offset, offset + 400).forEach((document) => batch.delete(document.ref));
+    await batch.commit();
+  }
+
+  // Delete the Firebase Authentication identity only after its data cleanup succeeds.
+  await (await import("firebase-admin/auth")).getAuth().deleteUser(uid);
+  return { deleted: true };
+});
