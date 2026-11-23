@@ -72,7 +72,6 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -372,8 +371,7 @@ fun SpeechStudioScreen(
                     val localSaved = MyVoicesClient.list(context)
                     myVoices.clear()
                     myVoices.addAll(localSaved)
-                    selectedSavedVoice = selectedSavedVoiceId?.let { savedId -> myVoices.firstOrNull { it.id == savedId } }
-                    if (selectedSavedVoiceId != null && selectedSavedVoice == null) selectedSavedVoiceId = null
+                    restoreSavedVoiceSelection()
                     statusMessage = if (localSaved.isNotEmpty()) {
                         "Showing your locally saved voices. Cloud sync is unavailable."
                     } else {
