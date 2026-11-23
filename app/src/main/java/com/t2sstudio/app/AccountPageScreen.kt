@@ -14,6 +14,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -76,6 +78,22 @@ fun AccountPageScreen(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var deletingAccount by remember { mutableStateOf(false) }
     var deleteMessage by remember { mutableStateOf<String?>(null) }
+    var exportMessage by remember { mutableStateOf<String?>(null) }
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/zip")
+    ) { destination ->
+        val uid = auth.currentUser?.uid
+        if (destination != null && !uid.isNullOrBlank()) {
+            AccountDataExporter.export(context, uid, destination) { result ->
+                exportMessage = result.fold(
+                    { "Your export ZIP was created with ${it} file entries. It includes cloud metadata, local projects, saved audio and My Voices recordings." },
+                    { "Export failed: ${it.localizedMessage ?: "Please try again."}" }
+                )
+            }
+        } else if (destination != null) {
+            exportMessage = "Sign in before exporting account data."
+        }
+    }
     val context = LocalContext.current
     BackHandler(enabled = showProfile) { showProfile = false }
     if (showProfile) {
@@ -165,7 +183,10 @@ fun AccountPageScreen(
             AccountMenuRow("Terms & Conditions", "Read the terms for using T2S Studio", Icons.Filled.Gavel, onTerms)
             AccountMenuRow("Contact", "Email or call T2S Studio support", Icons.Filled.MailOutline, onContact)
             if (user != null) {
-                AccountMenuRow("Delete account", "Permanently delete your T2S account and cloud data", Icons.Filled.Delete) {
+                AccountMenuRow("Export my data", "Create a ZIP of your cloud and on-device T2S data", Icons.Filled.Description) {
+                exportLauncher.launch("T2S-Studio-Account-Export.zip")
+            }
+            AccountMenuRow("Delete account", "Permanently delete your T2S account and cloud data", Icons.Filled.Delete) {
                     showDeleteConfirm = true
                 }
             }
@@ -232,6 +253,17 @@ fun AccountPageScreen(
                 text = { Text(message) },
                 confirmButton = {
                     TextButton(onClick = { deleteMessage = null }) { Text("Close") }
+                }
+            )
+        }
+
+        exportMessage?.let { message ->
+            AlertDialog(
+                onDismissRequest = { exportMessage = null },
+                title = { Text("Account data export") },
+                text = { Text(message) },
+                confirmButton = {
+                    TextButton(onClick = { exportMessage = null }) { Text("Close") }
                 }
             )
         }
