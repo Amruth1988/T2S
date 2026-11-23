@@ -71,11 +71,24 @@ object SarvamVoiceCloneClient {
                             .map { key -> json.optString(key).takeIf { it.isNotBlank() && it != "null" } }
                             .firstOrNull { it != null }
                     } ?: body.trim().take(1200).takeIf { it.isNotBlank() }
+                    val normalizedDetail = detail.orEmpty().lowercase()
+                    val creditOrLimitFailure = status == 402 || status == 429 ||
+                        listOf("credit", "quota", "balance", "insufficient", "payment", "billing", "subscription").any(normalizedDetail::contains)
+                    if (creditOrLimitFailure) {
+                        error("Generation temporarily unavailable. Please try again later.")
+                    }
                     val suffix = detail?.let { ": $it" }.orEmpty()
                     error("T2S gateway request failed (HTTP $status)$suffix")
                 }
                 val parsed = result ?: error("T2S gateway returned an invalid response (HTTP $status).")
-                if (parsed.has("error")) error(parsed.optString("error", "Shared Sarvam request failed."))
+                if (parsed.has("error")) {
+                    val detail = parsed.optString("error", "Shared Sarvam request failed.")
+                    val normalizedDetail = detail.lowercase()
+                    if (listOf("credit", "quota", "balance", "insufficient", "payment", "billing", "subscription").any(normalizedDetail::contains)) {
+                        error("Generation temporarily unavailable. Please try again later.")
+                    }
+                    error(detail)
+                }
                 val map = mutableMapOf<String, Any?>()
                 result.keys().forEach { key ->
                     map[key] = if (result.isNull(key)) null else result.get(key)
