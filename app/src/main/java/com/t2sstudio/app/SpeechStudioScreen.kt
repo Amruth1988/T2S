@@ -120,9 +120,9 @@ private suspend fun synthesizeInstalledVoiceToFile(
         }
     })
     runCatching {
-        engine.setVoice(voice)
-        engine.setSpeechRate(speechRate.coerceIn(0.5f, 2f))
-        engine.setPitch(speechPitch.coerceIn(0.5f, 2f))
+        check(engine.setVoice(voice) == TextToSpeech.SUCCESS) { "The selected offline voice could not be activated." }
+        check(engine.setSpeechRate(speechRate.coerceIn(0.5f, 2f)) == TextToSpeech.SUCCESS) { "The selected speech rate is not supported." }
+        check(engine.setPitch(speechPitch.coerceIn(0.5f, 2f)) == TextToSpeech.SUCCESS) { "The selected voice pitch is not supported." }
         engine.synthesizeToFile(text, Bundle(), output, utteranceId)
     }.onFailure {
         if (continuation.isActive) continuation.resumeWithException(it)
@@ -1368,7 +1368,7 @@ fun SpeechStudioScreen(
                             val result = runCatching {
                                 if (guestMode) {
                                     withContext(Dispatchers.Main) {
-                                        synthesizeInstalledVoiceToFile(requireNotNull(ttsEngine), textToSpeak, requireNotNull(installedVoice), speechRate, speechPitch, output)
+                                        kotlinx.coroutines.withTimeout(120_000L) { synthesizeInstalledVoiceToFile(requireNotNull(ttsEngine), textToSpeak, requireNotNull(installedVoice), speechRate, speechPitch, output) }
                                     }
                                 } else withContext(Dispatchers.IO) {
                                     if (personalVoice != null) {
@@ -1422,8 +1422,11 @@ fun SpeechStudioScreen(
                                 if (generationError.contains("Daily limit reached", ignoreCase = true)) {
                                     dailyGenerationLimitReached = true
                                 }
-                                statusMessage = (if (personalVoice != null) "My Voice generation failed: " else "Online TTS failed: ") +
-                                    generationError +
+                                statusMessage = (when {
+                                    guestMode -> "Guest audio generation failed: "
+                                    personalVoice != null -> "My Voice generation failed: "
+                                    else -> "Online TTS failed: "
+                                }) + generationError +
                                     if (dailyGenerationLimitReached) "" else " Check the selected voice and try again."
                             }
                         }
