@@ -14,6 +14,7 @@ interface D1Database {
 interface Env {
   FIREBASE_PROJECT_ID: string;
   FIREBASE_PROJECT_NUMBER: string;
+  FIREBASE_APP_ID: string;
   VAKYAM_API_KEY: string;
   INDIA_API_KEY?: string;
   USAGE_DB?: D1Database;
@@ -65,7 +66,7 @@ async function authenticate(request: Request, env: Env): Promise<string> {
   } catch {
     throw new Error("Invalid Firebase App Check token.");
   }
-  if (typeof appCheckSubject !== "string" || !appCheckSubject) {
+  if (typeof appCheckSubject !== "string" || appCheckSubject !== env.FIREBASE_APP_ID) {
     throw new Error("Invalid Firebase App Check token.");
   }
   return payload.sub;

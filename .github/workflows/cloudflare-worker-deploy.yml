@@ -35,6 +35,11 @@ jobs:
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "Missing CLOUDFLARE_API_TOKEN repository secret."; exit 1; }
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "Missing CLOUDFLARE_ACCOUNT_ID repository secret."; exit 1; }
+          if grep -Eq 'database_id = "00000000-0000-0000-0000-000000000000"' wrangler.toml; then
+            echo "Configure the real t2s-usage D1 database_id in wrangler.toml before deployment."
+            exit 1
+          fi
+          npx wrangler d1 migrations apply t2s-usage --remote
           npx wrangler deploy
       - name: Verify deployed Worker health
         run: |
@@ -46,7 +51,7 @@ jobs:
             process.stdin.on("end", () => {
               const health = JSON.parse(data);
               if (health.ok !== true || health.service !== "t2s-tts-worker") process.exit(1);
-              if (!health.providers?.vakyam) {
+              if (health.usageQuota !== true) {\n                console.error("The remote D1 usage database is not bound to the Worker.");\n                process.exit(1);\n              }\n              if (!health.providers?.vakyam) {
                 console.error("VAKYAM_API_KEY is not configured as a Cloudflare Worker secret.");
                 process.exit(1);
               }
