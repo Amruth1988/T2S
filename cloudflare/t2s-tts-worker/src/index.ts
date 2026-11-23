@@ -35,7 +35,7 @@ function json(data: unknown, status = 200): Response {
 }
 
 async function authenticate(request: Request, env: Env): Promise<string> {
-  const token = request.headers.get("authorization")?.match(/^Bearer\\s+(.+)$/i)?.[1];
+  const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) throw new Error("Sign in to T2S Studio to use online TTS.");
   let payload: Awaited<ReturnType<typeof jwtVerify>>["payload"];
   try {
