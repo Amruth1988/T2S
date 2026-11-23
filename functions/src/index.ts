@@ -2,7 +2,7 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { defineSecret, defineString } from "firebase-functions/params";
-import { constants, privateDecrypt } from "node:crypto";
+import { createHash, constants, privateDecrypt } from "node:crypto";
 
 initializeApp();
 const db = getFirestore();
@@ -160,15 +160,25 @@ export const setProviderUsageLimits = onCall({ region: REGION, enforceAppCheck: 
 });
 
 async function reserveProviderUsage(provider: Provider, uid: string, characters: number): Promise<void> {
-  const now = new Date();
-  const day = now.toISOString().slice(0, 10);
+  const day = new Date().toISOString().slice(0, 10);
   const month = day.slice(0, 7);
+  const uidHash = createHash("sha256").update(uid).digest("hex");
   const limitsRef = db.collection("provider_limits").doc(provider);
-  const dayRef = db.collection("provider_usage").doc(`${provider}_global_${day}`);
-  const monthRef = db.collection("provider_usage").doc(`${provider}_global_${month}`);
+  const globalDayRef = db.collection("provider_usage").doc(`${provider}_global_${day}`);
+  const globalMonthRef = db.collection("provider_usage").doc(`${provider}_global_${month}`);
+  const userDayRef = db.collection("provider_usage").doc(`${provider}_user_${uidHash}_${day}`);
+  const userMonthRef = db.collection("provider_usage").doc(`${provider}_user_${uidHash}_${month}`);
+
+  // Per-account ceilings are deliberately conservative and independent of the
+  // provider-wide budget. The global limits remain the final shared-wallet guard.
+  const USER_DAILY_CHARACTERS = 10000;
+  const USER_MONTHLY_CHARACTERS = 100000;
+  const USER_DAILY_REQUESTS = 30;
+
   await db.runTransaction(async (tx) => {
-    const [limitsSnap, daySnap, monthSnap] = await Promise.all([
-      tx.get(limitsRef), tx.get(dayRef), tx.get(monthRef),
+    const [limitsSnap, globalDaySnap, globalMonthSnap, userDaySnap, userMonthSnap] = await Promise.all([
+      tx.get(limitsRef), tx.get(globalDayRef), tx.get(globalMonthRef),
+      tx.get(userDayRef), tx.get(userMonthRef),
     ]);
     const limits = limitsSnap.data();
     if (!limitsSnap.exists || limits?.enabled !== true) {
@@ -181,19 +191,40 @@ async function reserveProviderUsage(provider: Provider, uid: string, characters:
         dailyCharacters <= 0 || monthlyCharacters <= 0 || dailyRequests <= 0) {
       throw new HttpsError("resource-exhausted", USER_GENERATION_UNAVAILABLE);
     }
-    const usedToday = Number(daySnap.get("characters") ?? 0);
-    const requestsToday = Number(daySnap.get("requests") ?? 0);
-    const usedMonth = Number(monthSnap.get("characters") ?? 0);
-    if (usedToday + characters > dailyCharacters || requestsToday + 1 > dailyRequests ||
-        usedMonth + characters > monthlyCharacters) {
+
+    const globalUsedToday = Number(globalDaySnap.get("characters") ?? 0);
+    const globalRequestsToday = Number(globalDaySnap.get("requests") ?? 0);
+    const globalUsedMonth = Number(globalMonthSnap.get("characters") ?? 0);
+    const userUsedToday = Number(userDaySnap.get("characters") ?? 0);
+    const userRequestsToday = Number(userDaySnap.get("requests") ?? 0);
+    const userUsedMonth = Number(userMonthSnap.get("characters") ?? 0);
+
+    if (globalUsedToday + characters > dailyCharacters ||
+        globalRequestsToday + 1 > dailyRequests ||
+        globalUsedMonth + characters > monthlyCharacters ||
+        userUsedToday + characters > USER_DAILY_CHARACTERS ||
+        userRequestsToday + 1 > USER_DAILY_REQUESTS ||
+        userUsedMonth + characters > USER_MONTHLY_CHARACTERS) {
       throw new HttpsError("resource-exhausted", USER_GENERATION_UNAVAILABLE);
     }
-    const reservation = {
-      provider, characters, requests: FieldValue.increment(1),
-      updatedAt: FieldValue.serverTimestamp(), lastUserId: uid,
-    };
-    tx.set(dayRef, { ...reservation, day, characters: usedToday + characters, requests: requestsToday + 1 }, { merge: true });
-    tx.set(monthRef, { ...reservation, month, characters: usedMonth + characters, requests: FieldValue.increment(1) }, { merge: true });
+
+    const now = FieldValue.serverTimestamp();
+    tx.set(globalDayRef, {
+      provider, day, characters: globalUsedToday + characters,
+      requests: globalRequestsToday + 1, updatedAt: now, lastUserId: uid,
+    }, { merge: true });
+    tx.set(globalMonthRef, {
+      provider, month, characters: globalUsedMonth + characters,
+      requests: FieldValue.increment(1), updatedAt: now, lastUserId: uid,
+    }, { merge: true });
+    tx.set(userDayRef, {
+      provider, day, uidHash, characters: userUsedToday + characters,
+      requests: userRequestsToday + 1, updatedAt: now,
+    }, { merge: true });
+    tx.set(userMonthRef, {
+      provider, month, uidHash, characters: userUsedMonth + characters,
+      requests: FieldValue.increment(1), updatedAt: now,
+    }, { merge: true });
   });
 }
 
