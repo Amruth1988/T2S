@@ -57,3 +57,12 @@ Before these endpoints can work in production, the owner must complete the RSA k
 The callable speech endpoints return Base64 audio in the Firebase callable response and reject responses larger than the configured safety limits. Provider usage is charged/limited according to the provider's own account and plan. This implementation does not add a user quota for India or Vakyam; configure provider-side limits and monitor usage before opening access broadly.
 
 Existing device-local key stores and direct HTTP clients remain in the code for backward compatibility, but the Speech Studio path no longer calls them.
+
+
+## Provider usage safety guard (implemented; not yet deployed)
+- Every central speech-generation callable now reserves usage in a Firestore transaction before contacting Sarvam, India TTS or Vakyam.
+- Generation is **blocked by default** unless `provider_limits/{sarvam|india|vakyam}` has been explicitly configured and enabled by a T2S admin. This is fail-closed: a missing/invalid budget means no provider request is sent.
+- Configure three positive integer ceilings per provider: `dailyCharacters`, `monthlyCharacters`, and `dailyRequests`, plus `enabled: true`. Use `setProviderUsageLimits` callable while signed in as a T2S administrator. The callable validates the values and writes the server-only configuration. To pause a provider, call it with `enabled: false`.
+- Global daily and monthly reservations are tracked in `provider_usage`; the existing Sarvam per-user daily quota remains in place. Reservations happen before the provider request and are intentionally conservative: failed or interrupted requests still count, preventing retries from bypassing the cap.
+- **Important limitation:** provider APIs do not expose a common, reliable remaining-credit balance endpoint. These app-side ceilings do not read or guarantee the exact provider wallet balance. Set them below the known free/prepaid allowance, monitor each provider dashboard, and disable the provider before its actual balance is exhausted. Automatic provider-wallet synchronization is not claimed.
+- This change does not add a payment method, upgrade Firebase, deploy Functions, or authorize paid provider usage. Cloud Functions deployment still requires the owner to approve any Firebase Blaze/billing implications. Until the updated Functions are deployed and limits are configured, this protection is not active in production.
