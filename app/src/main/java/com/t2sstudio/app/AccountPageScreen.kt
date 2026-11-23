@@ -79,6 +79,7 @@ fun AccountPageScreen(
     var deletingAccount by remember { mutableStateOf(false) }
     var deleteMessage by remember { mutableStateOf<String?>(null) }
     var exportMessage by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip")
     ) { destination ->
@@ -94,7 +95,6 @@ fun AccountPageScreen(
             exportMessage = "Sign in before exporting account data."
         }
     }
-    val context = LocalContext.current
     BackHandler(enabled = showProfile) { showProfile = false }
     if (showProfile) {
         UserProfileScreen(onBack = { showProfile = false })
