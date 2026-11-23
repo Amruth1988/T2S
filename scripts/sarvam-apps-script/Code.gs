@@ -27,7 +27,7 @@ function quota_(uid,kind,n){
  try{
   const d=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),k="quota:v2:"+d+":"+uid,c=JSON.parse(p.getProperty(k)||"{}");
   p.getKeys().filter(x=>x.indexOf("quota:")===0 && x.indexOf(":"+d+":")<0).forEach(x=>p.deleteProperty(x));
-  if(kind==="generate"){if((c.calls||0)>=10||(c.chars||0)+n>10000)throw new Error("Daily limit reached: 10 successful generations or 10,000 characters.");}
+  if(kind==="generate"){if((c.calls||0)>=10||(c.chars||0)+n>10000)throw new Error("Generation temporarily unavailable. Please try again later.");}
   else if((c.creates||0)>=3)throw new Error("Daily voice-registration limit reached (3 successful registrations).");
  }finally{l.releaseLock();}
 }
@@ -52,7 +52,7 @@ function sarvam_(method,path,payload){
  const options={method:method,headers:{"api-subscription-key":key_(),Accept:"application/json"},muteHttpExceptions:true};
  if(payload){options.contentType="application/json";options.payload=JSON.stringify(payload);}
  const r=UrlFetchApp.fetch(SARVAM_BASE+path,options),code=r.getResponseCode();
- if(code<200||code>=300){if(code===401)throw new Error("Sarvam API key rejected.");if(code===402)throw new Error("Sarvam account has insufficient credits.");if(code===403)throw new Error("Sarvam denied access or voice limit reached.");if(code===429)throw new Error("Sarvam rate limit reached.");throw new Error("Sarvam request failed (HTTP "+code+").");}
+ if(code<200||code>=300){if(code===401)throw new Error("Sarvam API key rejected.");if(code===402)throw new Error("Generation temporarily unavailable. Please try again later.");if(code===403)throw new Error("Sarvam denied access or voice limit reached.");if(code===429)throw new Error("Generation temporarily unavailable. Please try again later.");throw new Error("Sarvam request failed (HTTP "+code+").");}
  return JSON.parse(r.getContentText());
 }
 function create_(uid,b){
@@ -89,7 +89,7 @@ function generate_(uid,b){
  Object.keys(fields).forEach(k=>{parts+="--"+boundary+"\r\nContent-Disposition: form-data; name=\""+k+"\"\r\n\r\n"+fields[k]+"\r\n";});
  parts+="--"+boundary+"--\r\n";
  const r=UrlFetchApp.fetch(SARVAM_BASE+"/voices/clone",{method:"post",contentType:"multipart/form-data; boundary="+boundary,headers:{"api-subscription-key":key_(),Accept:"application/json"},payload:parts,muteHttpExceptions:true});
- const code=r.getResponseCode();if(code<200||code>=300)throw new Error("Speech generation failed (HTTP "+code+").");
+ const code=r.getResponseCode();if(code<200||code>=300)throw new Error("Generation temporarily unavailable. Please try again later.");
  const d=JSON.parse(r.getContentText()),audio=d.audio_b64||d.audio;
  if(typeof audio!=="string"||audio.length<100||audio.length>20000000)throw new Error("Sarvam returned missing or oversized audio.");
  quotaCommit_(uid,"generate",text.length);
