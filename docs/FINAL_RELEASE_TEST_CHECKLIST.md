@@ -8,6 +8,35 @@ The build #298 results below are historical evidence only and do not certify the
 
 This checklist distinguishes CI evidence from manual device verification. Do not mark a manual item passed based only on a successful Gradle build.
 
+## Responsibility split
+
+### Your tasks — physical-device testing only
+
+Keep this list separate from coding work. These checks need your Android device(s), your account(s), or a Telugu speaker; I cannot truthfully complete them from repository code or CI.
+
+- [ ] Install the latest verified APK on a real Android phone when a successful build artifact is available.
+- [ ] Test sign-in, sign-out, guest access, and switching between two Firebase accounts; confirm no projects, audio, drafts or voice samples leak between accounts.
+- [ ] Test project create/rename/select/delete and persistence after closing and reopening the app.
+- [ ] Generate, save, play, share and download English, Hindi and Telugu audio; check Recent/Saved Audio after relaunch.
+- [ ] Test guest offline WAV generation with an installed offline Android voice, including the no-offline-voice error.
+- [ ] Test network-offline behavior, interrupted generation, long text, rapid taps, low storage and app background/foreground.
+- [ ] Check playback and downloads on your Android version and, if available, a second device/ABI.
+- [ ] Have a native Telugu speaker review pronunciation and intelligibility of any offline Telugu voices before release.
+- [ ] Confirm upgrade/install behavior and that existing projects/audio are preserved.
+
+I will keep these as unchecked until you report the results. You do not need to start these until I provide a successful build artifact and installation instructions.
+
+### Remaining tasks — repository/code work and release preparation
+
+- [ ] Resolve persistent per-user quota enforcement for direct Cloudflare Worker TTS requests without adding paid infrastructure or changing provider routes without approval.
+- [ ] Implement complete user-data export beyond the current My Voices ZIP export.
+- [ ] Implement authenticated account deletion, including Firebase Auth and all UID-owned Firestore data.
+- [ ] Decide and implement safe handling/migration for legacy local project/audio preference data without cross-account exposure.
+- [ ] Complete Android App Check integration validation; Firebase Console provider registration, Play Integrity linkage, release fingerprints and debug-token registration still require your Firebase Console access.
+- [ ] Decide whether Piper Telugu offline voice-pack import/playback is in this release scope; it is not currently an Android feature.
+- [ ] Complete final licence/provenance review, release signing, release APK publishing and release notes after code and device checks pass.
+
+
 ## A. Source and CI checks
 
 - [x] Debug APK assembly passed in GitHub Actions run #298.
@@ -110,4 +139,4 @@ The Android client initializes the debug provider only for debug builds (loaded 
 
 ## Current verification boundary
 
-Historical build #298 proves Debug/Release assembly and publishing for commit 05601858833d4229a1631fb1e9edbdf4edadbc69. Current PR HEAD `0a82bb0967c98fb125bb6d0b878fd813260dee2c` also passed Debug + Release APK assembly in Android workflow #890, with Functions typecheck #15 and Worker build #9 green. Because this was a pull-request build, signing and release publishing steps were correctly skipped and no APK artifact was published. The current build proves compilation/packaging only; it does not prove real-device installation, playback, native-speaker quality, release signing, or completion of the remaining manual checklist.
+Historical build #298 proves Debug/Release assembly and publishing for commit 05601858833d4229a1631fb1e9edbdf4edadbc69. PR head `0a82bb0967c98fb125bb6d0b878fd813260dee2c` passed Debug + Release APK assembly in Android workflow #890, with Functions typecheck #15 and Worker build #9 green. The latest PR head is `1d7411b9143bdc1e54a1d1b0bf8a1b1c2b960b0b`: Functions typecheck #20 and Worker build #14 passed; Android build #895 (run `45245576842`) was still running at the latest check. PR builds skip signing and release publishing, so no APK artifact is available from #895 yet. CI assembly does not prove real-device installation, playback, native-speaker quality, release signing, or completion of manual checks.
