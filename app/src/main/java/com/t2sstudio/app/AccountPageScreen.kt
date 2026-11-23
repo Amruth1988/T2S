@@ -183,10 +183,18 @@ fun AccountPageScreen(
             AccountMenuRow("Terms & Conditions", "Read the terms for using T2S Studio", Icons.Filled.Gavel, onTerms)
             AccountMenuRow("Contact", "Email or call T2S Studio support", Icons.Filled.MailOutline, onContact)
             if (user != null) {
-                AccountMenuRow("Export my data", "Create a ZIP of your cloud and on-device T2S data", Icons.Filled.Description) {
-                exportLauncher.launch("T2S-Studio-Account-Export.zip")
-            }
-            AccountMenuRow("Delete account", "Permanently delete your T2S account and cloud data", Icons.Filled.Delete) {
+                AccountMenuRow(
+                    "Export my data",
+                    "Create a ZIP of your cloud and on-device T2S data",
+                    Icons.Filled.Description
+                ) {
+                    exportLauncher.launch("T2S-Studio-Account-Export.zip")
+                }
+                AccountMenuRow(
+                    "Delete account",
+                    "Permanently delete your T2S account and cloud data",
+                    Icons.Filled.Delete
+                ) {
                     showDeleteConfirm = true
                 }
             }
