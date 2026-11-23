@@ -120,11 +120,12 @@ data class AudioRecord(
 )
 
 object AudioHistoryStore {
-    private const val PREFS = "t2s_audio_history"
+    private fun prefsName(uid: String) = "t2s_audio_history_${uid.hashCode().toUInt().toString(16)}"
     private const val KEY_ITEMS = "items"
 
-    fun load(context: Context): List<AudioRecord> {
-        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    fun load(context: Context, uid: String?): List<AudioRecord> {
+        if (uid.isNullOrBlank()) return emptyList()
+        val raw = context.getSharedPreferences(prefsName(uid), Context.MODE_PRIVATE)
             .getString(KEY_ITEMS, "[]") ?: "[]"
         return runCatching {
             val array = JSONArray(raw)
@@ -149,7 +150,8 @@ object AudioHistoryStore {
         }.getOrDefault(emptyList())
     }
 
-    fun save(context: Context, records: List<AudioRecord>) {
+    fun save(context: Context, uid: String?, records: List<AudioRecord>) {
+        if (uid.isNullOrBlank()) return
         val array = JSONArray()
         records.forEach { record ->
             array.put(JSONObject().apply {
@@ -166,7 +168,7 @@ object AudioHistoryStore {
                 put("voiceGender", record.voiceGender)
             })
         }
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        context.getSharedPreferences(prefsName(uid), Context.MODE_PRIVATE)
             .edit().putString(KEY_ITEMS, array.toString()).apply()
     }
 }
