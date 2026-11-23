@@ -13,6 +13,10 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -32,6 +36,32 @@ fun ScriptDraftsScreen(
     onDelete: (T2SScriptDraft) -> Unit,
     onCreateDraft: () -> Unit
 ) {
+    var draftPendingDeletion by remember { mutableStateOf<T2SScriptDraft?>(null) }
+
+    draftPendingDeletion?.let { draft ->
+        AlertDialog(
+            onDismissRequest = { draftPendingDeletion = null },
+            title = { Text("Delete draft?", color = T2SText, fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to delete \"${draft.title}\"? This action cannot be undone.", color = T2SSecondaryText) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete(draft)
+                    draftPendingDeletion = null
+                }) {
+                    Text("Delete", color = T2SOrange, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { draftPendingDeletion = null }) {
+                    Text("Cancel", color = T2SSecondaryText)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = T2SText,
+            textContentColor = T2SSecondaryText
+        )
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().background(T2SBackground).padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -129,7 +159,7 @@ fun ScriptDraftsScreen(
                                         modifier = Modifier.size(26.dp)
                                     )
                                 }
-                                IconButton(onClick = { onDelete(draft) }) {
+                                IconButton(onClick = { draftPendingDeletion = draft }) {
                                     Icon(Icons.Filled.Delete, contentDescription = "Delete draft", tint = T2SSecondaryText)
                                 }
                             }
