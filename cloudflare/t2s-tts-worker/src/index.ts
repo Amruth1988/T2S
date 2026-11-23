@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, decodeProtectedHeader, jwtVerify } from "jose";
 
 interface D1Result {
   success: boolean;
@@ -52,6 +52,10 @@ async function authenticate(request: Request, env: Env): Promise<string> {
   if (!appCheckToken) throw new Error("A valid Firebase App Check token is required.");
   let appCheckSubject: unknown;
   try {
+    const protectedHeader = decodeProtectedHeader(appCheckToken);
+    if (protectedHeader.typ !== "JWT" || protectedHeader.alg !== "RS256") {
+      throw new Error("Unsupported App Check token header.");
+    }
     const verifiedAppCheck = await jwtVerify(appCheckToken, appCheckKeys, {
       issuer: `https://firebaseappcheck.googleapis.com/${env.FIREBASE_PROJECT_NUMBER}`,
       audience: `projects/${env.FIREBASE_PROJECT_NUMBER}`,
