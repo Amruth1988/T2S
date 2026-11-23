@@ -1,7 +1,7 @@
 # T2S Studio central provider keys
 
 ## Encryption design
-- The Android admin screen fetches the RSA public key from `getProviderEncryptionPublicKey`.
+- A trusted setup client fetches the RSA public key from `getProviderEncryptionPublicKey`. There is currently no connected in-app admin screen for central provider management.
 - Android encrypts the provider API key with RSA-OAEP using SHA-256 for both OAEP and MGF1.
 - Only the Base64 ciphertext is submitted to `saveCentralProviderKey` and stored in Firestore.
 - The RSA private key is a Firebase Functions Secret Manager secret. It is never shipped in the APK or returned by a callable.
@@ -50,7 +50,7 @@ The Functions source now includes authenticated, App-Check-protected callable en
 - `listCentralVakyamVoices`
 - `generateCentralVakyamTts`
 
-The Android Speech Studio calls these endpoints for both providers. Provider credentials are decrypted only in the Functions runtime and are never returned to Android. Profile → Online TTS access no longer asks each user to enter a provider key. The admin central-key screen remains the intended one-time credential configuration path.
+The Android Speech Studio calls these endpoints for both providers. Provider credentials are decrypted only in the Functions runtime and are never returned to Android. Profile → Online TTS access no longer asks each user to enter a provider key. Provider credentials must be configured through trusted owner/admin tooling; there is no connected in-app admin screen.
 
 Before these endpoints can work in production, the owner must complete the RSA key-pair / Functions Secret Manager setup above, configure Firebase Auth admin claim and App Check, save the India and Vakyam credentials centrally, and deploy Functions. Deployment has not been performed by this code change. Firebase Functions deployment generally requires Blaze billing; do not upgrade or enable billing without explicit owner approval.
 
@@ -62,7 +62,14 @@ Existing device-local key stores and direct HTTP clients remain in the code for 
 ## Provider usage safety guard (implemented; not yet deployed)
 - Every central speech-generation callable now reserves usage in a Firestore transaction before contacting Sarvam, India TTS or Vakyam.
 - Generation is **blocked by default** unless `provider_limits/{sarvam|india|vakyam}` has been explicitly configured and enabled by a T2S admin. This is fail-closed: a missing/invalid budget means no provider request is sent.
-- Configure three positive integer ceilings per provider: `dailyCharacters`, `monthlyCharacters`, and `dailyRequests`, plus `enabled: true`. The Central API Keys admin screen now exposes these controls and calls `setProviderUsageLimits` while signed in as a T2S administrator. To pause a provider, use its Pause button.
+- Configure three positive integer ceilings per provider: `dailyCharacters`, `monthlyCharacters`, and `dailyRequests`, plus `enabled: true`. There is no connected in-app admin screen for these controls. A trusted administrator must configure the limits through the authenticated `setProviderUsageLimits` callable or directly in the Firebase Console at `provider_limits/{provider}`. To pause a provider, set `enabled: false`.
 - Global daily and monthly reservations are tracked in `provider_usage`; the existing Sarvam per-user daily quota remains in place. Reservations happen before the provider request and are intentionally conservative: failed or interrupted requests still count, preventing retries from bypassing the cap.
 - **Important limitation:** provider APIs do not expose a common, reliable remaining-credit balance endpoint. These app-side ceilings do not read or guarantee the exact provider wallet balance. Set them below the known free/prepaid allowance, monitor each provider dashboard, and disable the provider before its actual balance is exhausted. Automatic provider-wallet synchronization is not claimed.
 - This change does not add a payment method, upgrade Firebase, deploy Functions, or authorize paid provider usage. Cloud Functions deployment still requires the owner to approve any Firebase Blaze/billing implications. Until the updated Functions are deployed and limits are configured, this protection is not active in production.
+
+
+## End-user behavior when generation is unavailable
+- Provider credit exhaustion, configured usage ceilings, and the existing Sarvam daily quota return the same neutral message: "Generation temporarily unavailable. Please try again later."
+- User-facing generation errors do not tell users to recharge, name provider wallets, or expose provider credit/billing details. Sarvam gateway credit/quota error text is also masked in the Android client.
+- These changes are source-code updates only. They do not deploy Cloud Functions or the Android app.
+- A provider recharge does not currently have a universal automatic detection mechanism. The providers do not share a reliable common balance API/webhook, and this repository does not yet implement provider-specific balance polling or recharge webhooks. The app-side daily/monthly usage ceilings reset on their configured UTC periods, not immediately when a provider wallet is topped up. Automatic immediate re-enable after recharge must not be claimed until a provider-specific balance/recharge integration is implemented and tested.
