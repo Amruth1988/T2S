@@ -150,7 +150,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                 if (voices.isEmpty()) message = "No voice profiles were found in your account."
             }.onFailure { error ->
                 voices.clear()
-                message = "Could not load voice profiles from Firebase: ${error.localizedMessage ?: "check your connection"}"
+                message = "Could not load voice profiles. Check your connection and try again."
             }
         }
     }
@@ -209,7 +209,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                 checkingCloneServer = true
                                 scope.launch {
                                     val result = runCatching { withContext(Dispatchers.IO) { VoiceCloneClient.checkServer(cloneServerUrl) } }
-                                    message = result.getOrElse { "Connection failed: " + (it.message ?: "Please try again.") }
+                                    message = result.fold({ it }, { "Could not connect to the voice server. Check the URL and connection, then try again." })
                                     checkingCloneServer = false
                                 }
                             },
@@ -325,7 +325,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                     mr.setAudioEncoder(MediaRecorder.AudioEncoder.AAC); mr.setAudioSamplingRate(44100); mr.setAudioEncodingBitRate(128000)
                                     mr.setOutputFile(file.absolutePath); mr.prepare(); mr.start()
                                     recorder = mr; recordingFile = file; recordingStartedAt = android.os.SystemClock.elapsedRealtime(); recording = true; message = "Recording started. Speak clearly for at least 3 seconds; 10–30 seconds is recommended."
-                                }.onFailure { message = "Could not start recording: " + it.message }
+                                }.onFailure { message = "Could not start recording. Check microphone permission and try again." }
                             }, enabled = !recording && !busy, shape = RoundedCornerShape(14.dp)) { Text("▶", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
                             Button(onClick = {
                                 val activeRecorder = recorder
@@ -348,7 +348,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                         message = "No usable audio was saved. Please record again in a quiet place."
                                     }
                                 } catch (error: Exception) {
-                                    message = "Could not finish recording: " + (error.localizedMessage ?: error.javaClass.simpleName) + ". Please record again for at least 5 seconds."
+                                    message = "Could not finish recording. Please record again for at least 5 seconds."
                                 } finally {
                                     runCatching { activeRecorder?.reset() }
                                     runCatching { activeRecorder?.release() }
@@ -699,7 +699,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                                 player.release()
                                                 if (previewPlayer === player) previewPlayer = null
                                                 previewingSavedVoiceId = null
-                                                message = "Sample preview failed: ${error.message ?: "audio playback error"}"
+                                                message = "Sample preview failed. Please try again."
                                             }
                                         })
                                         player.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(sampleFile)))
@@ -721,7 +721,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                 previewingSavedVoiceId = null
                             }
                             runCatching { MyVoicesClient.deleteLocal(context, voice.id); loadVoices(); message = "Voice profile deleted from this device." }
-                                .onFailure { message = "Could not delete profile: ${it.message}" }
+                                .onFailure { message = "Could not delete the voice profile. Please try again." }
                         }) { Text("Delete") }
                     }
                 }
