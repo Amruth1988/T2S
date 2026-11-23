@@ -119,8 +119,18 @@ data class AudioRecord(
     val voiceGender: String = ""
 )
 
+private fun audioAccountKey(uid: String): String = java.security.MessageDigest.getInstance("SHA-256")
+    .digest(uid.toByteArray(Charsets.UTF_8))
+    .joinToString("") { "%02x".format(it) }
+
+fun generatedAudioDirectory(context: Context, uid: String?): File {
+    val musicRoot = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir
+    val accountFolder = uid?.takeIf { it.isNotBlank() }?.let { "accounts/${audioAccountKey(it)}" } ?: "guest"
+    return File(musicRoot, "T2SStudio/$accountFolder").apply { mkdirs() }
+}
+
 object AudioHistoryStore {
-    private fun prefsName(uid: String) = "t2s_audio_history_${uid.hashCode().toUInt().toString(16)}"
+    private fun prefsName(uid: String) = "t2s_audio_history_${audioAccountKey(uid)}"
     private const val KEY_ITEMS = "items"
 
     fun load(context: Context, uid: String?): List<AudioRecord> {
