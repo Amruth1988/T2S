@@ -104,6 +104,13 @@ object AccountDataExporter {
                                 }
                                 addText("local/projects.json", localProjects.toString(2))
 
+                                val selectedSavedVoiceId = context.getSharedPreferences(
+                                    "t2s_voice_selection", Context.MODE_PRIVATE
+                                ).getString("selected_saved_voice_id_$uid", null)
+                                addText("local/preferences.json", JSONObject()
+                                    .put("selectedSavedVoiceId", selectedSavedVoiceId ?: JSONObject.NULL)
+                                    .toString(2))
+
                                 val localAudio = JSONArray()
                                 AudioHistoryStore.load(context, uid).forEachIndexed { index, record ->
                                     val file = runCatching { File(record.filePath).canonicalFile }.getOrNull()
@@ -167,6 +174,8 @@ object AccountDataExporter {
                                     .put("exportedAt", System.currentTimeMillis())
                                     .put("containsCloudMetadata", true)
                                     .put("containsLocalAudioAndVoiceSamples", true)
+                                    .put("includesLocalVoiceSelection", true)
+                                    .put("accountUidHash", accountHash)
                                     .toString(2))
                             }
                         } ?: error("Could not open the selected export destination.")
