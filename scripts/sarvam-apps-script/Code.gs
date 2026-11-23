@@ -44,7 +44,7 @@ function key_(){const k=PropertiesService.getScriptProperties().getProperty("SAR
 function quotaReserve_(uid,kind,n){
  const l=LockService.getScriptLock();l.waitLock(15000);
  try{
-  const day=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),key="quota:v3:"+day+":"+uid,c=JSON.parse(p.getProperty(key)||"{}");
+  const day=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),key="quota:v3:"+day+":"+uid,c=JSON.parse(p.getProperty(key)||p.getProperty("quota:v2:"+day+":"+uid)||"{}");
   const now=Date.now(),pending=(c.pending||[]).filter(x=>x&&now-Number(x.at||0)<10*60*1000);
   const reservedCalls=pending.filter(x=>x.kind==="generate").length;
   const reservedChars=pending.filter(x=>x.kind==="generate").reduce((sum,x)=>sum+Number(x.chars||0),0);
