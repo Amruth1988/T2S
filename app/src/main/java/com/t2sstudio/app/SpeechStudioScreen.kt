@@ -379,7 +379,7 @@ fun SpeechStudioScreen(
                     // Firebase stores voice metadata only; the original sample audio stays
                     // in app-private storage. Reattach local sample paths by stable voice ID
                     // so My Voices previews play the user's actual recording after cloud load.
-                    val localSaved = MyVoicesClient.list(context)
+                    val localSaved = MyVoicesClient.list(context, uid)
                     val localById = localSaved.associateBy { it.id }
                     val merged = cloudSaved.map { cloud ->
                         localById[cloud.id]?.let { local ->
@@ -399,7 +399,7 @@ fun SpeechStudioScreen(
                     if (merged.isEmpty()) statusMessage = "No saved voices found on this device or in Firebase."
                 }.onFailure { error ->
                     // Even if Firebase is offline, local voice recordings remain playable.
-                    val localSaved = MyVoicesClient.list(context)
+                    val localSaved = MyVoicesClient.list(context, uid)
                     myVoices.clear()
                     myVoices.addAll(localSaved)
                     restoreSavedVoiceSelection()
