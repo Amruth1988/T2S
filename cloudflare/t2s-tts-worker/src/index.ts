@@ -249,16 +249,18 @@ export default {
       for (const [key, value] of Object.entries(corsHeaders)) headers.set(key, value);
       return new Response(response.body, { status: response.status, headers });
     } catch (error) {
+      let response: Response;
       if (error instanceof ProviderRequestError) {
         const status = error.status === 429 ? 429 : error.status === 503 ? 503 : error.status === 402 ? 402 : 502;
-        return json({ error: "Generation temporarily unavailable. Please try again later." }, status);
+        response = json({ error: "Generation temporarily unavailable. Please try again later." }, status);
+      } else {
+        const message = error instanceof Error ? error.message : "Generation temporarily unavailable. Please try again later.";
+        const status = message.startsWith("Sign in") || message.startsWith("Invalid Firebase") || message.startsWith("A valid Firebase App Check") ? 401 : 502;
+        response = json(
+          { error: status === 401 ? message : "Generation temporarily unavailable. Please try again later." },
+          status
+        );
       }
-      const message = error instanceof Error ? error.message : "Generation temporarily unavailable. Please try again later.";
-      const status = message.startsWith("Sign in") || message.startsWith("Invalid Firebase") || message.startsWith("A valid Firebase App Check") ? 401 : 502;
-      const response = json(
-        { error: status === 401 ? message : "Generation temporarily unavailable. Please try again later." },
-        status
-      );
       const headers = new Headers(response.headers);
       for (const [key, value] of Object.entries(corsHeaders)) headers.set(key, value);
       return new Response(response.body, { status: response.status, headers });
