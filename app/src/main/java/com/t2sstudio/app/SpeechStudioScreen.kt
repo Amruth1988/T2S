@@ -223,6 +223,21 @@ fun SpeechStudioScreen(
                 .apply()
         }
     }
+    fun restoreSavedVoiceSelection() {
+        val restored = selectedSavedVoiceId?.let { savedId -> myVoices.firstOrNull { it.id == savedId } }
+        selectedSavedVoice = restored
+        if (restored != null) {
+            selectedLanguage = when (restored.language.lowercase(Locale.ROOT)) {
+                "te", "telugu" -> "Telugu"
+                "en", "english" -> "English"
+                "hi", "hindi" -> "Hindi"
+                else -> selectedLanguage
+            }
+            voiceLibraryTab = "My Voices"
+        } else if (selectedSavedVoiceId != null) {
+            selectedSavedVoiceId = null
+        }
+    }
 
 
     val languages = listOf(
@@ -350,8 +365,7 @@ fun SpeechStudioScreen(
                     merged.addAll(localSaved.filterNot { it.id in cloudIds })
                     myVoices.clear()
                     myVoices.addAll(merged.distinctBy { it.id })
-                    selectedSavedVoice = selectedSavedVoiceId?.let { savedId -> myVoices.firstOrNull { it.id == savedId } }
-                    if (selectedSavedVoiceId != null && selectedSavedVoice == null) selectedSavedVoiceId = null
+                    restoreSavedVoiceSelection()
                     if (merged.isEmpty()) statusMessage = "No saved voices found on this device or in Firebase."
                 }.onFailure { error ->
                     // Even if Firebase is offline, local voice recordings remain playable.
