@@ -56,6 +56,9 @@ object AccountDataExporter {
                         val musicRoot = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir
                         val accountAudioRoot = File(musicRoot, "T2SStudio/accounts/$accountHash").canonicalFile
                         var entries = 0
+                        fun safeEntryId(value: String, index: Int): String =
+                            value.replace(Regex("[^A-Za-z0-9_-]"), "_").take(64)
+                                .ifBlank { "item_$index" }
 
                         context.contentResolver.openOutputStream(destination, "wt")?.use { raw ->
                             ZipOutputStream(raw.buffered()).use { zip ->
@@ -102,12 +105,12 @@ object AccountDataExporter {
                                 addText("local/projects.json", localProjects.toString(2))
 
                                 val localAudio = JSONArray()
-                                AudioHistoryStore.load(context, uid).forEach { record ->
+                                AudioHistoryStore.load(context, uid).forEachIndexed { index, record ->
                                     val file = runCatching { File(record.filePath).canonicalFile }.getOrNull()
                                     val insideAccount = file != null && file.path.startsWith(accountAudioRoot.path + File.separator)
                                     val entryName = if (insideAccount && file!!.isFile) {
                                         val ext = file.extension.takeIf { it.matches(Regex("[A-Za-z0-9]{1,8}")) } ?: "audio"
-                                        "local/audio/${record.id}.$ext"
+                                        "local/audio/${index}_${safeEntryId(record.id, index)}.$ext"
                                     } else null
                                     localAudio.put(JSONObject().apply {
                                         put("id", record.id)
@@ -132,13 +135,15 @@ object AccountDataExporter {
                                 addText("local/audio_history.json", localAudio.toString(2))
 
                                 val localVoices = JSONArray()
-                                MyVoicesClient.list(context, uid).forEach { voice ->
+                                MyVoicesClient.list(context, uid).forEachIndexed { index, voice ->
                                     val sample = voice.localSamplePath?.let { runCatching { File(it).canonicalFile }.getOrNull() }
                                     val allowedRoot = File(context.noBackupFilesDir, "accounts/$accountHash/voices/samples").canonicalFile
                                     val allowed = sample != null && sample.path.startsWith(allowedRoot.path + File.separator) &&
                                         sample.isFile && sample.length() > 0
                                     val ext = sample?.extension?.takeIf { it.matches(Regex("[A-Za-z0-9]{1,8}")) } ?: "audio"
-                                    val sampleEntry = if (allowed) "local/voice_samples/${voice.id}.$ext" else null
+                                    val sampleEntry = if (allowed) {
+                                        "local/voice_samples/${index}_${safeEntryId(voice.id, index)}.$ext"
+                                    } else null
                                     localVoices.put(JSONObject().apply {
                                         put("id", voice.id)
                                         put("name", voice.name)
