@@ -108,8 +108,13 @@ async function reserveUsage(env: Env, uid: string, provider: "india" | "vakyam",
   const now = new Date();
   const day = now.toISOString().slice(0, 10);
   const month = day.slice(0, 7);
-  const result = await env.USAGE_DB.prepare(RESERVE_USAGE_SQL)
-    .bind(provider, uidHash, day, characters, month, characters, now.toISOString()).run();
+  let result: D1Result;
+  try {
+    result = await env.USAGE_DB.prepare(RESERVE_USAGE_SQL)
+      .bind(provider, uidHash, day, characters, month, characters, now.toISOString()).run();
+  } catch {
+    throw new ProviderRequestError(503);
+  }
   if (!result.success) throw new ProviderRequestError(503);
   if ((result.meta?.changes ?? 0) !== 1) {
     throw new ProviderRequestError(429);
@@ -139,7 +144,12 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const uidHash = Array.from(new Uint8Array(await crypto.subtle.digest(
       "SHA-256", new TextEncoder().encode(uid)
     ))).map((byte) => byte.toString(16).padStart(2, "0")).join("");
-    const result = await env.USAGE_DB.prepare(DELETE_USAGE_SQL).bind(uidHash).run();
+    let result: D1Result;
+    try {
+      result = await env.USAGE_DB.prepare(DELETE_USAGE_SQL).bind(uidHash).run();
+    } catch {
+      throw new ProviderRequestError(503);
+    }
     if (!result.success) throw new ProviderRequestError(503);
     return json({ deleted: result.meta?.changes ?? 0 });
   }
