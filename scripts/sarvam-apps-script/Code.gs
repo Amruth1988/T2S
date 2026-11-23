@@ -28,7 +28,7 @@ function quota_(uid,kind,n){
   const d=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),k="quota:v2:"+d+":"+uid,c=JSON.parse(p.getProperty(k)||"{}");
   p.getKeys().filter(x=>x.indexOf("quota:")===0 && x.indexOf(":"+d+":")<0).forEach(x=>p.deleteProperty(x));
   if(kind==="generate"){if((c.calls||0)>=10||(c.chars||0)+n>10000)throw new Error("Generation temporarily unavailable. Please try again later.");}
-  else if((c.creates||0)>=3)throw new Error("Daily voice-registration limit reached (3 successful registrations).");
+  else if((c.creates||0)>=3)throw new Error("Generation temporarily unavailable. Please try again later.");
  }finally{l.releaseLock();}
 }
 // Count only successful provider operations. Failed validation/network/provider attempts
