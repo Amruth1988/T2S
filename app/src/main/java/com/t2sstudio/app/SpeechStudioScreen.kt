@@ -907,7 +907,7 @@ fun SpeechStudioScreen(
                         voiceSearch = query
                         // Search only filters the Online catalogue; it must never expose local Android voices.
                     },
-                    modifier = Modifier.fillMaxWidth().height(46.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                     singleLine = true,
                     textStyle = androidx.compose.ui.text.TextStyle(
                         fontSize = 12.sp,
