@@ -1,3 +1,6 @@
+// DEPRECATED: the current Android app calls Firebase callable Functions for Sarvam.
+// Do not deploy or re-enable this Apps Script gateway. Retire old deployments and
+// remove obsolete Script Properties after confirming older APKs no longer use it.
 const SARVAM_BASE = "https://api.sarvam.ai";
 const MAX_SAMPLE_BYTES = 6 * 1024 * 1024;
 function doGet() { return out_({ok:true, service:"T2S Sarvam Gateway", version:1}); }
