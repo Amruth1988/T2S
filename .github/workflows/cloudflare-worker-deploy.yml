@@ -54,7 +54,8 @@ jobs:
               if (health.usageQuota !== true) {
                 console.error("The remote D1 usage database is not bound to the Worker.");
                 process.exit(1);
-              }\n              if (!health.providers?.vakyam) {
+              }
+              if (!health.providers?.vakyam) {
                 console.error("VAKYAM_API_KEY is not configured as a Cloudflare Worker secret.");
                 process.exit(1);
               }
