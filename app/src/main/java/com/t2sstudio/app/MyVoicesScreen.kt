@@ -200,7 +200,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                             onClick = {
                                 runCatching { VoiceCloneServerSettings.save(context, cloneServerUrl) }
                                     .onSuccess { message = "Voice server settings saved." }
-                                    .onFailure { message = it.message ?: "Invalid server URL." }
+                                    .onFailure { message = "Invalid voice server URL. Please enter a valid HTTPS URL." }
                             },
                             enabled = !checkingCloneServer
                         ) { Text("Save") }
