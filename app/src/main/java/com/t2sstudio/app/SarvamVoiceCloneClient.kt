@@ -27,7 +27,7 @@ object SarvamVoiceCloneClient {
                 .getHttpsCallable(name)
                 .call(data)
         )
-        return result.data as? Map<*, *>
+        return result.getData() as? Map<*, *>
             ?: error("T2S server returned an invalid Sarvam response.")
     }
 
