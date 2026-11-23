@@ -63,6 +63,13 @@ This checklist distinguishes CI evidence from manual device verification. Do not
 - [ ] Confirm the final legal notices match the exact model and dataset revisions used for the release.
 - [x] Code review: reference-voice recording flow requires the user to confirm the recording is their own voice or that they have permission before registration; real-device confirmation remains pending.
 - [ ] Verify API keys never appear in logs, analytics, crash reports or exported project files.
+- [x] Android automatic backup excludes `files/voice_samples/` while retaining the separate `voice_profiles.json` index; verified against the current `MyVoicesClient.kt` storage paths. Build #859 passed with these rules.
+- [ ] Verify backup/restore on real Android devices, including that raw voice samples are not included in automatic cloud backup or device transfer.
+- [ ] Add and verify a complete user-data export. The current My Voices ZIP export covers voice profiles and their local recordings only; it does not export projects, scripts/drafts, profile details, or cloud metadata.
+- [ ] Add and verify an authenticated account-deletion workflow that removes the Firebase Auth account and all UID-owned Firestore data (including nested projects, scripts, voiceProfiles and settings) without leaving orphaned records. No in-app account-deletion flow was found in the current Account page/repository audit.
+- [ ] Define and verify local-data cleanup on sign-out/account deletion. Projects and audio history are currently stored in app-private SharedPreferences/files and must not be accidentally mixed across signed-in users on a shared device.
+- [ ] Resolve persistent per-user quota enforcement for direct Cloudflare Worker TTS requests; the current Worker configuration has no persistent KV/Durable Object quota binding. Do not replace the route or enable paid infrastructure without approval.
+
 
 ## F. Release sign-off
 
