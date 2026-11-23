@@ -32,8 +32,10 @@ I will keep these as unchecked until you report the results. You do not need to 
 - [ ] Create the free-tier Cloudflare D1 database, replace the Wrangler placeholder database ID, apply `migrations/0001_user_provider_usage.sql`, and verify quota boundary/concurrency behavior against the live binding. This account-side setup is not complete and the Worker has not been deployed.
 - [x] Implement a complete account export ZIP containing known cloud profile/projects/scripts/voiceProfiles/settings metadata plus local projects, audio history, generated audio, My Voices profiles and local voice samples.
 - [x] Implement authenticated account deletion with a five-minute recent-auth requirement, recursive deletion of `users/{uid}` and nested collections, hashed usage-ledger cleanup, Firebase Auth deletion, and UID-scoped local file/preference cleanup.
-- [ ] Build-verify both features and test export contents/deletion behavior with a disposable Firebase test account before release.
-- [ ] Decide and implement safe handling/migration for legacy local project/audio preference data without cross-account exposure.
+- [x] Build verification: PR head `60369418f8e7dd6cde791be13a7e2fbe27769d8a` passed Android Debug + Release APK assembly in Actions run [#924](https://github.com/Amruth1988/T2S/actions/runs/45253071718).
+- [ ] Test export ZIP contents and account deletion behavior with a disposable Firebase test account before release; CI assembly does not validate live Firebase behavior.
+- [x] Defined safe legacy-data handling: legacy project/audio preference namespaces are not auto-migrated because old 32-bit hash keys cannot prove UID ownership; legacy shared voice files are preserved and never assigned to an account automatically.
+- [ ] Validate account switching and confirm legacy data remains inaccessible to other accounts on a real device.
 - [ ] Complete Android App Check integration validation; Firebase Console provider registration, Play Integrity linkage, release fingerprints and debug-token registration still require your Firebase Console access.
 - [ ] Piper Telugu offline voice-pack import/playback remains deferred from this release; current guest offline generation uses Android's installed system TTS. A separate Android runtime/importer and device validation would be required before enabling Piper packs.
 - [ ] Complete final licence/provenance review, release signing, release APK publishing and release notes after code and device checks pass.
@@ -144,4 +146,17 @@ The Android client initializes the debug provider only for debug builds (loaded 
 
 ## Current verification boundary
 
-Historical build #298 proves Debug/Release assembly and publishing for commit 05601858833d4229a1631fb1e9edbdf4edadbc69. PR head `0a82bb0967c98fb125bb6d0b878fd813260dee2c` passed Debug + Release APK assembly in Android workflow #890, with Functions typecheck #15 and Worker build #9 green. The previous verified PR head `1d7411b9143bdc1e54a1d1b0bf8a1b1c2b960b0b` had Functions typecheck #20 and Worker build #14 passed; Android build #895 was still running at that check. Later docs commit `9d9c62e6655006a4d722a158388ddf969ac5762b` triggered Functions typecheck #21 and Worker build #15, both passed; Android build #896 was still in progress at the latest poll. Worker D1 quota source, migration and Wrangler binding were added. Worker App Check token validation and Android App Check header attachment were also added. Account export and deletion source were added. All latest changes still need fresh CI validation. PR builds skip signing and release publishing, so no current APK artifact is confirmed. CI assembly does not prove real-device installation, playback, native-speaker quality, release signing, or completion of manual checks.
+Latest checked PR branch: `fix/release-workflow-and-guest-scope`  
+Latest checked commit: `60369418f8e7dd6cde791be13a7e2fbe27769d8a` (23 November 2026)
+
+- [x] Android Debug + Release APK assembly passed in workflow [#924](https://github.com/Amruth1988/T2S/actions/runs/45253071718).
+- [x] PR APK artifact upload passed. Artifact [t2s-pr-3-apks](https://api.github.com/repos/Amruth1988/T2S/actions/artifacts/14857089696/zip) is available until 30 November 2026; PR artifacts are unsigned and are for testing, not production release.
+- [x] Cloudflare Worker build passed in workflow [#45253071887](https://github.com/Amruth1988/T2S/actions/runs/45253071887).
+- [x] Firebase Functions typecheck passed in workflow [#45253071763](https://github.com/Amruth1988/T2S/actions/runs/45253071763).
+- [ ] No Android unit or instrumentation test source sets currently exist; workflow #924 assembles APKs but is not a runtime test.
+- [ ] Real-device installation, sign-in/guest/account-switching, export/deletion, audio playback and Telugu listening checks remain unverified.
+- [ ] Cloudflare D1 is still unprovisioned: `wrangler.toml` contains the all-zero placeholder database ID. Do not deploy online generation until the free-tier D1 database is created, migration applied, and health/quota checks pass.
+- [ ] Firebase App Check Console registration, Play Integrity linkage, debug token registration and release signing fingerprints require account-owner Console access.
+- [ ] No production Worker deployment, Firebase Console configuration, release signing or production release is claimed.
+
+CI success is evidence of source compilation/assembly and workflow steps only. It does not certify live Firebase behavior, Cloudflare account configuration, device runtime behavior, or Telugu voice quality.
