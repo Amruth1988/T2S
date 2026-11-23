@@ -52,7 +52,7 @@ function sarvam_(method,path,payload){
  const options={method:method,headers:{"api-subscription-key":key_(),Accept:"application/json"},muteHttpExceptions:true};
  if(payload){options.contentType="application/json";options.payload=JSON.stringify(payload);}
  const r=UrlFetchApp.fetch(SARVAM_BASE+path,options),code=r.getResponseCode();
- if(code<200||code>=300){if(code===401)throw new Error("Sarvam API key rejected.");if(code===402)throw new Error("Generation temporarily unavailable. Please try again later.");if(code===403)throw new Error("Sarvam denied access or voice limit reached.");if(code===429)throw new Error("Generation temporarily unavailable. Please try again later.");throw new Error("Sarvam request failed (HTTP "+code+").");}
+ if(code<200||code>=300){if(code===401)throw new Error("Sarvam API key rejected.");if(code===402)throw new Error("Generation temporarily unavailable. Please try again later.");if(code===403)throw new Error("Generation temporarily unavailable. Please try again later.");if(code===429)throw new Error("Generation temporarily unavailable. Please try again later.");throw new Error("Sarvam request failed (HTTP "+code+").");}
  return JSON.parse(r.getContentText());
 }
 function create_(uid,b){
@@ -71,7 +71,7 @@ function create_(uid,b){
  // validation rejecting an otherwise valid recording; the voice is created from audio.
  // Do not infer or force a gender value at the provider boundary.
  const r=UrlFetchApp.fetch(SARVAM_BASE+"/voices/create",{method:"post",headers:{"api-subscription-key":key_(),Accept:"application/json"},payload:form,muteHttpExceptions:true});
- const c=r.getResponseCode();if(c<200||c>=300){const body=String(r.getContentText()||"").slice(0,700);throw new Error("Sarvam voice registration failed (HTTP "+c+"): "+body); }
+ const c=r.getResponseCode();if(c<200||c>=300){if(c===402||c===403||c===429)throw new Error("Generation temporarily unavailable. Please try again later.");throw new Error("Sarvam voice registration failed (HTTP "+c+")."); }
  const d=JSON.parse(r.getContentText()),id=d.data&&d.data.voice_id;
  if(typeof id!=="string"||!/^svc-[A-Za-z0-9_-]{3,100}$/.test(id))throw new Error("Sarvam returned an invalid voice ID.");
  quotaCommit_(uid,"create",0);
