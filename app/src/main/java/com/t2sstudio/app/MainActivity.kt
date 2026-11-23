@@ -250,8 +250,8 @@ private fun T2SApp() {
     LaunchedEffect(currentUid) {
         val uid = currentUid ?: return@LaunchedEffect
         val cloud = com.t2sstudio.app.data.firebase.T2SFirestoreRepository()
-        val localProjects = ProjectStore.load(context)
-        val localRecordings = AudioHistoryStore.load(context)
+        val localProjects = ProjectStore.load(context, uid)
+        val localRecordings = AudioHistoryStore.load(context, uid)
 
         localProjects.forEach { project ->
             cloud.saveProject(uid, project.id, project.name, project.createdAt) { }
@@ -269,7 +269,7 @@ private fun T2SApp() {
 
         cloud.loadProjects(uid) { result ->
             result.onSuccess { cloudProjects ->
-                val merged = (cloudProjects + ProjectStore.load(context))
+                val merged = (cloudProjects + ProjectStore.load(context, uid))
                     .distinctBy { it.id }
                     .sortedByDescending { it.createdAt }
                 projects.clear()
@@ -528,8 +528,8 @@ private fun T2SApp() {
                                 val record = audioRecords[audioIndex]
                                 if (record.projectId == id) audioRecords[audioIndex] = record.copy(projectName = name)
                             }
-                            ProjectStore.save(context, projects)
-                            AudioHistoryStore.save(context, audioRecords)
+                            ProjectStore.save(context, currentUid, projects)
+                            AudioHistoryStore.save(context, currentUid, audioRecords)
                             com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
                                 com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveProject(
                                     uid = uid, projectId = id, name = name
@@ -546,8 +546,8 @@ private fun T2SApp() {
                                 audioRecords[audioIndex] = record.copy(projectId = "", projectName = "Unassigned")
                             }
                         }
-                        ProjectStore.save(context, projects)
-                        AudioHistoryStore.save(context, audioRecords)
+                        ProjectStore.save(context, currentUid, projects)
+                        AudioHistoryStore.save(context, currentUid, audioRecords)
                         com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
                             com.t2sstudio.app.data.firebase.T2SFirestoreRepository().archiveProject(uid, id) {
                                 /* Local delete is retained regardless of cloud availability. */
@@ -560,7 +560,7 @@ private fun T2SApp() {
                     onDelete = { record ->
                         audioRecords.removeAll { it.id == record.id }
                         File(record.filePath).delete()
-                        AudioHistoryStore.save(context, audioRecords)
+                        AudioHistoryStore.save(context, currentUid, audioRecords)
                         com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
                             com.t2sstudio.app.data.firebase.T2SFirestoreRepository().archiveScript(uid, record.id) {
                                 /* Removing a local recording never depends on cloud availability. */
