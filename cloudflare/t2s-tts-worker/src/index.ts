@@ -1,4 +1,5 @@
 import { createRemoteJWKSet, decodeProtectedHeader, jwtVerify } from "jose";
+import { DELETE_USAGE_SQL, RESERVE_USAGE_SQL } from "./usage-sql.js";
 
 interface D1Result {
   success: boolean;
@@ -107,34 +108,8 @@ async function reserveUsage(env: Env, uid: string, provider: "india" | "vakyam",
   const now = new Date();
   const day = now.toISOString().slice(0, 10);
   const month = day.slice(0, 7);
-  const result = await env.USAGE_DB.prepare(`
-    INSERT INTO user_provider_usage
-      (provider, uid_hash, day, daily_characters, daily_requests, month, monthly_characters, updated_at)
-    VALUES (?, ?, ?, ?, 1, ?, ?, ?)
-    ON CONFLICT(provider, uid_hash) DO UPDATE SET
-      day = excluded.day,
-      daily_characters = CASE
-        WHEN user_provider_usage.day = excluded.day
-          THEN user_provider_usage.daily_characters + excluded.daily_characters
-        ELSE excluded.daily_characters END,
-      daily_requests = CASE
-        WHEN user_provider_usage.day = excluded.day
-          THEN user_provider_usage.daily_requests + 1
-        ELSE 1 END,
-      month = excluded.month,
-      monthly_characters = CASE
-        WHEN user_provider_usage.month = excluded.month
-          THEN user_provider_usage.monthly_characters + excluded.monthly_characters
-        ELSE excluded.monthly_characters END,
-      updated_at = excluded.updated_at
-    WHERE
-      (user_provider_usage.day != excluded.day OR
-        (user_provider_usage.daily_characters + excluded.daily_characters <= 10000
-          AND user_provider_usage.daily_requests + 1 <= 30))
-      AND
-      (user_provider_usage.month != excluded.month OR
-        user_provider_usage.monthly_characters + excluded.monthly_characters <= 100000)
-  `).bind(provider, uidHash, day, characters, month, characters, now.toISOString()).run();
+  const result = await env.USAGE_DB.prepare(RESERVE_USAGE_SQL)
+    .bind(provider, uidHash, day, characters, month, characters, now.toISOString()).run();
   if (!result.success) throw new ProviderRequestError(503);
   if ((result.meta?.changes ?? 0) !== 1) {
     throw new ProviderRequestError(429);
@@ -164,9 +139,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const uidHash = Array.from(new Uint8Array(await crypto.subtle.digest(
       "SHA-256", new TextEncoder().encode(uid)
     ))).map((byte) => byte.toString(16).padStart(2, "0")).join("");
-    const result = await env.USAGE_DB.prepare(
-      "DELETE FROM user_provider_usage WHERE uid_hash = ?"
-    ).bind(uidHash).run();
+    const result = await env.USAGE_DB.prepare(DELETE_USAGE_SQL).bind(uidHash).run();
     if (!result.success) throw new ProviderRequestError(503);
     return json({ deleted: result.meta?.changes ?? 0 });
   }
