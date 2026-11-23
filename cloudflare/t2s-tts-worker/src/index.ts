@@ -45,11 +45,16 @@ async function authenticate(request: Request, env: Env): Promise<string> {
 
   const appCheckToken = request.headers.get("x-firebase-appcheck");
   if (!appCheckToken) throw new Error("A valid Firebase App Check token is required.");
-  const { payload: appCheckPayload } = await jwtVerify(appCheckToken, appCheckKeys, {
-    issuer: `https://firebaseappcheck.googleapis.com/${env.FIREBASE_PROJECT_NUMBER}`,
-    audience: `projects/${env.FIREBASE_PROJECT_NUMBER}`,
-    algorithms: ["RS256"],
-  });
+  let appCheckPayload;
+  try {
+    ({ payload: appCheckPayload } = await jwtVerify(appCheckToken, appCheckKeys, {
+      issuer: `https://firebaseappcheck.googleapis.com/${env.FIREBASE_PROJECT_NUMBER}`,
+      audience: `projects/${env.FIREBASE_PROJECT_NUMBER}`,
+      algorithms: ["RS256"],
+    }));
+  } catch {
+    throw new Error("Invalid Firebase App Check token.");
+  }
   if (typeof appCheckPayload.sub !== "string" || !appCheckPayload.sub) {
     throw new Error("Invalid Firebase App Check token.");
   }
@@ -238,7 +243,7 @@ export default {
         return json({ error: "Generation temporarily unavailable. Please try again later." }, status);
       }
       const message = error instanceof Error ? error.message : "Generation temporarily unavailable. Please try again later.";
-      const status = message.startsWith("Sign in") || message.startsWith("Invalid Firebase") || message.startsWith("A valid Firebase App Check") ? 401 : 502;
+      const status = message.startsWith("Sign in") || message.startsWith("Invalid Firebase") || message.startsWith("A valid Firebase App Check") || message.startsWith("Invalid Firebase App Check") ? 401 : 502;
       return json({ error: status === 401 ? message : "Generation temporarily unavailable. Please try again later." }, status);
     }
   },
