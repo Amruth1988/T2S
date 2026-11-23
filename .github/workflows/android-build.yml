@@ -48,7 +48,7 @@ jobs:
           echo "T2S_KEY_PASSWORD=$T2S_KEY_PASSWORD" >> "$GITHUB_ENV"
 
       - name: Set up Gradle
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: "8.9"
 
