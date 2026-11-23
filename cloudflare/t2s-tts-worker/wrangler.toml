@@ -4,3 +4,11 @@ compatibility_date = "2026-11-21"
 
 [vars]
 FIREBASE_PROJECT_ID = "t2s-studio"
+
+# Create this free-tier D1 database in the Cloudflare account, then replace the
+# placeholder database_id with the ID returned by: npx wrangler d1 create t2s-usage
+[[d1_databases]]
+binding = "USAGE_DB"
+database_name = "t2s-usage"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
