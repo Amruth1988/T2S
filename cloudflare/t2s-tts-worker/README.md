@@ -9,12 +9,15 @@ Secure proxy for T2S Studio's Vakyam and India TTS providers. Sarvam is delibera
 - `POST /v1/india/tts` — JSON: `text, voice, language, speed, format`
 - `GET /v1/vakyam/voices?language=te|hi|en`
 - `POST /v1/vakyam/tts` — JSON: `text, voice, language, speed, format`
+- `DELETE /v1/account/usage` — authenticated account-deletion cleanup; removes only the caller's hashed D1 quota rows
 
 Every provider route requires both:
 - A Firebase Authentication ID token in `Authorization: Bearer <token>`
 - A Firebase App Check token in `X-Firebase-AppCheck`
 
 The Worker validates the Firebase project issuer/audience and App Check signature, issuer, audience, expiry, JWT type, RS256 algorithm and this Android app's Firebase App ID. Provider credentials remain in Cloudflare Worker secrets.
+
+The account-usage DELETE route uses the same Firebase ID token and App Check checks as generation routes. Firebase Functions calls it before deleting the Firebase Authentication identity, so the Worker can authenticate the still-valid caller and erase only that account's SHA-256 quota rows. If the D1 delete fails, account deletion stops and can be retried; the Firebase identity is not removed prematurely.
 
 ## Per-account usage limits
 
@@ -62,6 +65,7 @@ The Android client obtains a fresh App Check token for each Worker request. Fire
 ```bash
 npm install
 npm run typecheck
+npm test
 npx wrangler deploy --dry-run --outdir .wrangler-build
 npm run dev
 ```
