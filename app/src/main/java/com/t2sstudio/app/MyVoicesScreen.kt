@@ -593,7 +593,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                             message = "${registered.name} Saved successfully. Sarvam voice ID: ${registered.sarvamVoiceId}"
                                         }.onFailure { error ->
                                             loadVoices()
-                                            message = "Not fully saved for ${voice.name}: ${error.message ?: error.javaClass.simpleName}. If Sarvam returned an ID, use Sync metadata to Firebase."
+                                            message = "Could not finish saving ${voice.name}. Please try again later. If a voice ID was created, you can retry syncing its metadata."
                                         }
                                         busy = false
                                     }
