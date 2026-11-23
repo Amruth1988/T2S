@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Preserve projects, scripts, generated audio and voice-profile metadata.
+         Do not copy personal voice recordings into Android backups. -->
+    <exclude domain="file" path="voice_samples/" />
+</full-backup-content>
