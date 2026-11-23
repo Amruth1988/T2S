@@ -33,8 +33,10 @@ jobs:
       - name: Download, convert and synthesize Telugu voices
         run: |
           set -euo pipefail
-          base="https://huggingface.co/rhasspy/piper-voices/resolve/main/te/te_IN"
-          for voice in venkatesh padmavathi maya; do
+          # Pin the source to the immutable revision that introduced the two CC BY 4.0 Telugu voices.
+          source_revision="ff43c1e79f98a765202dcfb03710851f9ec4ff2e"
+          base="https://huggingface.co/rhasspy/piper-voices/resolve/$source_revision/te/te_IN"
+          for voice in venkatesh padmavathi; do
             dir="build/telugu-voices/$voice"
             mkdir -p "$dir"
             model="te_IN-$voice-medium.onnx"
@@ -59,7 +61,8 @@ jobs:
           # $voice Telugu voice attribution
 
           Voice model: rhasspy/piper-voices, te/te_IN/$voice/medium
-          Model card: https://huggingface.co/rhasspy/piper-voices/blob/main/te/te_IN/$voice/medium/MODEL_CARD
+          Model card: https://huggingface.co/rhasspy/piper-voices/blob/$source_revision/te/te_IN/$voice/medium/MODEL_CARD
+          Source revision: rhasspy/piper-voices@$source_revision
           Trainer: PravalX (https://github.com/PravalX)
           Training dataset: AI4Bharat IndicVoices-R (https://huggingface.co/datasets/ai4bharat/indicvoices_r)
           Dataset/model-card licence: Creative Commons Attribution 4.0 International (CC BY 4.0)
@@ -70,6 +73,9 @@ jobs:
             curl -fL --retry 3 https://creativecommons.org/licenses/by/4.0/legalcode.txt -o "$dir/LICENSE-CC-BY-4.0.txt"
             test -s "$dir/ATTRIBUTION.md"
             test -s "$dir/LICENSE-CC-BY-4.0.txt"
+            # Record SHA-256 for every source/licence file shipped in the pack.
+            (cd "$dir" && sha256sum "$model" "$model.json" MODEL_CARD ATTRIBUTION.md LICENSE-CC-BY-4.0.txt > SOURCE_MANIFEST.sha256)
+            test -s "$dir/SOURCE_MANIFEST.sha256"
           done
           # Maya is synthesis-tested above, but IITM IndicTTS terms have
           # not been cleared for redistribution. Keep its weights out of artifacts.
@@ -134,7 +140,7 @@ jobs:
           name: T2S Telugu Voice Packs v1
           body: |
             Versioned, attributed Telugu Piper voice packs for automatic in-app installation.
-            Each archive includes model weights, tokens, model card, attribution and licence notice.
+            Each archive includes model weights, tokens, model card, attribution, licence notice and a SHA-256 source manifest. The model source is pinned to rhasspy/piper-voices revision ff43c1e79f98a765202dcfb03710851f9ec4ff2e.
             T2S verifies the SHA-256 checksum before installing a pack.
           files: |
             build/t2s-telugu-venkatesh-v1.zip
