@@ -1,7 +1,6 @@
 package com.t2sstudio.app
 
 import android.util.Base64
-import org.json.JSONObject
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.android.gms.tasks.Tasks
@@ -11,8 +10,6 @@ import java.io.FileOutputStream
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
-import java.net.HttpURLConnection
-import java.net.URL
 
 /** Sarvam Instant Voice Cloning client. Provider credentials remain in Firebase Functions Secret Manager. */
 object SarvamVoiceCloneClient {
