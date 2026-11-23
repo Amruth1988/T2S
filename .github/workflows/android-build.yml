@@ -29,6 +29,7 @@ jobs:
           java-version: "17"
 
       - name: Set up shared signing key
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
           T2S_SIGNING_KEY_BASE64: ${{ secrets.T2S_SIGNING_KEY_BASE64 }}
           T2S_KEYSTORE_PASSWORD: ${{ secrets.T2S_KEYSTORE_PASSWORD }}
@@ -55,6 +56,7 @@ jobs:
         run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease
 
       - name: Report APK signing certificate SHA-1
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           apksigner="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -n 1)"
@@ -76,6 +78,7 @@ jobs:
       # GitHub Actions artifacts are always ZIP files. Publish APKs as
       # individual GitHub Release assets so Android users can download .apk directly.
       - name: Prepare ABI-specific APK downloads
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           mkdir -p dist
@@ -86,6 +89,7 @@ jobs:
           done
 
       - name: Publish T2S APK files as direct downloads
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: t2s-build-${{ github.run_number }}
@@ -98,6 +102,7 @@ jobs:
           make_latest: false
 
       - name: Add direct APK link to build summary
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         if: success()
         env:
           GH_REPOSITORY: ${{ github.repository }}
