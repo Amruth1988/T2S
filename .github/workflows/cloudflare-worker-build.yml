@@ -2,7 +2,7 @@ name: Cloudflare Worker build
 
 on:
   push:
-    branches: [develop]
+    branches: [main, develop]
     paths:
       - "cloudflare/t2s-tts-worker/**"
       - ".github/workflows/cloudflare-worker-build.yml"
