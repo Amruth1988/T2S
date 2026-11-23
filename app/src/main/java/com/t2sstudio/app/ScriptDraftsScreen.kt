@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
@@ -34,7 +35,8 @@ fun ScriptDraftsScreen(
     drafts: List<T2SScriptDraft>,
     onOpen: (T2SScriptDraft) -> Unit,
     onDelete: (T2SScriptDraft) -> Unit,
-    onCreateDraft: () -> Unit
+    onCreateDraft: () -> Unit,
+    onBack: () -> Unit = {}
 ) {
     var draftPendingDeletion by remember { mutableStateOf<T2SScriptDraft?>(null) }
 
@@ -71,10 +73,14 @@ fun ScriptDraftsScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("My drafts", color = T2SText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text("${drafts.size} saved ${if (drafts.size == 1) "draft" else "drafts"}",
-                    color = T2SSecondaryText, fontSize = 12.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Filled.ArrowBack, contentDescription = "Back to account", tint = T2SText)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("My drafts", color = T2SText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text("\${drafts.size} saved \${if (drafts.size == 1) "draft" else "drafts"}", color = T2SSecondaryText, fontSize = 12.sp)
+                }
             }
             Box(
                 modifier = Modifier.size(42.dp).background(T2SOrange.copy(alpha = 0.12f), CircleShape),
