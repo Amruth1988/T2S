@@ -73,7 +73,7 @@ object SarvamVoiceCloneClient {
                     } ?: body.trim().take(1200).takeIf { it.isNotBlank() }
                     val normalizedDetail = detail.orEmpty().lowercase()
                     val creditOrLimitFailure = status == 402 || status == 429 ||
-                        listOf("credit", "quota", "balance", "insufficient", "payment", "billing", "subscription").any(normalizedDetail::contains)
+                        listOf("credit", "quota", "limit", "balance", "insufficient", "payment", "billing", "subscription").any(normalizedDetail::contains)
                     if (creditOrLimitFailure) {
                         error("Generation temporarily unavailable. Please try again later.")
                     }
@@ -84,7 +84,7 @@ object SarvamVoiceCloneClient {
                 if (parsed.has("error")) {
                     val detail = parsed.optString("error", "Shared Sarvam request failed.")
                     val normalizedDetail = detail.lowercase()
-                    if (listOf("credit", "quota", "balance", "insufficient", "payment", "billing", "subscription").any(normalizedDetail::contains)) {
+                    if (listOf("credit", "quota", "limit", "balance", "insufficient", "payment", "billing", "subscription").any(normalizedDetail::contains)) {
                         error("Generation temporarily unavailable. Please try again later.")
                     }
                     error(detail)
