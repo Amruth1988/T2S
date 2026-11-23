@@ -2,8 +2,8 @@ package com.t2sstudio.app
 
 import android.os.Bundle
 import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.AppCheckProviderFactory
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
-import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
@@ -186,10 +186,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val appCheck = FirebaseAppCheck.getInstance()
-        appCheck.installAppCheckProviderFactory(
-            if (BuildConfig.DEBUG) DebugAppCheckProviderFactory.getInstance()
-            else PlayIntegrityAppCheckProviderFactory.getInstance()
-        )
+        val providerFactory = if (BuildConfig.DEBUG) {
+            Class.forName("com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory")
+                .getMethod("getInstance").invoke(null) as AppCheckProviderFactory
+        } else {
+            PlayIntegrityAppCheckProviderFactory.getInstance()
+        }
+        appCheck.installAppCheckProviderFactory(providerFactory)
         setContent { T2SStudioTheme { T2SApp() } }
     }
 }
