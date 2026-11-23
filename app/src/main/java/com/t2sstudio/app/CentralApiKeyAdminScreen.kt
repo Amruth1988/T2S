@@ -48,6 +48,9 @@ fun CentralApiKeyAdminScreen() {
     var apiKey by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("Checking administrator access…") }
     var providers by remember { mutableStateOf<List<CentralProviderStatus>>(emptyList()) }
+    var dailyCharacters by remember { mutableStateOf("10000") }
+    var monthlyCharacters by remember { mutableStateOf("100000") }
+    var dailyRequests by remember { mutableStateOf("100") }
 
     fun dateLabel(value: Long?): String =
         value?.let { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it)) }
@@ -150,6 +153,21 @@ fun CentralApiKeyAdminScreen() {
                 singleLine = true, visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
             )
+            Text("Usage safety limits — ${provider.replaceFirstChar { it.uppercase() }}", color = T2SText, fontSize = 18.sp)
+            Text("Set ceilings below the provider free/prepaid allowance. These are app-side limits, not a live wallet balance.", color = T2SSecondaryText, fontSize = 12.sp)
+            OutlinedTextField(value = dailyCharacters, onValueChange = { dailyCharacters = it.filter(Char::isDigit) }, modifier = Modifier.fillMaxWidth(), label = { Text("Maximum characters per day") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+            OutlinedTextField(value = monthlyCharacters, onValueChange = { monthlyCharacters = it.filter(Char::isDigit) }, modifier = Modifier.fillMaxWidth(), label = { Text("Maximum characters per month") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+            OutlinedTextField(value = dailyRequests, onValueChange = { dailyRequests = it.filter(Char::isDigit) }, modifier = Modifier.fillMaxWidth(), label = { Text("Maximum requests per day") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+            Button(onClick = {
+                val daily = dailyCharacters.toLongOrNull(); val monthly = monthlyCharacters.toLongOrNull(); val requests = dailyRequests.toLongOrNull()
+                if (daily == null || monthly == null || requests == null || daily !in 1..Int.MAX_VALUE.toLong() || monthly !in 1..Int.MAX_VALUE.toLong() || requests !in 1..Int.MAX_VALUE.toLong()) { status = "Enter positive whole-number limits."; return@Button }
+                loading = true; status = "Saving usage limits…"
+                functions.getHttpsCallable("setProviderUsageLimits").call(mapOf("provider" to provider, "enabled" to true, "dailyCharacters" to daily.toInt(), "monthlyCharacters" to monthly.toInt(), "dailyRequests" to requests.toInt())).addOnSuccessListener { status = "Usage limits saved."; loading = false }.addOnFailureListener { status = it.localizedMessage ?: "Could not save usage limits."; loading = false }
+            }, enabled = !loading && isAdmin == true, modifier = Modifier.fillMaxWidth()) { Text("Save limits and enable provider") }
+            OutlinedButton(onClick = {
+                loading = true
+                functions.getHttpsCallable("setProviderUsageLimits").call(mapOf("provider" to provider, "enabled" to false, "dailyCharacters" to (dailyCharacters.toIntOrNull() ?: 0), "monthlyCharacters" to (monthlyCharacters.toIntOrNull() ?: 0), "dailyRequests" to (dailyRequests.toIntOrNull() ?: 0))).addOnSuccessListener { status = "Provider generation paused."; loading = false }.addOnFailureListener { status = it.localizedMessage ?: "Could not pause provider."; loading = false }
+            }, enabled = !loading && isAdmin == true, modifier = Modifier.fillMaxWidth()) { Text("Pause provider generation") }
             Button(
                 onClick = {
                     loading = true
