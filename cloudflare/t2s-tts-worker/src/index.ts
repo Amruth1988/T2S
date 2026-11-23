@@ -36,11 +36,16 @@ function json(data: unknown, status = 200): Response {
 async function authenticate(request: Request, env: Env): Promise<string> {
   const token = request.headers.get("authorization")?.match(/^Bearer\\s+(.+)$/i)?.[1];
   if (!token) throw new Error("Sign in to T2S Studio to use online TTS.");
-  const { payload } = await jwtVerify(token, firebaseKeys, {
-    issuer: `https://securetoken.google.com/${env.FIREBASE_PROJECT_ID}`,
-    audience: env.FIREBASE_PROJECT_ID,
-    algorithms: ["RS256"],
-  });
+  let payload: Awaited<ReturnType<typeof jwtVerify>>["payload"];
+  try {
+    ({ payload } = await jwtVerify(token, firebaseKeys, {
+      issuer: `https://securetoken.google.com/${env.FIREBASE_PROJECT_ID}`,
+      audience: env.FIREBASE_PROJECT_ID,
+      algorithms: ["RS256"],
+    }));
+  } catch {
+    throw new Error("Invalid Firebase user token.");
+  }
   if (typeof payload.sub !== "string" || !payload.sub) throw new Error("Invalid Firebase user token.");
 
   const appCheckToken = request.headers.get("x-firebase-appcheck");
@@ -244,8 +249,14 @@ export default {
         return json({ error: "Generation temporarily unavailable. Please try again later." }, status);
       }
       const message = error instanceof Error ? error.message : "Generation temporarily unavailable. Please try again later.";
-      const status = message.startsWith("Sign in") || message.startsWith("Invalid Firebase") || message.startsWith("A valid Firebase App Check") || message.startsWith("Invalid Firebase App Check") ? 401 : 502;
-      return json({ error: status === 401 ? message : "Generation temporarily unavailable. Please try again later." }, status);
+      const status = message.startsWith("Sign in") || message.startsWith("Invalid Firebase") || message.startsWith("A valid Firebase App Check") ? 401 : 502;
+      const response = json(
+        { error: status === 401 ? message : "Generation temporarily unavailable. Please try again later." },
+        status
+      );
+      const headers = new Headers(response.headers);
+      for (const [key, value] of Object.entries(corsHeaders)) headers.set(key, value);
+      return new Response(response.body, { status: response.status, headers });
     }
   },
 };
