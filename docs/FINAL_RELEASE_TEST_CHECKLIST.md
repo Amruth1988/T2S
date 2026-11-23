@@ -28,7 +28,8 @@ I will keep these as unchecked until you report the results. You do not need to 
 
 ### Remaining tasks — repository/code work and release preparation
 
-- [ ] Resolve persistent per-user quota enforcement for direct Cloudflare Worker TTS requests without adding paid infrastructure or changing provider routes without approval.
+- [x] Implement repository-side persistent per-user Worker quota enforcement using one atomic Cloudflare D1 UPSERT per UID/provider; daily/monthly character and daily request caps fail closed when D1 is unavailable.
+- [ ] Create the free-tier Cloudflare D1 database, replace the Wrangler placeholder database ID, apply `migrations/0001_user_provider_usage.sql`, and verify quota boundary/concurrency behavior against the live binding. This account-side setup is not complete and the Worker has not been deployed.
 - [ ] Implement complete user-data export beyond the current My Voices ZIP export.
 - [ ] Implement authenticated account deletion, including Firebase Auth and all UID-owned Firestore data.
 - [ ] Decide and implement safe handling/migration for legacy local project/audio preference data without cross-account exposure.
@@ -105,7 +106,8 @@ The current guest offline path uses Android's installed system TTS voices. The P
 - [ ] Define and verify local-data cleanup on sign-out/account deletion. Current project, audio-history and generated-audio storage uses SHA-256 UID namespaces; verify switching accounts on one device never exposes another account's data. Legacy project/audio preference namespaces are intentionally not auto-migrated because their old 32-bit hash keys contain no reliable UID ownership metadata. Guest audio remains in its separate guest directory.
 - [ ] Verify generated audio for a signed-in user is stored under that user's UID-derived directory and never linked to a project unless the user explicitly selects one.
 - [ ] Verify My Voices profiles and samples remain isolated when switching between two Firebase accounts; verify legacy shared files remain untouched until an explicit migration flow exists.
-- [ ] Resolve persistent per-user quota enforcement for direct Cloudflare Worker TTS requests; the current Worker configuration has no persistent KV/Durable Object quota binding. Do not replace the route or enable paid infrastructure without approval.
+- [x] Worker source now reserves per-user India TTS and Vakyam TTS usage atomically in D1 (10,000 chars/day, 100,000 chars/month, 30 requests/day); failed upstream calls remain reserved.
+- [ ] Provision the free D1 database in Cloudflare, replace the placeholder ID in `wrangler.toml`, apply the migration, deploy, and run live quota boundary/concurrency checks. Until provisioned, the Worker fails closed with 503 for online generation.
 
 
 ## F. Release sign-off
@@ -139,4 +141,4 @@ The Android client initializes the debug provider only for debug builds (loaded 
 
 ## Current verification boundary
 
-Historical build #298 proves Debug/Release assembly and publishing for commit 05601858833d4229a1631fb1e9edbdf4edadbc69. PR head `0a82bb0967c98fb125bb6d0b878fd813260dee2c` passed Debug + Release APK assembly in Android workflow #890, with Functions typecheck #15 and Worker build #9 green. The latest PR head is `1d7411b9143bdc1e54a1d1b0bf8a1b1c2b960b0b`: Functions typecheck #20 and Worker build #14 passed; Android build #895 (run `45245576842`) was still running at the latest check. PR builds skip signing and release publishing, so no APK artifact is available from #895 yet. CI assembly does not prove real-device installation, playback, native-speaker quality, release signing, or completion of manual checks.
+Historical build #298 proves Debug/Release assembly and publishing for commit 05601858833d4229a1631fb1e9edbdf4edadbc69. PR head `0a82bb0967c98fb125bb6d0b878fd813260dee2c` passed Debug + Release APK assembly in Android workflow #890, with Functions typecheck #15 and Worker build #9 green. The previous verified PR head `1d7411b9143bdc1e54a1d1b0bf8a1b1c2b960b0b` had Functions typecheck #20 and Worker build #14 passed; Android build #895 was still running at that check. Later docs commit `9d9c62e6655006a4d722a158388ddf969ac5762b` triggered Functions typecheck #21 and Worker build #15, both passed; Android build #896 was still in progress at the latest poll. Worker D1 quota source, migration and Wrangler binding were added afterward and still need CI validation. PR builds skip signing and release publishing, so no current APK artifact is confirmed. CI assembly does not prove real-device installation, playback, native-speaker quality, release signing, or completion of manual checks.
