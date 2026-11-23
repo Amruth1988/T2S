@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Logout
@@ -72,6 +73,9 @@ fun AccountPageScreen(
     var user by remember { mutableStateOf(auth.currentUser) }
     var showProfile by remember { mutableStateOf(false) }
     var infoDialog by remember { mutableStateOf<String?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var deletingAccount by remember { mutableStateOf(false) }
+    var deleteMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     BackHandler(enabled = showProfile) { showProfile = false }
     if (showProfile) {
@@ -160,7 +164,76 @@ fun AccountPageScreen(
             AccountMenuRow("Privacy", "How your audio and information are handled", Icons.Filled.PrivacyTip, onPrivacy)
             AccountMenuRow("Terms & Conditions", "Read the terms for using T2S Studio", Icons.Filled.Gavel, onTerms)
             AccountMenuRow("Contact", "Email or call T2S Studio support", Icons.Filled.MailOutline, onContact)
+            if (user != null) {
+                AccountMenuRow("Delete account", "Permanently delete your T2S account and cloud data", Icons.Filled.Delete) {
+                    showDeleteConfirm = true
+                }
+            }
             AccountMenuRow("Sign out", "Sign out of your T2S account", Icons.Filled.Logout) { auth.signOut() }
+        }
+
+        if (showDeleteConfirm) {
+            AlertDialog(
+                onDismissRequest = { if (!deletingAccount) showDeleteConfirm = false },
+                title = { Text("Delete T2S account?") },
+                text = {
+                    Text(
+                        "This permanently deletes your Firebase account and its cloud projects, scripts, voice profiles and settings. " +
+                            "T2S will also remove this account's local projects, audio history, generated audio and saved voice samples from this device. " +
+                            "Files you previously copied to the public Downloads folder are not deleted. " +
+                            "For security, your last sign-in must be within the past 5 minutes."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = !deletingAccount,
+                        onClick = {
+                            val uid = auth.currentUser?.uid
+                            if (uid.isNullOrBlank()) {
+                                showDeleteConfirm = false
+                                deleteMessage = "No signed-in account was found."
+                            } else {
+                                deletingAccount = true
+                                com.google.firebase.functions.FirebaseFunctions.getInstance("asia-south1")
+                                    .getHttpsCallable("deleteT2SAccount")
+                                    .call()
+                                    .addOnSuccessListener {
+                                        val cleanup = runCatching { AccountDataCleanup.clear(context, uid) }
+                                        auth.signOut()
+                                        deletingAccount = false
+                                        showDeleteConfirm = false
+                                        deleteMessage = if (cleanup.isSuccess) {
+                                            "Your T2S account and its cloud data were deleted. This device's account data was cleared."
+                                        } else {
+                                            "Your cloud account was deleted, but some local files could not be cleared. Remove T2S app data from Android Settings."
+                                        }
+                                    }
+                                    .addOnFailureListener { error ->
+                                        deletingAccount = false
+                                        deleteMessage = error.localizedMessage
+                                            ?: "Account deletion failed. Check your connection and try again."
+                                    }
+                            }
+                        }
+                    ) { Text(if (deletingAccount) "Deleting…" else "Delete permanently") }
+                },
+                dismissButton = {
+                    TextButton(enabled = !deletingAccount, onClick = { showDeleteConfirm = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        deleteMessage?.let { message ->
+            AlertDialog(
+                onDismissRequest = { deleteMessage = null },
+                title = { Text("Account deletion") },
+                text = { Text(message) },
+                confirmButton = {
+                    TextButton(onClick = { deleteMessage = null }) { Text("Close") }
+                }
+            )
         }
 
         infoDialog?.let { section ->
