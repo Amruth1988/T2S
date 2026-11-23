@@ -62,7 +62,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 @Composable
-fun MyVoicesScreen() {
+fun MyVoicesScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var voiceName by remember { mutableStateOf("") }
@@ -159,7 +159,10 @@ fun MyVoicesScreen() {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back to account", tint = T2SText) }
+            Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
+        }
         androidx.compose.material3.TabRow(selectedTabIndex = if (selectedAddTab == "Add Voice") 0 else 1) {
             listOf("Add Voice", "Add AI Voice").forEach { tab ->
                 androidx.compose.material3.Tab(
