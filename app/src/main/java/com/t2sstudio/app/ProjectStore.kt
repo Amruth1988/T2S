@@ -12,11 +12,12 @@ data class T2SProject(
 )
 
 object ProjectStore {
-    private const val PREFS = "t2s_projects"
+    private fun prefsName(uid: String) = "t2s_projects_${uid.hashCode().toUInt().toString(16)}"
     private const val KEY_ITEMS = "items"
 
-    fun load(context: Context): List<T2SProject> {
-        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    fun load(context: Context, uid: String?): List<T2SProject> {
+        if (uid.isNullOrBlank()) return emptyList()
+        val raw = context.getSharedPreferences(prefsName(uid), Context.MODE_PRIVATE)
             .getString(KEY_ITEMS, "[]") ?: "[]"
         return runCatching {
             val array = JSONArray(raw)
@@ -29,7 +30,8 @@ object ProjectStore {
         }.getOrDefault(emptyList())
     }
 
-    fun save(context: Context, projects: List<T2SProject>) {
+    fun save(context: Context, uid: String?, projects: List<T2SProject>) {
+        if (uid.isNullOrBlank()) return
         val array = JSONArray()
         projects.forEach { project ->
             array.put(JSONObject().apply {
@@ -38,7 +40,7 @@ object ProjectStore {
                 put("createdAt", project.createdAt)
             })
         }
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        context.getSharedPreferences(prefsName(uid), Context.MODE_PRIVATE)
             .edit().putString(KEY_ITEMS, array.toString()).apply()
     }
 
