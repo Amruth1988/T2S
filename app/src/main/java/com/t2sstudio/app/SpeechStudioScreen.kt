@@ -1360,7 +1360,10 @@ fun SpeechStudioScreen(
                                         createdAt = System.currentTimeMillis(),
                                         projectId = "",
                                         projectName = "Unassigned",
-                                        scriptContent = textToSpeak
+                                        scriptContent = textToSpeak,
+                                        voiceSource = if (personalVoice != null) "My Voice" else "Standard",
+                                        voiceName = personalVoice?.name.orEmpty(),
+                                        voiceGender = personalVoice?.gender.orEmpty()
                                     )
                                 )
                                 statusMessage = if (personalVoice != null) {
