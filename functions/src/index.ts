@@ -551,11 +551,15 @@ export const generateCentralVakyamTts = onCall({
 export const deleteT2SAccount = onCall({
   region: REGION,
   enforceAppCheck: true,
+  timeoutSeconds: 540,
+  memory: "512MiB",
 }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Sign in before deleting your account.");
   const uid = request.auth.uid;
   const authTime = Number(request.auth.token.auth_time ?? 0);
-  if (!Number.isFinite(authTime) || authTime <= 0 || Math.floor(Date.now() / 1000) - authTime > 300) {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  if (!Number.isFinite(authTime) || authTime <= 0 ||
+      authTime > nowSeconds + 60 || nowSeconds - authTime > 300) {
     throw new HttpsError(
       "failed-precondition",
       "For your security, sign in again and retry account deletion."
