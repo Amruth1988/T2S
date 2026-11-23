@@ -51,7 +51,10 @@ jobs:
             process.stdin.on("end", () => {
               const health = JSON.parse(data);
               if (health.ok !== true || health.service !== "t2s-tts-worker") process.exit(1);
-              if (health.usageQuota !== true) {\n                console.error("The remote D1 usage database is not bound to the Worker.");\n                process.exit(1);\n              }\n              if (!health.providers?.vakyam) {
+              if (health.usageQuota !== true) {
+                console.error("The remote D1 usage database is not bound to the Worker.");
+                process.exit(1);
+              }\n              if (!health.providers?.vakyam) {
                 console.error("VAKYAM_API_KEY is not configured as a Cloudflare Worker secret.");
                 process.exit(1);
               }
