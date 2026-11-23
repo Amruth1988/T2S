@@ -1,6 +1,8 @@
 # Telugu voice model provenance and distribution gates
 
-Last reviewed: 2026-11-20
+Last reviewed: 2026-11-23
+
+The release workflow now pins the eligible Venkatesh and Padmavathi source files to `rhasspy/piper-voices@ff43c1e79f98a765202dcfb03710851f9ec4ff2e`. Each generated import pack records SHA-256 hashes for its model, model configuration, model card, attribution and CC BY 4.0 legal text in `SOURCE_MANIFEST.sha256`; the ZIP archive also receives a `.sha256` sidecar.
 
 This document separates model-code licensing from training-data/model-weight rights. A repository-level MIT badge does not override the licence stated by an individual voice's model card or the upstream dataset terms. This is a technical provenance review, not legal advice.
 
