@@ -12,5 +12,5 @@ FIREBASE_APP_ID = "1:112392588493:android:2e07940d87d03cf928ad84"
 [[d1_databases]]
 binding = "USAGE_DB"
 database_name = "t2s-usage"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "d97fae08-6b33-4d12-b7e7-1862c218c6ce"
 migrations_dir = "migrations"
