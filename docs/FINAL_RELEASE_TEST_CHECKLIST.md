@@ -15,7 +15,7 @@ This checklist distinguishes CI evidence from manual device verification. Do not
 - [x] ABI-specific release APK preparation passed for arm64-v8a and armeabi-v7a.
 - [x] Direct release assets were published for both ABIs.
 - [x] Point 2 generated-audio persistence changes are included in build #298.
-- [ ] Re-run the Android workflow after the latest source/checklist commits and confirm the new HEAD has a successful Debug + Release build.
+- [x] Android PR build #890 passed Debug + Release APK assembly on current PR HEAD `0a82bb0967c98fb125bb6d0b878fd813260dee2c` (GitHub Actions run [#45244322218](https://github.com/Amruth1988/T2S/actions/runs/45244322218)); Functions typecheck #15 and Cloudflare Worker build #9 also passed for this change set. PR builds intentionally skip signing and release publishing.
 - [x] Telugu voice-pack validation workflow #14 passed: pinned Venkatesh/Padmavathi source downloads, conversion, CI synthesis, attribution/licence packaging, SHA-256 source manifests and versioned release publication.
 - [ ] Run automated unit/instrumentation tests if/when test suites are added; the current Android workflow is an assemble-and-publish workflow, not a full device test suite.
 
@@ -110,4 +110,4 @@ The Android client initializes the debug provider only for debug builds (loaded 
 
 ## Current verification boundary
 
-Build #298 proves only that Gradle Debug/Release APK assembly and publishing succeeded for historical commit 05601858833d4229a1631fb1e9edbdf4edadbc69. It does not certify the current release branch or PR, and it does not prove real-device installation, playback, native-speaker quality, signature inspection on downloaded bytes, or completion of the remaining manual checklist. Confirm a successful Android build on the exact current release commit before sign-off.
+Historical build #298 proves Debug/Release assembly and publishing for commit 05601858833d4229a1631fb1e9edbdf4edadbc69. Current PR HEAD `0a82bb0967c98fb125bb6d0b878fd813260dee2c` also passed Debug + Release APK assembly in Android workflow #890, with Functions typecheck #15 and Worker build #9 green. Because this was a pull-request build, signing and release publishing steps were correctly skipped and no APK artifact was published. The current build proves compilation/packaging only; it does not prove real-device installation, playback, native-speaker quality, release signing, or completion of the remaining manual checklist.
