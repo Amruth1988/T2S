@@ -206,7 +206,23 @@ fun SpeechStudioScreen(
     var onlineCatalogueRefreshKey by remember { mutableStateOf(0) }
     val myVoices = remember { mutableStateListOf<SavedUserVoice>() }
     var selectedSavedVoice by remember { mutableStateOf<SavedUserVoice?>(null) }
-    var selectedSavedVoiceId by rememberSaveable { mutableStateOf<String?>(null) }
+    val signedInUidForVoiceSelection = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+    var selectedSavedVoiceId by remember(signedInUidForVoiceSelection) {
+        mutableStateOf(
+            signedInUidForVoiceSelection.takeIf { it.isNotBlank() }?.let { uid ->
+                context.getSharedPreferences("t2s_voice_selection", android.content.Context.MODE_PRIVATE)
+                    .getString("selected_saved_voice_id_$uid", null)
+            }
+        )
+    }
+    LaunchedEffect(signedInUidForVoiceSelection, selectedSavedVoiceId) {
+        if (signedInUidForVoiceSelection.isNotBlank()) {
+            context.getSharedPreferences("t2s_voice_selection", android.content.Context.MODE_PRIVATE)
+                .edit()
+                .putString("selected_saved_voice_id_$signedInUidForVoiceSelection", selectedSavedVoiceId)
+                .apply()
+        }
+    }
 
 
     val languages = listOf(
