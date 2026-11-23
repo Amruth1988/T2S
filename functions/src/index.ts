@@ -282,6 +282,10 @@ export const createCentralSarvamVoice = onCall({
   if (typeof mimeType !== "string" || !allowedMime.includes(mimeType)) {
     throw new HttpsError("invalid-argument", "Unsupported audio format.");
   }
+  // Voice registration is a billable Sarvam operation too: reserve both the
+  // provider-wide budget and the account daily call allowance before contacting Sarvam.
+  await reserveProviderUsage("sarvam", request.auth.uid, 0);
+  await reserveSarvamUsage(request.auth.uid, 0);
   const apiKey = await decryptProviderKey("sarvam");
   const form = new FormData();
   form.append("name", name.trim());
