@@ -24,6 +24,13 @@ object AccountDataCleanup {
                 .edit().clear().commit()
         ) { "Could not clear this account's local audio history." }
 
+        // Voice selection is stored in a shared preference file with UID-suffixed
+        // keys. Remove only the deleted account's selection, preserving other users.
+        check(
+            context.getSharedPreferences("t2s_voice_selection", Context.MODE_PRIVATE)
+                .edit().remove("selected_saved_voice_id_$uid").commit()
+        ) { "Could not clear this account's saved voice selection." }
+
         val musicRoot = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir
         listOf(
             File(musicRoot, "T2SStudio/accounts/$key"),
