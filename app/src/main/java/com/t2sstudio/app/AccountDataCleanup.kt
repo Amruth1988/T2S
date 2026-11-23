@@ -15,14 +15,26 @@ object AccountDataCleanup {
         require(uid.isNotBlank()) { "A Firebase UID is required for account cleanup." }
         val key = accountKey(uid)
 
-        context.getSharedPreferences("t2s_projects_$key", Context.MODE_PRIVATE)
-            .edit().clear().commit()
-        context.getSharedPreferences("t2s_audio_history_$key", Context.MODE_PRIVATE)
-            .edit().clear().commit()
+        check(
+            context.getSharedPreferences("t2s_projects_$key", Context.MODE_PRIVATE)
+                .edit().clear().commit()
+        ) { "Could not clear this account's local project index." }
+        check(
+            context.getSharedPreferences("t2s_audio_history_$key", Context.MODE_PRIVATE)
+                .edit().clear().commit()
+        ) { "Could not clear this account's local audio history." }
 
         val musicRoot = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir
-        File(musicRoot, "T2SStudio/accounts/$key").deleteRecursively()
-        File(context.filesDir, "accounts/$key/voices").deleteRecursively()
-        File(context.noBackupFilesDir, "accounts/$key/voices").deleteRecursively()
+        listOf(
+            File(musicRoot, "T2SStudio/accounts/$key"),
+            File(context.filesDir, "accounts/$key/voices"),
+            File(context.noBackupFilesDir, "accounts/$key/voices")
+        ).forEach { directory ->
+            if (directory.exists()) {
+                check(directory.deleteRecursively() && !directory.exists()) {
+                    "Could not completely remove account-owned files."
+                }
+            }
+        }
     }
 }
