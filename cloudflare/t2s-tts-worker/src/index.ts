@@ -37,14 +37,19 @@ function languageLocale(language: string): string {
   throw new Error("Supported languages are English, Telugu and Hindi.");
 }
 
-async function providerError(response: Response, provider: string): Promise<never> {
-  const body = await response.text();
-  let detail = "";
-  try {
-    const parsed = JSON.parse(body) as { message?: string; detail?: string; error?: { message?: string } };
-    detail = parsed.error?.message || parsed.message || parsed.detail || "";
-  } catch { /* provider did not return JSON */ }
-  throw new Error(detail || `${provider} request failed (HTTP ${response.status}).`);
+class ProviderRequestError extends Error {
+  constructor(readonly status: number) {
+    super("Generation temporarily unavailable. Please try again later.");
+    this.name = "ProviderRequestError";
+  }
+}
+
+async function providerError(response: Response, _provider: string): Promise<never> {
+  // Never forward provider billing, wallet, quota, or internal error details to users.
+  // A later generation request is the recovery check: once the provider accepts
+  // the request again after a top-up, generation resumes without key rotation.
+  await response.text(); // Drain the upstream body without exposing it.
+  throw new ProviderRequestError(response.status);
 }
 
 async function handle(request: Request, env: Env): Promise<Response> {
@@ -151,9 +156,13 @@ export default {
       for (const [key, value] of Object.entries(corsHeaders)) headers.set(key, value);
       return new Response(response.body, { status: response.status, headers });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unexpected TTS backend error.";
+      if (error instanceof ProviderRequestError) {
+        const status = error.status === 402 ? 402 : error.status === 429 ? 429 : 502;
+        return json({ error: "Generation temporarily unavailable. Please try again later." }, status);
+      }
+      const message = error instanceof Error ? error.message : "Generation temporarily unavailable. Please try again later.";
       const status = message.startsWith("Sign in") || message.startsWith("Invalid Firebase") ? 401 : 502;
-      return json({ error: message }, status);
+      return json({ error: status === 401 ? message : "Generation temporarily unavailable. Please try again later." }, status);
     }
   },
 };
