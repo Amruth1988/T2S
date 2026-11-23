@@ -216,7 +216,7 @@ private fun T2SApp() {
     var showTermsPage by remember { mutableStateOf(false) }
     var showContactPage by remember { mutableStateOf(false) }
     var returnToAccountOnBack by remember { mutableStateOf(false) }
-    val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+    var currentUid by remember { mutableStateOf(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid) }
     val audioRecords = remember(currentUid) {
         mutableStateListOf<AudioRecord>().apply { addAll(AudioHistoryStore.load(context, currentUid)) }
     }
@@ -227,6 +227,7 @@ private fun T2SApp() {
     androidx.compose.runtime.DisposableEffect(Unit) {
         val firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
         val listener = com.google.firebase.auth.FirebaseAuth.AuthStateListener { auth ->
+            currentUid = auth.currentUser?.uid
             if (auth.currentUser != null) {
                 showLoginPage = false
                 showAccountPage = false
@@ -389,7 +390,8 @@ private fun T2SApp() {
         },
         bottomBar = {
             NavigationBar(containerColor = Color.White, tonalElevation = 0.dp) {
-                destinations.forEachIndexed { index, destination ->
+                val visibleDestinations = if (currentUid.isNullOrBlank()) listOf(destinations.first()) else destinations
+                visibleDestinations.forEachIndexed { index, destination ->
                     NavigationBarItem(
                         selected = selectedDestination == index,
                         onClick = {
