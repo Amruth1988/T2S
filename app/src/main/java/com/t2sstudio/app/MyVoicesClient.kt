@@ -10,19 +10,23 @@ import java.util.UUID
 data class SavedUserVoice(val id: String, val name: String, val localSamplePath: String? = null, val language: String = "en", val gender: String = "Unknown", val sarvamVoiceId: String = "", val firebaseSynced: Boolean = false)
 
 object MyVoicesClient {
-    private fun accountVoiceDirectory(context: Context, uid: String): File {
+    private fun accountKey(uid: String): String {
         require(uid.isNotBlank()) { "Sign in before accessing saved voice profiles." }
-        val accountKey = java.security.MessageDigest.getInstance("SHA-256")
+        return java.security.MessageDigest.getInstance("SHA-256")
             .digest(uid.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
-        return File(context.filesDir, "accounts/$accountKey/voices").apply { mkdirs() }
     }
+
+    private fun accountVoiceDirectory(context: Context, uid: String) =
+        File(context.filesDir, "accounts/${accountKey(uid)}/voices").apply { mkdirs() }
 
     private fun localProfilesFile(context: Context, uid: String) =
         File(accountVoiceDirectory(context, uid), "voice_profiles.json")
 
+    // Personal recordings live in noBackupFilesDir so Android cloud/device backup
+    // never copies voice samples to another device or account.
     private fun sampleDirectory(context: Context, uid: String) =
-        File(accountVoiceDirectory(context, uid), "samples").apply { mkdirs() }
+        File(context.noBackupFilesDir, "accounts/${accountKey(uid)}/voices/samples").apply { mkdirs() }
     
     private const val BACKUP_VERSION = 1
     private const val MAX_BACKUP_BYTES = 100L * 1024L * 1024L
