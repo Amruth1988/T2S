@@ -79,7 +79,7 @@ fun ScriptDraftsScreen(
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text("My drafts", color = T2SText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Text("\${drafts.size} saved \${if (drafts.size == 1) "draft" else "drafts"}", color = T2SSecondaryText, fontSize = 12.sp)
+                    Text("${drafts.size} saved ${if (drafts.size == 1) "draft" else "drafts"}", color = T2SSecondaryText, fontSize = 12.sp)
                 }
             }
             Box(
