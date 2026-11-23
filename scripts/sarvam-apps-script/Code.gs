@@ -22,24 +22,35 @@ function auth_(token) {
   return {uid:a[0].localId};
 }
 function key_(){const k=PropertiesService.getScriptProperties().getProperty("SARVAM_API_KEY");if(!k||k.length<8)throw new Error("Gateway setup incomplete: Sarvam key missing.");return k;}
-function quota_(uid,kind,n){
+// Reserve allowance atomically before contacting Sarvam so concurrent requests
+// cannot all pass a check against the same remaining allowance.
+function quotaReserve_(uid,kind,n){
  const l=LockService.getScriptLock();l.waitLock(15000);
  try{
-  const d=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),k="quota:v2:"+d+":"+uid,c=JSON.parse(p.getProperty(k)||"{}");
-  p.getKeys().filter(x=>x.indexOf("quota:")===0 && x.indexOf(":"+d+":")<0).forEach(x=>p.deleteProperty(x));
-  if(kind==="generate"){if((c.calls||0)>=10||(c.chars||0)+n>10000)throw new Error("Generation temporarily unavailable. Please try again later.");}
-  else if((c.creates||0)>=3)throw new Error("Generation temporarily unavailable. Please try again later.");
+  const day=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),key="quota:v3:"+day+":"+uid,c=JSON.parse(p.getProperty(key)||"{}");
+  if(kind==="generate"){
+   if((c.calls||0)+(c.reservedCalls||0)>=10||(c.chars||0)+(c.reservedChars||0)+n>10000)throw new Error("Generation temporarily unavailable. Please try again later.");
+   c.reservedCalls=(c.reservedCalls||0)+1;c.reservedChars=(c.reservedChars||0)+n;
+  }else{
+   if((c.creates||0)+(c.reservedCreates||0)>=3)throw new Error("Generation temporarily unavailable. Please try again later.");
+   c.reservedCreates=(c.reservedCreates||0)+1;
+  }
+  p.setProperty(key,JSON.stringify(c));return {key:key,kind:kind,chars:n};
  }finally{l.releaseLock();}
 }
-// Count only successful provider operations. Failed validation/network/provider attempts
-// must not consume a user's daily allowance.
-function quotaCommit_(uid,kind,n){
+function quotaFinish_(reservation,success){
  const l=LockService.getScriptLock();l.waitLock(15000);
  try{
-  const d=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),k="quota:v2:"+d+":"+uid,c=JSON.parse(p.getProperty(k)||"{}");
-  if(kind==="generate"){c.calls=(c.calls||0)+1;c.chars=(c.chars||0)+n;}
-  else c.creates=(c.creates||0)+1;
-  p.setProperty(k,JSON.stringify(c));
+  const p=PropertiesService.getScriptProperties(),c=JSON.parse(p.getProperty(reservation.key)||"{}");
+  if(reservation.kind==="generate"){
+   c.reservedCalls=Math.max(0,(c.reservedCalls||0)-1);
+   c.reservedChars=Math.max(0,(c.reservedChars||0)-reservation.chars);
+   if(success){c.calls=(c.calls||0)+1;c.chars=(c.chars||0)+reservation.chars;}
+  }else{
+   c.reservedCreates=Math.max(0,(c.reservedCreates||0)-1);
+   if(success)c.creates=(c.creates||0)+1;
+  }
+  p.setProperty(reservation.key,JSON.stringify(c));
  }finally{l.releaseLock();}
 }
 // Owner-only recovery helper: run manually in Apps Script editor with the user's Firebase UID.
@@ -64,35 +75,37 @@ function create_(uid,b){
  if(gender && !["male","female","other","unknown"].includes(gender))throw new Error("Invalid gender value.");
  if(!["audio/wav","audio/mpeg","audio/flac","audio/aac","audio/opus","audio/mulaw","audio/alaw","audio/linear16"].includes(mime)||enc.length>8*1024*1024)throw new Error("Unsupported or oversized audio sample. Convert the recording to WAV, MP3, FLAC or AAC.");
  const bytes=Utilities.base64Decode(enc);if(bytes.length<1024||bytes.length>MAX_SAMPLE_BYTES)throw new Error("Sample must be 1 KB–6 MB.");
- quota_(uid,"create",0);
- const ext={"audio/wav":"wav","audio/mpeg":"mp3","audio/flac":"flac","audio/aac":"aac","audio/opus":"opus","audio/mulaw":"mulaw","audio/alaw":"alaw","audio/linear16":"pcm"};
- const form={name:name,language:lang,remove_background_noise:"true",file:Utilities.newBlob(bytes,mime,"sample."+ext[mime])};
- // Sarvam marks gender optional. Omit it entirely to avoid provider-side enum
- // validation rejecting an otherwise valid recording; the voice is created from audio.
- // Do not infer or force a gender value at the provider boundary.
- const r=UrlFetchApp.fetch(SARVAM_BASE+"/voices/create",{method:"post",headers:{"api-subscription-key":key_(),Accept:"application/json"},payload:form,muteHttpExceptions:true});
- const c=r.getResponseCode();if(c<200||c>=300)throw new Error("Generation temporarily unavailable. Please try again later.");
- const d=JSON.parse(r.getContentText()),id=d.data&&d.data.voice_id;
- if(typeof id!=="string"||!/^svc-[A-Za-z0-9_-]{3,100}$/.test(id))throw new Error("Sarvam returned an invalid voice ID.");
- quotaCommit_(uid,"create",0);
- return {voiceId:id};
+ const reservation=quotaReserve_(uid,"create",0);
+ try{
+  const ext={"audio/wav":"wav","audio/mpeg":"mp3","audio/flac":"flac","audio/aac":"aac","audio/opus":"opus","audio/mulaw":"mulaw","audio/alaw":"alaw","audio/linear16":"pcm"};
+  const form={name:name,language:lang,remove_background_noise:"true",file:Utilities.newBlob(bytes,mime,"sample."+ext[mime])};
+  // Sarvam marks gender optional; omit it rather than infer or force a value.
+  const r=UrlFetchApp.fetch(SARVAM_BASE+"/voices/create",{method:"post",headers:{"api-subscription-key":key_(),Accept:"application/json"},payload:form,muteHttpExceptions:true});
+  const code=r.getResponseCode();if(code<200||code>=300)throw new Error("Generation temporarily unavailable. Please try again later.");
+  const d=JSON.parse(r.getContentText()),id=d.data&&d.data.voice_id;
+  if(typeof id!=="string"||!/^svc-[A-Za-z0-9_-]{3,100}$/.test(id))throw new Error("Sarvam returned an invalid voice ID.");
+  quotaFinish_(reservation,true);
+  return {voiceId:id};
+ }catch(error){quotaFinish_(reservation,false);throw error;}
 }
 function generate_(uid,b){
  const id=String(b.voiceId||""),text=String(b.text||""),lang=String(b.language||"");
  if(!/^svc-[A-Za-z0-9_-]{3,100}$/.test(id))throw new Error("Invalid saved voice ID.");
  if(!text.trim()||text.length>1000)throw new Error("Text must contain 1–1,000 characters.");
  if(!["te-IN","en-IN"].includes(lang))throw new Error("Choose Telugu or English.");
- quota_(uid,"generate",text.length);
- const boundary="----T2STUDIO"+Utilities.getUuid().replace(/-/g,"");
- const fields={voice_id:id,text:text,language_code:lang};
- let parts="";
- Object.keys(fields).forEach(k=>{parts+="--"+boundary+"\r\nContent-Disposition: form-data; name=\""+k+"\"\r\n\r\n"+fields[k]+"\r\n";});
- parts+="--"+boundary+"--\r\n";
- const r=UrlFetchApp.fetch(SARVAM_BASE+"/voices/clone",{method:"post",contentType:"multipart/form-data; boundary="+boundary,headers:{"api-subscription-key":key_(),Accept:"application/json"},payload:parts,muteHttpExceptions:true});
- const code=r.getResponseCode();if(code<200||code>=300)throw new Error("Generation temporarily unavailable. Please try again later.");
- const d=JSON.parse(r.getContentText()),audio=d.audio_b64||d.audio;
- if(typeof audio!=="string"||audio.length<100||audio.length>20000000)throw new Error("Sarvam returned missing or oversized audio.");
- quotaCommit_(uid,"generate",text.length);
- return {audioBase64:audio,contentType:"audio/wav"};
+ const reservation=quotaReserve_(uid,"generate",text.length);
+ try{
+  const boundary="----T2STUDIO"+Utilities.getUuid().replace(/-/g,"");
+  const fields={voice_id:id,text:text,language_code:lang};
+  let parts="";
+  Object.keys(fields).forEach(k=>{parts+="--"+boundary+"\\r\\nContent-Disposition: form-data; name=\\""+k+"\\"\\r\\n\\r\\n"+fields[k]+"\\r\\n";});
+  parts+="--"+boundary+"--\\r\\n";
+  const r=UrlFetchApp.fetch(SARVAM_BASE+"/voices/clone",{method:"post",contentType:"multipart/form-data; boundary="+boundary,headers:{"api-subscription-key":key_(),Accept:"application/json"},payload:parts,muteHttpExceptions:true});
+  const code=r.getResponseCode();if(code<200||code>=300)throw new Error("Generation temporarily unavailable. Please try again later.");
+  const d=JSON.parse(r.getContentText()),audio=d.audio_b64||d.audio;
+  if(typeof audio!=="string"||audio.length<100||audio.length>20000000)throw new Error("Sarvam returned missing or oversized audio.");
+  quotaFinish_(reservation,true);
+  return {audioBase64:audio,contentType:"audio/wav"};
+ }catch(error){quotaFinish_(reservation,false);throw error;}
 }
 function out_(v){return ContentService.createTextOutput(JSON.stringify(v)).setMimeType(ContentService.MimeType.JSON);}
