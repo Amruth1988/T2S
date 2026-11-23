@@ -39,32 +39,35 @@ function auth_(token) {
 function key_(){const k=PropertiesService.getScriptProperties().getProperty("SARVAM_API_KEY");if(!k||k.length<8)throw new Error("Gateway setup incomplete: Sarvam key missing.");return k;}
 // Reserve allowance atomically before contacting Sarvam so concurrent requests
 // cannot all pass a check against the same remaining allowance.
+// Reservations are timestamped so an Apps Script timeout cannot strand allowance
+// for the rest of the day. All reservation mutations are protected by one script lock.
 function quotaReserve_(uid,kind,n){
  const l=LockService.getScriptLock();l.waitLock(15000);
  try{
   const day=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),key="quota:v3:"+day+":"+uid,c=JSON.parse(p.getProperty(key)||"{}");
+  const now=Date.now(),pending=(c.pending||[]).filter(x=>x&&now-Number(x.at||0)<10*60*1000);
+  const reservedCalls=pending.filter(x=>x.kind==="generate").length;
+  const reservedChars=pending.filter(x=>x.kind==="generate").reduce((sum,x)=>sum+Number(x.chars||0),0);
+  const reservedCreates=pending.filter(x=>x.kind==="create").length;
   if(kind==="generate"){
-   if((c.calls||0)+(c.reservedCalls||0)>=10||(c.chars||0)+(c.reservedChars||0)+n>10000)throw new Error("Generation temporarily unavailable. Please try again later.");
-   c.reservedCalls=(c.reservedCalls||0)+1;c.reservedChars=(c.reservedChars||0)+n;
-  }else{
-   if((c.creates||0)+(c.reservedCreates||0)>=3)throw new Error("Generation temporarily unavailable. Please try again later.");
-   c.reservedCreates=(c.reservedCreates||0)+1;
-  }
-  p.setProperty(key,JSON.stringify(c));return {key:key,kind:kind,chars:n};
+   if((c.calls||0)+reservedCalls>=10||(c.chars||0)+reservedChars+n>10000)throw new Error("Generation temporarily unavailable. Please try again later.");
+  }else if((c.creates||0)+reservedCreates>=3)throw new Error("Generation temporarily unavailable. Please try again later.");
+  const id=Utilities.getUuid();
+  pending.push({id:id,at:now,kind:kind,chars:n});
+  c.pending=pending;p.setProperty(key,JSON.stringify(c));
+  return {key:key,id:id,kind:kind,chars:n};
  }finally{l.releaseLock();}
 }
 function quotaFinish_(reservation,success){
  const l=LockService.getScriptLock();l.waitLock(15000);
  try{
   const p=PropertiesService.getScriptProperties(),c=JSON.parse(p.getProperty(reservation.key)||"{}");
-  if(reservation.kind==="generate"){
-   c.reservedCalls=Math.max(0,(c.reservedCalls||0)-1);
-   c.reservedChars=Math.max(0,(c.reservedChars||0)-reservation.chars);
-   if(success){c.calls=(c.calls||0)+1;c.chars=(c.chars||0)+reservation.chars;}
-  }else{
-   c.reservedCreates=Math.max(0,(c.reservedCreates||0)-1);
-   if(success)c.creates=(c.creates||0)+1;
-  }
+  const pending=c.pending||[],index=pending.findIndex(x=>x.id===reservation.id);
+  if(index<0)return;
+  pending.splice(index,1);c.pending=pending;
+  if(success&&reservation.kind==="generate"){
+   c.calls=(c.calls||0)+1;c.chars=(c.chars||0)+reservation.chars;
+  }else if(success)c.creates=(c.creates||0)+1;
   p.setProperty(reservation.key,JSON.stringify(c));
  }finally{l.releaseLock();}
 }
