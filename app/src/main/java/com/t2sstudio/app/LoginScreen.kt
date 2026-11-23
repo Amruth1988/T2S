@@ -78,8 +78,8 @@ fun LoginScreen(onBack: () -> Unit, onSignedIn: () -> Unit) {
     androidx.compose.runtime.LaunchedEffect(user?.uid) {
         val uid = user?.uid ?: return@LaunchedEffect
         val syncRepository = com.t2sstudio.app.data.firebase.T2SFirestoreRepository()
-        val projectsToSync = ProjectStore.load(context)
-        val recordingsToSync = AudioHistoryStore.load(context)
+        val projectsToSync = ProjectStore.load(context, uid)
+        val recordingsToSync = AudioHistoryStore.load(context, uid)
         val total = projectsToSync.size + recordingsToSync.size
         if (total == 0) {
             syncStatus = "Account connected. No local project or script metadata to sync yet."
