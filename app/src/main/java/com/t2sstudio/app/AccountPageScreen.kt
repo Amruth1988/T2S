@@ -209,7 +209,7 @@ fun AccountPageScreen(
                     Text(
                         "This permanently deletes your Firebase account and its cloud projects, scripts, voice profiles and settings. " +
                             "T2S will also remove this account's local projects, audio history, generated audio and saved voice samples from this device. " +
-                            "Files you previously copied to the public Downloads folder are not deleted. " +
+                            "Files copied to public Downloads or shared outside the app are not deleted. Voice models or recordings retained by Sarvam or another provider must be deleted with that provider. " +
                             "For security, your last sign-in must be within the past 5 minutes."
                     )
                 },
