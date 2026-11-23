@@ -68,6 +68,7 @@ import kotlin.coroutines.resumeWithException
 @Composable
 fun MyVoicesScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
+    val accountUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
     val scope = rememberCoroutineScope()
     var voiceName by remember { mutableStateOf("") }
     var selectedAddTab by remember { mutableStateOf("Add Voice") }
@@ -132,7 +133,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                 // Firebase stores cloud metadata, while the original audio remains local.
                 // Merge by profile ID so refreshing cloud metadata never discards the
                 // local recording path needed to replay the user's actual sample.
-                val localProfiles = MyVoicesClient.list(context)
+                val localProfiles = MyVoicesClient.list(context, uid)
                 val localById = localProfiles.associateBy { it.id }
                 val mergedCloud = saved.map { cloud ->
                     val local = localById[cloud.id]
@@ -416,15 +417,15 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                             scope.launch {
                                 runCatching {
                                     withContext(Dispatchers.IO) {
-                                        val saved = MyVoicesClient.createLocal(context, voiceName, uri, cloneLanguage, voiceGender)
+                                        val saved = MyVoicesClient.createLocal(context, accountUid, voiceName, uri, cloneLanguage, voiceGender)
                                         if (selectedAddTab == "Add AI Voice") {
-                                            val signedInUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                            val signedInUid = accountUid.takeIf { it.isNotBlank() }
                                                 ?: error("Sign in to T2S before creating an AI voice.")
                                             val sample = saved.localSamplePath?.let(::File)
                                                 ?: error("Saved recording could not be read.")
                                             val sarvamId = SarvamVoiceCloneClient.createCentralVoice(sample, saved.name, saved.language, saved.gender)
                                             require(sarvamId.startsWith("svc-")) { "Sarvam did not return a valid voice ID." }
-                                            MyVoicesClient.attachSarvamVoiceId(context, saved.id, sarvamId)
+                                            MyVoicesClient.attachSarvamVoiceId(context, accountUid, saved.id, sarvamId)
                                             suspendCancellableCoroutine<Unit> { continuation ->
                                                 com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveVoiceMetadata(
                                                     uid = signedInUid, voiceId = saved.id, name = saved.name,
@@ -436,8 +437,8 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                                     )
                                                 }
                                             }
-                                            MyVoicesClient.markFirebaseSynced(context, saved.id)
-                                            MyVoicesClient.list(context).first { it.id == saved.id }
+                                            MyVoicesClient.markFirebaseSynced(context, accountUid, saved.id)
+                                            MyVoicesClient.list(context, accountUid).first { it.id == saved.id }
                                         } else saved
                                     }
                                 }.onSuccess { saved ->
@@ -566,8 +567,8 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                                 val sarvamId = SarvamVoiceCloneClient.createCentralVoice(
                                                     sample, voice.name, voice.language, voice.gender
                                                 )
-                                                MyVoicesClient.attachSarvamVoiceId(context, voice.id, sarvamId)
-                                                val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                                MyVoicesClient.attachSarvamVoiceId(context, accountUid, voice.id, sarvamId)
+                                                val uid = accountUid.takeIf { it.isNotBlank() }
                                                     ?: error("Sign in to T2S before syncing voice metadata.")
                                                 suspendCancellableCoroutine<Unit> { continuation ->
                                                     com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveVoiceMetadata(
@@ -584,8 +585,8 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                                         )
                                                     }
                                                 }
-                                                MyVoicesClient.markFirebaseSynced(context, voice.id)
-                                                MyVoicesClient.list(context).first { it.id == voice.id }
+                                                MyVoicesClient.markFirebaseSynced(context, accountUid, voice.id)
+                                                MyVoicesClient.list(context, accountUid).first { it.id == voice.id }
                                             }
                                         }
                                         result.onSuccess { registered ->
@@ -609,7 +610,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                 busy = true
                                 scope.launch {
                                     val result = runCatching {
-                                        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                        val uid = accountUid.takeIf { it.isNotBlank() }
                                             ?: error("Sign in to T2S before syncing voice metadata.")
                                         suspendCancellableCoroutine<Unit> { continuation ->
                                             com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveVoiceMetadata(
@@ -626,7 +627,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                                 )
                                             }
                                         }
-                                        MyVoicesClient.markFirebaseSynced(context, voice.id)
+                                        MyVoicesClient.markFirebaseSynced(context, accountUid, voice.id)
                                     }
                                     result.onSuccess { loadVoices() }
                                     message = result.fold(
@@ -720,7 +721,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                 previewPlayer = null
                                 previewingSavedVoiceId = null
                             }
-                            runCatching { MyVoicesClient.deleteLocal(context, voice.id); loadVoices(); message = "Voice profile deleted from this device." }
+                            runCatching { MyVoicesClient.deleteLocal(context, accountUid, voice.id); loadVoices(); message = "Voice profile deleted from this device." }
                                 .onFailure { message = "Could not delete the voice profile. Please try again." }
                         }) { Text("Delete") }
                     }
