@@ -2,8 +2,9 @@
 
 Release branch: main  
 Application ID: com.t2sstudio.app  
-Release build reference before this checklist commit: [Android build #298](https://github.com/Amruth1988/T2S/actions/runs/44680894416)  
-Build commit: 05601858833d4229a1631fb1e9edbdf4edadbc69
+Historical release-build reference: [Android build #298](https://github.com/Amruth1988/T2S/actions/runs/44680894416)  
+Historical build commit: 05601858833d4229a1631fb1e9edbdf4edadbc69  
+The build #298 results below are historical evidence only and do not certify the current release branch or PR.
 
 This checklist distinguishes CI evidence from manual device verification. Do not mark a manual item passed based only on a successful Gradle build.
 
@@ -90,6 +91,7 @@ The current guest offline path uses Android's installed system TTS voices. The P
 ## Per-account provider generation quotas
 
 - [ ] Verify each authenticated account is capped at 10,000 characters/day, 100,000 characters/month and 30 requests/day for each central India TTS, Vakyam TTS and Sarvam clone generation route.
+- [ ] Verify Sarvam voice registration also reserves the shared provider request budget and the account's 10-call daily Sarvam allowance before the upstream request.
 - [ ] Verify provider-wide daily/monthly character and request limits still apply across all users.
 - [ ] Run concurrent requests at the quota boundary and confirm Firestore transactions prevent over-reservation.
 - [ ] Confirm quota reservations happen before provider calls and are not refunded on provider errors/timeouts (conservative cost protection).
@@ -108,4 +110,4 @@ The Android client initializes the debug provider only for debug builds (loaded 
 
 ## Current verification boundary
 
-Build #298 proves the Gradle Debug/Release APK assembly and publishing steps succeeded for commit 05601858833d4229a1631fb1e9edbdf4edadbc69. It does not prove real-device installation, playback, native-speaker quality, signature inspection on the downloaded bytes, or completion of the remaining manual checklist. The next build must be run after the changes in this checklist are committed.
+Build #298 proves only that Gradle Debug/Release APK assembly and publishing succeeded for historical commit 05601858833d4229a1631fb1e9edbdf4edadbc69. It does not certify the current release branch or PR, and it does not prove real-device installation, playback, native-speaker quality, signature inspection on downloaded bytes, or completion of the remaining manual checklist. Confirm a successful Android build on the exact current release commit before sign-off.
