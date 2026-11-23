@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -29,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,16 +77,52 @@ fun UserProfileScreen(onBack: () -> Unit) {
         modifier = Modifier.fillMaxSize().background(T2SBackground).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth().padding(top = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = T2SText) }
-            Text("My Profile", color = T2SText, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = T2SText)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("My Profile", color = T2SText, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                Text("Personal account", color = T2SSecondaryText, fontSize = 12.sp)
+            }
         }
-        Text("Keep your personal details up to date.", color = T2SSecondaryText, fontSize = 14.sp)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = T2SOrange.copy(alpha = 0.10f),
+            shape = RoundedCornerShape(22.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Surface(
+                    color = androidx.compose.ui.graphics.Color.White,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Person,
+                        contentDescription = null,
+                        tint = T2SOrange,
+                        modifier = Modifier.padding(14.dp).size(30.dp)
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Your personal details", color = T2SText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Manage your name and contact information.", color = T2SSecondaryText, fontSize = 13.sp, lineHeight = 18.sp)
+                }
+            }
+        }
         if (loading) {
             CircularProgressIndicator(color = T2SOrange, modifier = Modifier.align(Alignment.CenterHorizontally))
         } else {
             Surface(modifier = Modifier.fillMaxWidth(), color = androidx.compose.ui.graphics.Color.White, shape = RoundedCornerShape(22.dp)) {
                 Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text("Personal information", color = T2SText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Fields marked with * are required.", color = T2SSecondaryText, fontSize = 12.sp)
                     OutlinedTextField(value = firstName, onValueChange = { firstName = it; saved = false }, label = { Text("First name *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = lastName, onValueChange = { lastName = it; saved = false }, label = { Text("Last name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = mobile, onValueChange = { mobile = it.filter { ch -> ch.isDigit() || ch == '+' || ch == ' ' || ch == '-' }; saved = false }, label = { Text("Mobile number *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
