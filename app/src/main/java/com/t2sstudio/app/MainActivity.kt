@@ -285,14 +285,15 @@ private fun T2SApp() {
 
     LaunchedEffect(currentUid, selectedDestination) {
         scriptDrafts.clear()
-        if (currentUid != null && selectedDestination == 4) {
-            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().loadDrafts(currentUid) { result ->
+        val uid = currentUid
+        if (uid != null && selectedDestination == 4) {
+            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().loadDrafts(uid) { result ->
                 result.onSuccess { cloudDrafts ->
                     scriptDrafts.clear()
                     scriptDrafts.addAll(cloudDrafts)
                 }
             }
-        } else if (currentUid == null) {
+        } else if (uid == null) {
             scriptDrafts.clear()
         }
     }
