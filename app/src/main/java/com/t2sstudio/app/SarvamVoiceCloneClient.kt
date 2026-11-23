@@ -63,22 +63,8 @@ object SarvamVoiceCloneClient {
                     ?.bufferedReader()?.use { it.readText() }.orEmpty()
                 val result = runCatching { JSONObject(body) }.getOrNull()
                 if (status !in 200..299) {
-                    // Preserve the provider/gateway validation response. A bare HTTP code
-                    // hides actionable 4xx details (for example invalid gender, locale,
-                    // audio MIME type, or a missing multipart field).
-                    val detail = result?.let { json ->
-                        sequenceOf("error", "message", "detail", "details", "messageText")
-                            .map { key -> json.optString(key).takeIf { it.isNotBlank() && it != "null" } }
-                            .firstOrNull { it != null }
-                    } ?: body.trim().take(1200).takeIf { it.isNotBlank() }
-                    val normalizedDetail = detail.orEmpty().lowercase()
-                    val creditOrLimitFailure = status == 402 || status == 403 || status == 429 ||
-                        listOf("credit", "quota", "limit", "balance", "insufficient", "payment", "billing", "subscription").any(normalizedDetail::contains)
-                    if (creditOrLimitFailure) {
-                        error("Generation temporarily unavailable. Please try again later.")
-                    }
-                    val suffix = detail?.let { ": $it" }.orEmpty()
-                    error("T2S gateway request failed (HTTP $status)$suffix")
+                    // Never surface proxy, gateway, or provider response bodies to users.
+                    error("Voice service temporarily unavailable. Please try again later.")
                 }
                 val parsed = result ?: error("T2S gateway returned an invalid response (HTTP $status).")
                 if (parsed.has("error")) {
