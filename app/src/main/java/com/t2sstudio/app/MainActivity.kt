@@ -80,49 +80,50 @@ import java.io.File
 private object T2SSplashMusic {
     private const val SAMPLE_RATE = 22_050
     private const val LOOP_SECONDS = 8
-    private var track: AudioTrack? = null
+    @Volatile private var track: AudioTrack? = null
+    @Volatile private var streaming = false
+    private var writer: Thread? = null
 
     @Synchronized
     fun start() {
-        if (track?.playState == AudioTrack.PLAYSTATE_PLAYING) return
+        if (track?.playState == AudioTrack.PLAYSTATE_PLAYING && streaming) return
         stop()
 
         var audio: AudioTrack? = null
         try {
-            val totalSamples = SAMPLE_RATE * LOOP_SECONDS
-            val pcm = ShortArray(totalSamples)
-            // Original locally synthesized flute-like melody with warm sustained harmony.
-            val melody = listOf(523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 783.99, 659.25)
-            val chordRoots = listOf(130.81, 164.81, 196.00, 146.83)
-            for (i in 0 until totalSamples) {
+            // Stream short PCM chunks instead of relying on static-buffer loop points,
+            // which can fail on some Android audio HAL/device combinations.
+            val samplesPerChunk = SAMPLE_RATE
+            val pcm = ShortArray(samplesPerChunk)
+            val melody = doubleArrayOf(523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 783.99, 659.25)
+            val chordRoots = doubleArrayOf(130.81, 164.81, 196.00, 146.83)
+            for (i in pcm.indices) {
                 val time = i.toDouble() / SAMPLE_RATE
-                val beat = (time / 1.0).toInt()
+                val beat = time.toInt()
                 val note = melody[beat % melody.size]
                 val within = time % 1.0
-                val attack = (within / 0.12).coerceIn(0.0, 1.0)
-                val release = ((1.0 - within) / 0.22).coerceIn(0.0, 1.0)
-                val envelope = attack * release
-                val flute = sin(2.0 * PI * note * time) * 0.58 +
-                    sin(2.0 * PI * note * 2.0 * time) * 0.12 +
-                    sin(2.0 * PI * note * 3.0 * time) * 0.035
+                val envelope = (within / 0.10).coerceIn(0.0, 1.0) *
+                    ((1.0 - within) / 0.18).coerceIn(0.0, 1.0)
+                val flute = sin(2.0 * PI * note * time) * 0.62 +
+                    sin(2.0 * PI * note * 2.0 * time) * 0.14
                 val root = chordRoots[(beat / 2) % chordRoots.size]
-                val chord = sin(2.0 * PI * root * time) * 0.16 +
-                    sin(2.0 * PI * root * 1.5 * time) * 0.07 +
-                    sin(2.0 * PI * root * 2.0 * time) * 0.04
-                val fade = minOf(
-                    (time / 0.8).coerceIn(0.0, 1.0),
-                    ((LOOP_SECONDS - time) / 0.8).coerceIn(0.0, 1.0)
-                )
-                // Raise the signal level; the player volume is also set independently below.
-                val sample = (flute * envelope * 0.28 + chord * 0.22) * fade
-                pcm[i] = (sample * Short.MAX_VALUE)
-                    .toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+                val chord = sin(2.0 * PI * root * time) * 0.18 +
+                    sin(2.0 * PI * root * 1.5 * time) * 0.07
+                val sample = (flute * envelope * 0.42 + chord * 0.30)
+                pcm[i] = (sample * Short.MAX_VALUE).toInt()
+                    .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
             }
+
+            val minBuffer = AudioTrack.getMinBufferSize(
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+            check(minBuffer > 0) { "Invalid minimum AudioTrack buffer size: $minBuffer" }
 
             audio = AudioTrack.Builder()
                 .setAudioAttributes(
                     AudioAttributes.Builder()
-                        // Use the media stream so normal media volume controls this music.
                         .setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                         .build()
@@ -134,28 +135,33 @@ private object T2SSplashMusic {
                         .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                         .build()
                 )
-                .setBufferSizeInBytes(pcm.size * 2)
-                .setTransferMode(AudioTrack.MODE_STATIC)
+                .setBufferSizeInBytes(maxOf(minBuffer * 4, samplesPerChunk * 2))
+                .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
 
-            check(audio.state == AudioTrack.STATE_INITIALIZED) {
-                "Splash AudioTrack could not initialize"
-            }
-            val written = audio.write(pcm, 0, pcm.size, AudioTrack.WRITE_BLOCKING)
-            check(written == pcm.size) {
-                "Splash audio buffer write incomplete: " + written + "/" + pcm.size
-            }
-            check(audio.setLoopPoints(0, pcm.size, -1) == AudioTrack.SUCCESS) {
-                "Splash audio loop could not be configured"
-            }
-            audio.setVolume(0.65f)
+            check(audio.state == AudioTrack.STATE_INITIALIZED) { "Splash AudioTrack could not initialize" }
+            audio.setVolume(1.0f)
             track = audio
+            streaming = true
             audio.play()
-            check(audio.playState == AudioTrack.PLAYSTATE_PLAYING) {
-                "Splash AudioTrack did not enter playing state"
-            }
+
+            val activeTrack = audio
+            writer = Thread({
+                try {
+                    while (streaming && track === activeTrack) {
+                        val written = activeTrack.write(pcm, 0, pcm.size, AudioTrack.WRITE_BLOCKING)
+                        if (written < 0) {
+                            android.util.Log.e("T2SSplashMusic", "AudioTrack write failed: $written")
+                            break
+                        }
+                    }
+                } catch (error: Exception) {
+                    if (streaming) android.util.Log.e("T2SSplashMusic", "Splash music stream stopped unexpectedly", error)
+                }
+            }, "T2S-Splash-Audio").apply { isDaemon = true; start() }
         } catch (error: Exception) {
             android.util.Log.e("T2SSplashMusic", "Unable to start splash music", error)
+            streaming = false
             track = null
             try { audio?.release() } catch (_: Exception) { }
         }
@@ -163,13 +169,13 @@ private object T2SSplashMusic {
 
     @Synchronized
     fun stop() {
-        track?.let { audio ->
-            try {
-                if (audio.playState == AudioTrack.PLAYSTATE_PLAYING) audio.pause()
-            } catch (_: IllegalStateException) { }
-            try { audio.release() } catch (_: IllegalStateException) { }
-        }
+        streaming = false
+        val audio = track
         track = null
+        try { audio?.pause() } catch (_: Exception) { }
+        try { audio?.flush() } catch (_: Exception) { }
+        try { audio?.release() } catch (_: Exception) { }
+        writer = null
     }
 }
 
