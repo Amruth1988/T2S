@@ -72,6 +72,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -205,6 +206,7 @@ fun SpeechStudioScreen(
     var onlineCatalogueRefreshKey by remember { mutableStateOf(0) }
     val myVoices = remember { mutableStateListOf<SavedUserVoice>() }
     var selectedSavedVoice by remember { mutableStateOf<SavedUserVoice?>(null) }
+    var selectedSavedVoiceId by rememberSaveable { mutableStateOf<String?>(null) }
 
 
     val languages = listOf(
@@ -332,12 +334,16 @@ fun SpeechStudioScreen(
                     merged.addAll(localSaved.filterNot { it.id in cloudIds })
                     myVoices.clear()
                     myVoices.addAll(merged.distinctBy { it.id })
+                    selectedSavedVoice = selectedSavedVoiceId?.let { savedId -> myVoices.firstOrNull { it.id == savedId } }
+                    if (selectedSavedVoiceId != null && selectedSavedVoice == null) selectedSavedVoiceId = null
                     if (merged.isEmpty()) statusMessage = "No saved voices found on this device or in Firebase."
                 }.onFailure { error ->
                     // Even if Firebase is offline, local voice recordings remain playable.
                     val localSaved = MyVoicesClient.list(context)
                     myVoices.clear()
                     myVoices.addAll(localSaved)
+                    selectedSavedVoice = selectedSavedVoiceId?.let { savedId -> myVoices.firstOrNull { it.id == savedId } }
+                    if (selectedSavedVoiceId != null && selectedSavedVoice == null) selectedSavedVoiceId = null
                     statusMessage = if (localSaved.isNotEmpty()) {
                         "Showing your locally saved voices. Cloud sync is unavailable."
                     } else {
@@ -933,6 +939,7 @@ fun SpeechStudioScreen(
                                     voiceSearch = ""
                                     voiceLibraryTab = "Online"
                                     selectedSavedVoice = null
+                                    selectedSavedVoiceId = null
                                     selectedOnlineVoice = null
                                     selectedVoice = availableVoices.firstOrNull()
                                     selectedVoice?.let { voice ->
@@ -1016,6 +1023,7 @@ fun SpeechStudioScreen(
                                         selectedVoice = voice
                                         selectedOnlineVoice = null
                                         selectedSavedVoice = null
+                                        selectedSavedVoiceId = null
                                         voiceSearch = voice.name
                                         ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
                                         statusMessage = "${voice.name} selected."
@@ -1119,6 +1127,7 @@ fun SpeechStudioScreen(
                                     selectedOnlineVoice = voice
                                     selectedVoice = null
                                     selectedSavedVoice = null
+                                    selectedSavedVoiceId = null
                                     voiceSearch = voice.name
                                     statusMessage = voice.name + " selected from " + voice.provider + ". Voice licence: " + voice.licence + ". " + voice.attribution
                                 }) {
@@ -1151,6 +1160,7 @@ fun SpeechStudioScreen(
                                 Row(Modifier.fillMaxWidth().clickable {
                                     isPurohitMode = false
                                     selectedSavedVoice = voice
+                                    selectedSavedVoiceId = voice.id
                                     selectedVoice = null
                                     selectedOnlineVoice = null
                                     val savedLanguage = when (voice.language.lowercase()) {
