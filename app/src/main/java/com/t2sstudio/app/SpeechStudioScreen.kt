@@ -1324,10 +1324,7 @@ fun SpeechStudioScreen(
                 val guestMode = !isRegisteredUser
                 val installedVoice = selectedVoice
                 val outputFormatForRequest = if (usingPersonalVoice || guestMode) "wav" else outputFormat.lowercase(Locale.ROOT)
-                val directory = File(
-                    context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
-                    "T2SStudio"
-                ).apply { mkdirs() }
+                val directory = generatedAudioDirectory(context, com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid)
                 val output = File(directory, "speech_" + System.currentTimeMillis() + "." + outputFormatForRequest)
                 when {
                     textToSpeak.isBlank() -> statusMessage = "Please enter some text first."
