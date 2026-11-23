@@ -1,5 +1,6 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { defineSecret, defineString } from "firebase-functions/params";
 import { createHash, constants, privateDecrypt } from "node:crypto";
@@ -577,6 +578,6 @@ export const deleteT2SAccount = onCall({
   }
 
   // Delete the Firebase Authentication identity only after its data cleanup succeeds.
-  await (await import("firebase-admin/auth")).getAuth().deleteUser(uid);
+  await getAuth().deleteUser(uid);
   return { deleted: true };
 });
