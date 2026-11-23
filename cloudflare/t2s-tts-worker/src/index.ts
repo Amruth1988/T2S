@@ -157,6 +157,20 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
   const uid = await authenticate(request, env);
 
+  // Account deletion calls this route before Firebase Auth is removed so the
+  // hashed per-account quota ledger is erased from D1 as well as Firestore.
+  if (url.pathname === "/v1/account/usage" && request.method === "DELETE") {
+    if (!env.USAGE_DB) return json({ deleted: 0 });
+    const uidHash = Array.from(new Uint8Array(await crypto.subtle.digest(
+      "SHA-256", new TextEncoder().encode(uid)
+    ))).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    const result = await env.USAGE_DB.prepare(
+      "DELETE FROM user_provider_usage WHERE uid_hash = ?"
+    ).bind(uidHash).run();
+    if (!result.success) throw new ProviderRequestError(503);
+    return json({ deleted: result.meta?.changes ?? 0 });
+  }
+
   if (url.pathname === "/v1/india/voices" && request.method === "GET") {
     const response = await fetch("https://api.dharun.dev/v1/tts/voices", {
       headers: env.INDIA_API_KEY ? { authorization: `Bearer ${env.INDIA_API_KEY}` } : {},
@@ -237,7 +251,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
 const corsHeaders = {
   "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
   "access-control-allow-headers": "authorization, content-type, x-firebase-appcheck",
 };
 
