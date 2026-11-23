@@ -87,6 +87,17 @@ The current guest offline path uses Android's installed system TTS voices. The P
 - [ ] Licence/provenance review is complete for every model actually distributed.
 - [ ] Release notes, version and checksums are recorded.
 
+## Firebase App Check configuration (required before enabling enforcement)
+
+- [ ] In Firebase Console, register the Android app with the Play Integrity App Check provider and complete the Play Integrity/API project linkage.
+- [ ] Add the release signing certificate fingerprints used by the distributed APK to the Firebase Android app settings.
+- [ ] Install a debug build, copy its Firebase App Check debug token from Logcat, and register that token in Firebase Console. Never ship or publish a debug token.
+- [ ] Verify debug and release builds can obtain App Check tokens and invoke callable Functions.
+- [ ] Verify an unregistered/debug-token-free client is rejected by Functions configured with `enforceAppCheck: true`.
+- [ ] Do not deploy or change Firebase Console enforcement/provider settings until the above checks are complete.
+
+The Android client initializes the debug provider only for debug builds (loaded reflectively so the debug-only SDK is not required by release compilation) and Play Integrity for release builds. Firebase Console registration and release signing fingerprints remain manual prerequisites.
+
 ## Current verification boundary
 
 Build #298 proves the Gradle Debug/Release APK assembly and publishing steps succeeded for commit 05601858833d4229a1631fb1e9edbdf4edadbc69. It does not prove real-device installation, playback, native-speaker quality, signature inspection on the downloaded bytes, or completion of the remaining manual checklist. The next build must be run after the changes in this checklist are committed.
