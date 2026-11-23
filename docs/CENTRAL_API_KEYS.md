@@ -18,6 +18,7 @@ The Android Sarvam client now calls `createCentralSarvamVoice`, `listCentralSarv
 - India/Vakyam requests carry a Firebase Authentication ID token and Firebase App Check token. The Worker validates both, including project/app identity and token signatures.
 - Sarvam provider credentials are decrypted only inside Firebase Functions. The RSA private key is a Secret Manager secret; Firestore stores only RSA-OAEP-SHA256 ciphertext.
 - Do not commit, log, export or paste provider credentials, private keys, Firebase ID tokens or App Check debug tokens.
+- The new CI secret scanner checks high-confidence credential patterns in the current tracked working tree; it is not a full Git-history scanner. If any real credential was ever committed, rotate/revoke it even after removing it from the latest source.
 - The Firebase Web API key in `google-services.json` is an app identifier, not a provider secret. Restrict it to the required Firebase APIs and Android app where supported.
 - Existing device-local provider-key and self-hosted voice-clone settings remain for compatibility, but the active central online TTS and Sarvam flows do not need end-user provider keys.
 
