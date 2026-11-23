@@ -211,11 +211,11 @@ async function reserveProviderUsage(provider: Provider, uid: string, characters:
     const now = FieldValue.serverTimestamp();
     tx.set(globalDayRef, {
       provider, day, characters: globalUsedToday + characters,
-      requests: globalRequestsToday + 1, updatedAt: now, lastUserId: uid,
+      requests: globalRequestsToday + 1, updatedAt: now,
     }, { merge: true });
     tx.set(globalMonthRef, {
       provider, month, characters: globalUsedMonth + characters,
-      requests: FieldValue.increment(1), updatedAt: now, lastUserId: uid,
+      requests: FieldValue.increment(1), updatedAt: now,
     }, { merge: true });
     tx.set(userDayRef, {
       provider, day, uidHash, characters: userUsedToday + characters,
@@ -231,7 +231,8 @@ async function reserveProviderUsage(provider: Provider, uid: string, characters:
 /** Per-user UTC quota for shared, billable Sarvam voice-clone requests. */
 async function reserveSarvamUsage(uid: string, characters: number): Promise<void> {
   const day = new Date().toISOString().slice(0, 10);
-  const ref = db.collection("provider_usage").doc(`sarvam_${uid}_${day}`);
+  const uidHash = createHash("sha256").update(uid).digest("hex");
+  const ref = db.collection("provider_usage").doc(`sarvam_${uidHash}_${day}`);
   await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const calls = Number(snapshot.get("calls") ?? 0);
@@ -241,7 +242,7 @@ async function reserveSarvamUsage(uid: string, characters: number): Promise<void
     }
     transaction.set(ref, {
       provider: "sarvam",
-      uid,
+      uidHash,
       day,
       calls: calls + 1,
       characters: usedCharacters + characters,
