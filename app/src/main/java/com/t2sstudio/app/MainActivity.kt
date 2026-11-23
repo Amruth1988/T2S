@@ -290,7 +290,7 @@ private fun T2SApp() {
         }
     }
 
-    BackHandler(enabled = showLoginPage || showAccountPage || showAboutPage || showPrivacyPage || showTermsPage || showContactPage || destinationBackStack.isNotEmpty()) {
+    BackHandler(enabled = showLoginPage || showAccountPage || showAboutPage || showPrivacyPage || showTermsPage || showContactPage || destinationBackStack.isNotEmpty() || returnToAccountOnBack) {
         if (showLoginPage) {
             showLoginPage = false
         } else if (showContactPage) {
@@ -566,7 +566,7 @@ private fun T2SApp() {
                         selectedDestination = 0
                     }
                 )
-                3 -> MyVoicesScreen()
+                3 -> MyVoicesScreen(onBack = { if (returnToAccountOnBack) { returnToAccountOnBack = false; showAccountPage = true } })
                 4 -> ScriptDraftsScreen(
                     drafts = scriptDrafts,
                     onOpen = { draft -> pendingScriptText = draft.content; selectedProjectId = draft.projectId.takeIf { it.isNotBlank() }; selectedDestination = 0 },
@@ -577,7 +577,8 @@ private fun T2SApp() {
                             }
                         }
                     },
-                    onCreateDraft = { selectedDestination = 0 }
+                    onCreateDraft = { selectedDestination = 0 },
+                    onBack = { if (returnToAccountOnBack) { returnToAccountOnBack = false; showAccountPage = true } }
                 )
             }
         }
