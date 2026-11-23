@@ -7,7 +7,7 @@ on:
       - "cloudflare/t2s-tts-worker/**"
       - ".github/workflows/cloudflare-worker-build.yml"
   pull_request:
-    branches: [develop]
+    branches: [main, develop]
     paths:
       - "cloudflare/t2s-tts-worker/**"
       - ".github/workflows/cloudflare-worker-build.yml"
