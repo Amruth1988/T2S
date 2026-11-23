@@ -129,6 +129,73 @@ export const setCentralProviderActive = onCall({ region: REGION, enforceAppCheck
   return { updated: true, provider, isActive: active };
 });
 
+/**
+ * Fail-closed provider budget guard. Limits are configured by an authenticated T2S
+ * admin in provider_limits/{provider}. The backend cannot reliably read remaining
+ * provider wallet balances, so these are conservative app-side ceilings, not live
+ * balance synchronization. Reservations are counted before calling the provider.
+ */
+export const setProviderUsageLimits = onCall({ region: REGION, enforceAppCheck: true }, async (request) => {
+  const uid = requireAdmin(request);
+  const provider = parseProvider(request.data?.provider);
+  const enabled = request.data?.enabled;
+  const dailyCharacters = request.data?.dailyCharacters;
+  const monthlyCharacters = request.data?.monthlyCharacters;
+  const dailyRequests = request.data?.dailyRequests;
+  if (typeof enabled !== "boolean" ||
+      !Number.isSafeInteger(dailyCharacters) || dailyCharacters < 0 ||
+      !Number.isSafeInteger(monthlyCharacters) || monthlyCharacters < 0 ||
+      !Number.isSafeInteger(dailyRequests) || dailyRequests < 0) {
+    throw new HttpsError("invalid-argument", "Provide enabled and non-negative integer dailyCharacters, monthlyCharacters and dailyRequests.");
+  }
+  if (enabled && (dailyCharacters === 0 || monthlyCharacters === 0 || dailyRequests === 0)) {
+    throw new HttpsError("invalid-argument", "All three limits must be greater than zero before enabling generation.");
+  }
+  await db.collection("provider_limits").doc(provider).set({
+    provider, enabled, dailyCharacters, monthlyCharacters, dailyRequests,
+    updatedBy: uid, updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return { saved: true, provider, enabled };
+});
+
+async function reserveProviderUsage(provider: Provider, uid: string, characters: number): Promise<void> {
+  const now = new Date();
+  const day = now.toISOString().slice(0, 10);
+  const month = day.slice(0, 7);
+  const limitsRef = db.collection("provider_limits").doc(provider);
+  const dayRef = db.collection("provider_usage").doc(`${provider}_global_${day}`);
+  const monthRef = db.collection("provider_usage").doc(`${provider}_global_${month}`);
+  await db.runTransaction(async (tx) => {
+    const [limitsSnap, daySnap, monthSnap] = await Promise.all([
+      tx.get(limitsRef), tx.get(dayRef), tx.get(monthRef),
+    ]);
+    const limits = limitsSnap.data();
+    if (!limitsSnap.exists || limits?.enabled !== true) {
+      throw new HttpsError("resource-exhausted", `${PROVIDERS[provider].name} generation is paused until an administrator configures a usage budget.`);
+    }
+    const dailyCharacters = Number(limits.dailyCharacters);
+    const monthlyCharacters = Number(limits.monthlyCharacters);
+    const dailyRequests = Number(limits.dailyRequests);
+    if (![dailyCharacters, monthlyCharacters, dailyRequests].every(Number.isSafeInteger) ||
+        dailyCharacters <= 0 || monthlyCharacters <= 0 || dailyRequests <= 0) {
+      throw new HttpsError("failed-precondition", "Provider usage limits are invalid. Ask a T2S administrator to review them.");
+    }
+    const usedToday = Number(daySnap.get("characters") ?? 0);
+    const requestsToday = Number(daySnap.get("requests") ?? 0);
+    const usedMonth = Number(monthSnap.get("characters") ?? 0);
+    if (usedToday + characters > dailyCharacters || requestsToday + 1 > dailyRequests ||
+        usedMonth + characters > monthlyCharacters) {
+      throw new HttpsError("resource-exhausted", `${PROVIDERS[provider].name} usage limit reached. Generation is paused to prevent paid usage.`);
+    }
+    const reservation = {
+      provider, characters, requests: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(), lastUserId: uid,
+    };
+    tx.set(dayRef, { ...reservation, day, characters: usedToday + characters, requests: requestsToday + 1 }, { merge: true });
+    tx.set(monthRef, { ...reservation, month, characters: usedMonth + characters, requests: FieldValue.increment(1) }, { merge: true });
+  });
+}
+
 /** Per-user UTC quota for shared, billable Sarvam voice-clone requests. */
 async function reserveSarvamUsage(uid: string, characters: number): Promise<void> {
   const day = new Date().toISOString().slice(0, 10);
@@ -249,6 +316,7 @@ export const generateCentralSarvamClone = onCall({
     throw new HttpsError("invalid-argument", "Choose Telugu or English.");
   }
 
+  await reserveProviderUsage("sarvam", request.auth.uid, text.length);
   await reserveSarvamUsage(request.auth.uid, text.length);
   const apiKey = await decryptProviderKey("sarvam");
   const form = new FormData();
@@ -372,6 +440,7 @@ export const generateCentralIndiaTts = onCall({
 }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Sign in is required.");
   const input = validateOnlineTtsInput(request.data ?? {}, 3000);
+  await reserveProviderUsage("india", request.auth.uid, input.text.length);
   const apiKey = await decryptProviderKey("india");
   const response = await fetch("https://api.dharun.dev/v1/tts", {
     method: "POST",
@@ -401,6 +470,7 @@ export const generateCentralVakyamTts = onCall({
 }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Sign in is required.");
   const input = validateOnlineTtsInput(request.data ?? {}, 3000);
+  await reserveProviderUsage("vakyam", request.auth.uid, input.text.length);
   const apiKey = await decryptProviderKey("vakyam");
   const locale = input.language === "te" ? "te-IN" : input.language === "hi" ? "hi-IN" : "en-IN";
   const response = await fetch("https://api.vakyam.ai/v1/tts/generate", {
