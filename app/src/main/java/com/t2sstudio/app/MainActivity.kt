@@ -216,13 +216,14 @@ private fun T2SApp() {
     var showTermsPage by remember { mutableStateOf(false) }
     var showContactPage by remember { mutableStateOf(false) }
     var returnToAccountOnBack by remember { mutableStateOf(false) }
-    val audioRecords = remember {
-        mutableStateListOf<AudioRecord>().apply { addAll(AudioHistoryStore.load(context)) }
+    val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+    val audioRecords = remember(currentUid) {
+        mutableStateListOf<AudioRecord>().apply { addAll(AudioHistoryStore.load(context, currentUid)) }
     }
-    val projects = remember {
-        mutableStateListOf<T2SProject>().apply { addAll(ProjectStore.load(context)) }
+    val projects = remember(currentUid) {
+        mutableStateListOf<T2SProject>().apply { addAll(ProjectStore.load(context, currentUid)) }
     }
-    var selectedProjectId by remember { mutableStateOf(projects.firstOrNull()?.id) }
+    var selectedProjectId by remember(currentUid) { mutableStateOf(projects.firstOrNull()?.id) }
     androidx.compose.runtime.DisposableEffect(Unit) {
         val firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
         val listener = com.google.firebase.auth.FirebaseAuth.AuthStateListener { auth ->
@@ -244,9 +245,7 @@ private fun T2SApp() {
 
     var pendingScriptText by remember { mutableStateOf<String?>(null) }
     val scriptDrafts = remember { mutableStateListOf<T2SScriptDraft>() }
-    val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-
-    // Reconcile local metadata with the signed-in account on every app launch/sign-in.
+    // Reconcile only the current signed-in account local metadata on app launch/sign-in.
     // Audio bytes remain local; only project and script descriptors/content are uploaded.
     LaunchedEffect(currentUid) {
         val uid = currentUid ?: return@LaunchedEffect
@@ -275,7 +274,7 @@ private fun T2SApp() {
                     .sortedByDescending { it.createdAt }
                 projects.clear()
                 projects.addAll(merged)
-                ProjectStore.save(context, merged)
+                ProjectStore.save(context, uid, merged)
                 if (selectedProjectId == null || merged.none { it.id == selectedProjectId }) {
                     selectedProjectId = merged.firstOrNull()?.id
                 }
@@ -284,6 +283,7 @@ private fun T2SApp() {
     }
 
     LaunchedEffect(currentUid, selectedDestination) {
+        scriptDrafts.clear()
         if (currentUid != null && selectedDestination == 4) {
             com.t2sstudio.app.data.firebase.T2SFirestoreRepository().loadDrafts(currentUid) { result ->
                 result.onSuccess { cloudDrafts ->
@@ -440,7 +440,7 @@ private fun T2SApp() {
                     onSelectedProjectIdChange = { selectedProjectId = it },
                     onAudioGenerated = { record ->
                         audioRecords.add(0, record)
-                        AudioHistoryStore.save(context, audioRecords)
+                        AudioHistoryStore.save(context, currentUid, audioRecords)
                         com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
                             com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveScriptMetadata(
                                 uid = uid,
@@ -510,7 +510,7 @@ private fun T2SApp() {
                         val project = ProjectStore.create(name)
                         projects.add(0, project)
                         selectedProjectId = project.id
-                        ProjectStore.save(context, projects)
+                        ProjectStore.save(context, currentUid, projects)
                         com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
                             com.t2sstudio.app.data.firebase.T2SFirestoreRepository().saveProject(
                                 uid = uid,
