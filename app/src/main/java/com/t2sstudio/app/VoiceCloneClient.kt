@@ -140,14 +140,11 @@ object VoiceCloneClient {
     }
 
     private fun explainServerError(code: Int, detail: String): String {
-        val clean = detail.trim().take(500)
         return when (code) {
-            400 -> "Volt-TTS rejected the request: " + clean.ifBlank { "check the language and recording." }
             413 -> "Voice recording or text exceeds the server limit."
             422 -> "Volt-TTS request is incomplete. Check the saved voice recording and input text."
-            502 -> "Volt-TTS generation failed: " + clean.ifBlank { "check GPU memory and server logs." }
             503 -> "Volt-TTS server is not ready. Wait for model loading and retry."
-            else -> clean.ifBlank { "Voice-cloning server failed (HTTP $code)." }
+            else -> "Voice generation is temporarily unavailable. Please try again later."
         }
     }
 }
