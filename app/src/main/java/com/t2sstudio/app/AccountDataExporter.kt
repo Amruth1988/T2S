@@ -175,7 +175,6 @@ object AccountDataExporter {
                                     .put("containsCloudMetadata", true)
                                     .put("containsLocalAudioAndVoiceSamples", true)
                                     .put("includesLocalVoiceSelection", true)
-                                    .put("accountUidHash", accountHash)
                                     .toString(2))
                             }
                         } ?: error("Could not open the selected export destination.")
