@@ -31,8 +31,12 @@ object AccountDataExporter {
         val scripts = db.collection("users").document(uid).collection("scripts").get()
         val voices = db.collection("users").document(uid).collection("voiceProfiles").get()
         val settings = db.collection("users").document(uid).collection("settings").get()
+        val audioLibrary = db.collection("users").document(uid).collection("audioLibrary").get()
+        val devices = db.collection("users").document(uid).collection("devices").get()
+        val usageStats = db.collection("users").document(uid).collection("usageStats").get()
+        val feedback = db.collection("users").document(uid).collection("feedback").get()
 
-        Tasks.whenAllSuccess<Any>(listOf(user, projects, scripts, voices, settings))
+        Tasks.whenAllSuccess<Any>(listOf(user, projects, scripts, voices, settings, audioLibrary, devices, usageStats, feedback))
             .addOnSuccessListener { results ->
                 val executor = Executors.newSingleThreadExecutor()
                 executor.execute {
@@ -42,6 +46,10 @@ object AccountDataExporter {
                         val cloudScripts = results[2] as QuerySnapshot
                         val cloudVoices = results[3] as QuerySnapshot
                         val cloudSettings = results[4] as QuerySnapshot
+                        val cloudAudioLibrary = results[5] as QuerySnapshot
+                        val cloudDevices = results[6] as QuerySnapshot
+                        val cloudUsageStats = results[7] as QuerySnapshot
+                        val cloudFeedback = results[8] as QuerySnapshot
                         val accountHash = java.security.MessageDigest.getInstance("SHA-256")
                             .digest(uid.toByteArray(Charsets.UTF_8))
                             .joinToString("") { "%02x".format(it) }
@@ -80,6 +88,10 @@ object AccountDataExporter {
                                 addText("cloud/scripts.json", snapshotJson(cloudScripts).toString(2))
                                 addText("cloud/voice_profiles.json", snapshotJson(cloudVoices).toString(2))
                                 addText("cloud/settings.json", snapshotJson(cloudSettings).toString(2))
+                                addText("cloud/audio_library.json", snapshotJson(cloudAudioLibrary).toString(2))
+                                addText("cloud/devices.json", snapshotJson(cloudDevices).toString(2))
+                                addText("cloud/usage_stats.json", snapshotJson(cloudUsageStats).toString(2))
+                                addText("cloud/feedback.json", snapshotJson(cloudFeedback).toString(2))
 
                                 val localProjects = JSONArray().apply {
                                     ProjectStore.load(context, uid).forEach { project ->
