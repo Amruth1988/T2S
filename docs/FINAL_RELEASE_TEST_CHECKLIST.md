@@ -30,11 +30,14 @@ This checklist distinguishes CI evidence from manual device verification. Do not
 
 ## C. Core app workflows
 
-- [ ] Fresh install → launch → navigate Create, Projects, Recent, My Voices and Profile.
+- [ ] Fresh install → launch → verify signed-in navigation to Create, Projects, Recent, My Voices and Profile.
+- [ ] Signed-out guest sees Home only; account entry remains available for sign-in.
 - [ ] Create, rename, select and delete a project; verify persistence after force-stop/relaunch.
-- [ ] Generate short and long text in English, Hindi and Telugu.
+- [ ] Generate short and long text in English, Hindi and Telugu while signed in.
+- [ ] As guest, generate WAV locally with an installed offline Android TTS voice; verify voice selection, speech rate/pitch and clear error when no offline voice is installed.
+- [ ] As guest, download generated WAV and verify it is stored under the guest audio directory; confirm generation does not create cloud records, account history, projects or drafts.
 - [ ] Verify online TTS success and expected MP3/WAV/OGG handling.
-- [ ] Disable network and verify Android TextToSpeech fallback; confirm failure states are clear.
+- [ ] Disable network while signed in and verify online-provider failure/fallback behavior; guest local TTS must remain available when a compatible installed voice is present.
 - [ ] Save generated audio; confirm it appears in Recent/Saved Audio after relaunch.
 - [ ] Verify recordings retain the selected project ID/name, including after project rename and delete.
 - [ ] Play, pause, resume, stop, share, download and delete saved audio.
@@ -42,7 +45,9 @@ This checklist distinguishes CI evidence from manual device verification. Do not
 - [ ] Test empty text, long text, rapid repeated taps, interrupted generation, storage-full and permission-denied paths.
 - [ ] Test audio output with screen rotation, background/foreground transitions and process recreation.
 
-## D. Telugu offline voice pack
+## D. Telugu offline voice packs (deferred; not currently integrated into the Android app)
+
+The current guest offline path uses Android's installed system TTS voices. The Piper pack generation workflow is not an Android import/playback feature at this time. Do not treat the import steps below as release-ready functionality.
 
 - [ ] Download the t2s-telugu-piper-import-packs artifact from a successful voice-validation run.
 - [ ] Confirm each Venkatesh/Padmavathi pack contains model, tokens, JSON config, original model card, ATTRIBUTION.md and CC BY 4.0 licence text.
@@ -63,11 +68,13 @@ This checklist distinguishes CI evidence from manual device verification. Do not
 - [ ] Confirm the final legal notices match the exact model and dataset revisions used for the release.
 - [x] Code review: reference-voice recording flow requires the user to confirm the recording is their own voice or that they have permission before registration; real-device confirmation remains pending.
 - [ ] Verify API keys never appear in logs, analytics, crash reports or exported project files.
-- [x] Android automatic backup excludes `files/voice_samples/` while retaining the separate `voice_profiles.json` index; verified against the current `MyVoicesClient.kt` storage paths. Build #859 passed with these rules.
+- [x] My Voices profile JSON and sample audio are now stored in Firebase-UID-specific local directories; sample audio uses `noBackupFilesDir`. Legacy shared profile/sample files are preserved but are not automatically assigned to an account. Verify this on a real device by switching between two accounts.
 - [ ] Verify backup/restore on real Android devices, including that raw voice samples are not included in automatic cloud backup or device transfer.
 - [ ] Add and verify a complete user-data export. The current My Voices ZIP export covers voice profiles and their local recordings only; it does not export projects, scripts/drafts, profile details, or cloud metadata.
 - [ ] Add and verify an authenticated account-deletion workflow that removes the Firebase Auth account and all UID-owned Firestore data (including nested projects, scripts, voiceProfiles and settings) without leaving orphaned records. No in-app account-deletion flow was found in the current Account page/repository audit.
-- [ ] Define and verify local-data cleanup on sign-out/account deletion. Projects and audio history are currently stored in app-private SharedPreferences/files and must not be accidentally mixed across signed-in users on a shared device.
+- [ ] Define and verify local-data cleanup on sign-out/account deletion. Project/audio history preferences and generated audio paths are UID-scoped; verify switching accounts on one device never exposes another account's data. Guest audio remains in its separate guest directory.
+- [ ] Verify generated audio for a signed-in user is stored under that user's UID-derived directory and never linked to a project unless the user explicitly selects one.
+- [ ] Verify My Voices profiles and samples remain isolated when switching between two Firebase accounts; verify legacy shared files remain untouched until an explicit migration flow exists.
 - [ ] Resolve persistent per-user quota enforcement for direct Cloudflare Worker TTS requests; the current Worker configuration has no persistent KV/Durable Object quota binding. Do not replace the route or enable paid infrastructure without approval.
 
 
