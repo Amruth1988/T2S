@@ -569,6 +569,32 @@ export const deleteT2SAccount = onCall({
   const uidHash = createHash("sha256").update(uid).digest("hex");
   const userRef = db.collection("users").doc(uid);
 
+  // Remove the matching hashed Worker quota row before deleting Firebase Auth.
+  // The Worker independently verifies this caller's Firebase ID and App Check tokens.
+  const authorization = request.rawRequest.headers["authorization"];
+  const appCheckHeader = request.rawRequest.headers["x-firebase-appcheck"];
+  const appCheck = Array.isArray(appCheckHeader) ? appCheckHeader[0] : appCheckHeader;
+  if (typeof authorization !== "string" || typeof appCheck !== "string") {
+    throw new HttpsError("failed-precondition", "Could not verify this app session for complete account deletion. Sign in again and retry.");
+  }
+  let workerCleanup: Response;
+  try {
+    workerCleanup = await fetch("https://t2s.amruth4official.workers.dev/v1/account/usage", {
+      method: "DELETE",
+      headers: {
+        authorization,
+        "x-firebase-appcheck": appCheck,
+        accept: "application/json",
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch {
+    throw new HttpsError("unavailable", "Could not clear online TTS usage data. Please retry account deletion.");
+  }
+  if (!workerCleanup.ok) {
+    throw new HttpsError("unavailable", "Could not clear online TTS usage data. Please retry account deletion.");
+  }
+
   // Remove all UID-owned Firestore data, including nested projects, scripts,
   // voiceProfiles and any future subcollections below the user document.
   await db.recursiveDelete(userRef);
