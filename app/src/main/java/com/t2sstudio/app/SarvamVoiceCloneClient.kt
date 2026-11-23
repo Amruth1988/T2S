@@ -72,7 +72,7 @@ object SarvamVoiceCloneClient {
                             .firstOrNull { it != null }
                     } ?: body.trim().take(1200).takeIf { it.isNotBlank() }
                     val normalizedDetail = detail.orEmpty().lowercase()
-                    val creditOrLimitFailure = status == 402 || status == 429 ||
+                    val creditOrLimitFailure = status == 402 || status == 403 || status == 429 ||
                         listOf("credit", "quota", "limit", "balance", "insufficient", "payment", "billing", "subscription").any(normalizedDetail::contains)
                     if (creditOrLimitFailure) {
                         error("Generation temporarily unavailable. Please try again later.")
