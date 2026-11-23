@@ -74,7 +74,7 @@ function quotaFinish_(reservation,success){
 // Owner-only recovery helper: run manually in Apps Script editor with the user's Firebase UID.
 function adminResetVoiceRegistrationQuota(uid){
  if(!uid||typeof uid!=="string")throw new Error("Provide the Firebase UID.");
- const d=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),k="quota:v2:"+d+":"+uid,c=JSON.parse(p.getProperty(k)||"{}");
+ const d=Utilities.formatDate(new Date(),"UTC","yyyy-MM-dd"),p=PropertiesService.getScriptProperties(),k="quota:v3:"+d+":"+uid,c=JSON.parse(p.getProperty(k)||"{}");
  c.creates=0;p.setProperty(k,JSON.stringify(c));return "Today's voice-registration allowance reset for the supplied UID.";
 }
 function sarvam_(method,path,payload){
