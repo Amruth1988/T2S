@@ -9,7 +9,22 @@ function doPost(e) {
     if (action === "create") return out_(create_(u.uid, b));
     if (action === "generate") return out_(generate_(u.uid, b));
     throw new Error("Unsupported action.");
-  } catch (x) { return out_({error:String(x && x.message || x).slice(0,400)}); }
+  } catch (x) { return out_({error:publicError_(x)}); }
+}
+function publicError_(x){
+ const message=String(x && x.message || x);
+ const safePrefixes=[
+  "Sign in to T2S again.","Gateway setup incomplete: Firebase verification key missing.",
+  "Firebase sign-in expired or invalid. Sign in again.","T2S account is not allowed.",
+  "Unsupported action.","Unsupported sample language.","Voice name must be",
+  "Invalid gender value.","Unsupported or oversized audio sample.","Sample must be",
+  "Generation temporarily unavailable.","Sarvam returned an invalid voice ID.",
+  "Invalid saved voice ID.","Text must contain","Choose Telugu or English.",
+  "Sarvam returned missing or oversized audio."
+ ];
+ return safePrefixes.some(prefix=>message.startsWith(prefix))
+  ? message.slice(0,180)
+  : "Voice service temporarily unavailable. Please try again later.";
 }
 function auth_(token) {
   if (typeof token !== "string" || token.length < 100) throw new Error("Sign in to T2S again.");
