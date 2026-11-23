@@ -125,53 +125,56 @@ fun AccountPageScreen(
             Text("Text to Speech Studio", color = T2SText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            QuickAccountAction("Projects", Icons.Filled.Folder, Modifier.weight(1f)) { onNavigate(1) }
-            QuickAccountAction("My Voices", Icons.Filled.RecordVoiceOver, Modifier.weight(1f)) { onNavigate(3) }
-            QuickAccountAction("Recent", Icons.Filled.AccessTime, Modifier.weight(1f)) { onNavigate(2) }
-        }
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = T2SCream,
-            shape = RoundedCornerShape(24.dp)
-        ) {
-            Row(
-                modifier = Modifier.padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+        if (user != null) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                QuickAccountAction("Projects", Icons.Filled.Folder, Modifier.weight(1f)) { onNavigate(1) }
+                QuickAccountAction("My Voices", Icons.Filled.RecordVoiceOver, Modifier.weight(1f)) { onNavigate(3) }
+                QuickAccountAction("Recent", Icons.Filled.AccessTime, Modifier.weight(1f)) { onNavigate(2) }
+            }
+    
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = T2SCream,
+                shape = RoundedCornerShape(24.dp)
             ) {
-                Surface(shape = RoundedCornerShape(16.dp), color = T2SBackground) {
-                    Icon(Icons.Filled.RecordVoiceOver, contentDescription = null, tint = T2SOrange,
-                        modifier = Modifier.padding(16.dp).size(30.dp))
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("Your voice, your creativity", color = T2SText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("Create, manage and revisit your speech projects.",
-                        color = T2SSecondaryText, fontSize = 14.sp)
+                Row(
+                    modifier = Modifier.padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Surface(shape = RoundedCornerShape(16.dp), color = T2SBackground) {
+                        Icon(Icons.Filled.RecordVoiceOver, contentDescription = null, tint = T2SOrange,
+                            modifier = Modifier.padding(16.dp).size(30.dp))
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text("Your voice, your creativity", color = T2SText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Create, manage and revisit your speech projects.",
+                            color = T2SSecondaryText, fontSize = 14.sp)
+                    }
                 }
             }
-        }
-
-        AccountSectionCard(
-            title = "Your information",
-            subtitle = "Personal account details",
-            icon = Icons.Filled.AccountCircle
-        ) {
-            AccountMenuRow("Profile", "Update your personal details", Icons.Filled.AccountCircle) { showProfile = true }
-            AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
-            AccountMenuRow("My Drafts", "Continue your saved scripts", Icons.Filled.Description) { onNavigate(4) }
-        }
-
-        AccountSectionCard(
-            title = "Your T2S workspace",
-            subtitle = "Your creative tools and activity",
-            icon = Icons.Filled.Folder
-        ) {
-            AccountMenuRow("Projects", "Manage your projects", Icons.Filled.Folder) { onNavigate(1) }
-            AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
-            AccountMenuRow("Recent audio", "Listen to your generated speech", Icons.Filled.AccessTime) { onNavigate(2) }
-        }
+    
+            AccountSectionCard(
+                title = "Your information",
+                subtitle = "Personal account details",
+                icon = Icons.Filled.AccountCircle
+            ) {
+                AccountMenuRow("Profile", "Update your personal details", Icons.Filled.AccountCircle) { showProfile = true }
+                AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
+                AccountMenuRow("My Drafts", "Continue your saved scripts", Icons.Filled.Description) { onNavigate(4) }
+            }
+    
+            AccountSectionCard(
+                title = "Your T2S workspace",
+                subtitle = "Your creative tools and activity",
+                icon = Icons.Filled.Folder
+            ) {
+                AccountMenuRow("Projects", "Manage your projects", Icons.Filled.Folder) { onNavigate(1) }
+                AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
+                AccountMenuRow("Recent audio", "Listen to your generated speech", Icons.Filled.AccessTime) { onNavigate(2) }
+            }
+    
+            }
 
         AccountSectionCard(
             title = "T2S Studio",
@@ -198,7 +201,9 @@ fun AccountPageScreen(
                     showDeleteConfirm = true
                 }
             }
-            AccountMenuRow("Sign out", "Sign out of your T2S account", Icons.Filled.Logout) { auth.signOut() }
+            if (user != null) {
+                AccountMenuRow("Sign out", "Sign out of your T2S account", Icons.Filled.Logout) { auth.signOut() }
+            }
         }
 
         if (showDeleteConfirm) {
