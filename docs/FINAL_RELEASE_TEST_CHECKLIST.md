@@ -14,7 +14,8 @@ This checklist distinguishes CI evidence from manual device verification. Do not
 - [x] ABI-specific release APK preparation passed for arm64-v8a and armeabi-v7a.
 - [x] Direct release assets were published for both ABIs.
 - [x] Point 2 generated-audio persistence changes are included in build #298.
-- [ ] Re-run the Android workflow after the licensing/checklist commit and confirm the new HEAD has a successful Debug + Release build.
+- [ ] Re-run the Android workflow after the latest source/checklist commits and confirm the new HEAD has a successful Debug + Release build.
+- [x] Telugu voice-pack validation workflow #14 passed: pinned Venkatesh/Padmavathi source downloads, conversion, CI synthesis, attribution/licence packaging, SHA-256 source manifests and versioned release publication.
 - [ ] Run automated unit/instrumentation tests if/when test suites are added; the current Android workflow is an assemble-and-publish workflow, not a full device test suite.
 
 ## B. Release artifact checks
@@ -58,9 +59,9 @@ This checklist distinguishes CI evidence from manual device verification. Do not
 - [x] Original model cards and CC BY 4.0 legal text are included in generated import packs.
 - [x] Maya's exact IITM IndicTTS derivative-model redistribution terms remain unverified; its weights are excluded from distribution.
 - [x] DhVaani-0.5 is marked CC BY-NC 4.0 and excluded from commercial T2S release.
-- [ ] Archive exact source revisions and SHA-256 checksums for each released voice model and licence file.
+- [x] Archive exact source revision and SHA-256 checksums for each released voice model/configuration, model card, attribution and licence file in each pack's SOURCE_MANIFEST.sha256; ZIP archives also have SHA-256 sidecars.
 - [ ] Confirm the final legal notices match the exact model and dataset revisions used for the release.
-- [ ] Confirm reference-voice recording flow obtains explicit consent before any future cloning feature.
+- [x] Code review: reference-voice recording flow requires the user to confirm the recording is their own voice or that they have permission before registration; real-device confirmation remains pending.
 - [ ] Verify API keys never appear in logs, analytics, crash reports or exported project files.
 
 ## F. Release sign-off
