@@ -55,8 +55,10 @@ jobs:
       - name: Prepare attributed import packs for CC BY 4.0 voices only
         run: |
           set -euo pipefail
+          source_revision="ff43c1e79f98a765202dcfb03710851f9ec4ff2e"
           for voice in venkatesh padmavathi; do
             dir="build/telugu-voices/$voice"
+            model="te_IN-$voice-medium.onnx"
             cat > "$dir/ATTRIBUTION.md" <<EOF
           # $voice Telugu voice attribution
 
@@ -77,9 +79,6 @@ jobs:
             (cd "$dir" && sha256sum "$model" "$model.json" MODEL_CARD ATTRIBUTION.md LICENSE-CC-BY-4.0.txt > SOURCE_MANIFEST.sha256)
             test -s "$dir/SOURCE_MANIFEST.sha256"
           done
-          # Maya is synthesis-tested above, but IITM IndicTTS terms have
-          # not been cleared for redistribution. Keep its weights out of artifacts.
-          rm -rf build/telugu-voices/maya
           test -s build/telugu-voices/venkatesh/ATTRIBUTION.md
           test -s build/telugu-voices/padmavathi/ATTRIBUTION.md
 
