@@ -87,6 +87,14 @@ The current guest offline path uses Android's installed system TTS voices. The P
 - [ ] Licence/provenance review is complete for every model actually distributed.
 - [ ] Release notes, version and checksums are recorded.
 
+## Per-account provider generation quotas
+
+- [ ] Verify each authenticated account is capped at 10,000 characters/day, 100,000 characters/month and 30 requests/day for each central India TTS, Vakyam TTS and Sarvam clone generation route.
+- [ ] Verify provider-wide daily/monthly character and request limits still apply across all users.
+- [ ] Run concurrent requests at the quota boundary and confirm Firestore transactions prevent over-reservation.
+- [ ] Confirm quota reservations happen before provider calls and are not refunded on provider errors/timeouts (conservative cost protection).
+- [ ] Confirm guest local Android TTS does not consume server-side provider quotas.
+
 ## Firebase App Check configuration (required before enabling enforcement)
 
 - [ ] In Firebase Console, register the Android app with the Play Integrity App Check provider and complete the Play Integrity/API project linkage.
