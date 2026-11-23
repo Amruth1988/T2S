@@ -13,6 +13,7 @@ interface D1Database {
 }
 interface Env {
   FIREBASE_PROJECT_ID: string;
+  FIREBASE_PROJECT_NUMBER: string;
   VAKYAM_API_KEY: string;
   INDIA_API_KEY?: string;
   USAGE_DB?: D1Database;
@@ -20,6 +21,9 @@ interface Env {
 
 const firebaseKeys = createRemoteJWKSet(
   new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com")
+);
+const appCheckKeys = createRemoteJWKSet(
+  new URL("https://firebaseappcheck.googleapis.com/v1/jwks")
 );
 
 function json(data: unknown, status = 200): Response {
@@ -38,6 +42,17 @@ async function authenticate(request: Request, env: Env): Promise<string> {
     algorithms: ["RS256"],
   });
   if (typeof payload.sub !== "string" || !payload.sub) throw new Error("Invalid Firebase user token.");
+
+  const appCheckToken = request.headers.get("x-firebase-appcheck");
+  if (!appCheckToken) throw new Error("A valid Firebase App Check token is required.");
+  const { payload: appCheckPayload } = await jwtVerify(appCheckToken, appCheckKeys, {
+    issuer: `https://firebaseappcheck.googleapis.com/${env.FIREBASE_PROJECT_NUMBER}`,
+    audience: `projects/${env.FIREBASE_PROJECT_NUMBER}`,
+    algorithms: ["RS256"],
+  });
+  if (typeof appCheckPayload.sub !== "string" || !appCheckPayload.sub) {
+    throw new Error("Invalid Firebase App Check token.");
+  }
   return payload.sub;
 }
 
@@ -207,7 +222,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
 const corsHeaders = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, OPTIONS",
-  "access-control-allow-headers": "authorization, content-type",
+  "access-control-allow-headers": "authorization, content-type, x-firebase-appcheck",
 };
 
 export default {
@@ -223,7 +238,7 @@ export default {
         return json({ error: "Generation temporarily unavailable. Please try again later." }, status);
       }
       const message = error instanceof Error ? error.message : "Generation temporarily unavailable. Please try again later.";
-      const status = message.startsWith("Sign in") || message.startsWith("Invalid Firebase") ? 401 : 502;
+      const status = message.startsWith("Sign in") || message.startsWith("Invalid Firebase") || message.startsWith("A valid Firebase App Check") ? 401 : 502;
       return json({ error: status === 401 ? message : "Generation temporarily unavailable. Please try again later." }, status);
     }
   },
