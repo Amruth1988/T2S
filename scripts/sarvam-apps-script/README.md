@@ -10,7 +10,7 @@ This keeps the Sarvam key server-side without deploying Firebase Cloud Functions
 5. The app must be configured with this URL in SarvamVoiceCloneClient.kt (SCRIPT_URL). The URL is an endpoint identifier, not a secret.
 
 ## Security
-The gateway verifies each Firebase ID token with Firebase Identity Toolkit before using the Sarvam key. The key is stored only in Script Properties, never in the APK or Firestore. Daily limits per Firebase user: 10 generations/10,000 characters and 3 voice registrations. Apps Script quotas still apply. Sarvam voice cloning can incur Sarvam charges; this does not change Firebase billing.
+The gateway verifies each Firebase ID token with Firebase Identity Toolkit before using the Sarvam key. The key is stored only in Script Properties, never in the APK or Firestore. Daily limits per Firebase user: 10 successful generations/10,000 characters and 3 successful voice registrations. Quota reservations are locked atomically before provider calls, rolled back on failure, and abandoned reservations expire after 10 minutes. Existing same-day `quota:v2:` counters are carried forward when the new `quota:v3:` key is first created. Apps Script quotas still apply. Sarvam voice cloning can incur Sarvam charges; this does not change Firebase billing.
 
 Only clone a voice with its speaker's explicit consent. Never share Script Properties or grant script-editor access to app users.
 
@@ -22,6 +22,6 @@ When `scripts/sarvam-apps-script/Code.gs` changes, the repository commit does no
 
 The gateway counts only successful provider registrations/generations in the latest code. Older versions counted failed attempts too. To restore one user's registration allowance immediately, find that user's Firebase Authentication UID in Firebase Console → Authentication → Users. In the Apps Script editor, select and run `adminResetVoiceRegistrationQuota` after temporarily adding a one-line wrapper with that UID, for example `function runOneTimeQuotaReset(){ adminResetVoiceRegistrationQuota("FIREBASE_UID_HERE"); }`. Run it as the script owner, then remove the temporary wrapper and save. This resets only that user's current UTC day's registration count; it does not clear API keys or generation counters. Never publish the UID or share editor access.
 
-### Legacy quota migration
+### Quota counter migration
 
-The current gateway stores counters under the versioned `quota:v2:` namespace. This intentionally ignores counters written by older gateway versions, including failed attempts that were incorrectly counted as registrations. After deploying the latest `Code.gs` as a new web-app version, the user's new registration allowance starts clean automatically; no manual UID lookup or quota-reset helper is needed. The same daily limits still apply to successful operations.
+The gateway uses `quota:v3:` counters with timestamped in-flight reservations. On first use for a UTC day, it imports existing counters from that user's `quota:v2:` key so successful usage already recorded that day is not lost. Failed attempts from older versions may have been counted; they remain in the carried-forward count until the next UTC day. The owner-only reset helper targets the `quota:v3:` key.
