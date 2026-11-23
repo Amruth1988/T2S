@@ -96,7 +96,7 @@ object VoiceCloneClient {
             val code = connection.responseCode
             if (code !in 200..299) {
                 val detail = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                error(explainServerError(code, detail))
+                error(explainServerError(code))
             }
             val bytes = connection.inputStream.use { it.readBytes() }
             require(bytes.size > 1024 &&
@@ -130,7 +130,7 @@ object VoiceCloneClient {
                 ?.bufferedReader()?.use { it.readText() }.orEmpty()
             require(code in 200..299 && body.contains("\"status\"") && body.contains("\"ok\"")) {
                 if (code == 404) "This URL does not expose the T2S Volt-TTS /health endpoint."
-                else explainServerError(code, body)
+                else explainServerError(code)
             }
             return "Volt-TTS server connected. CUDA: " +
                 if (body.contains("\"cuda\":true")) "available." else "not detected by server."
@@ -139,7 +139,7 @@ object VoiceCloneClient {
         }
     }
 
-    private fun explainServerError(code: Int, detail: String): String {
+    private fun explainServerError(code: Int): String {
         return when (code) {
             413 -> "Voice recording or text exceeds the server limit."
             422 -> "Volt-TTS request is incomplete. Check the saved voice recording and input text."
