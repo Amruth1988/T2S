@@ -45,17 +45,18 @@ async function authenticate(request: Request, env: Env): Promise<string> {
 
   const appCheckToken = request.headers.get("x-firebase-appcheck");
   if (!appCheckToken) throw new Error("A valid Firebase App Check token is required.");
-  let appCheckPayload;
+  let appCheckSubject: unknown;
   try {
-    ({ payload: appCheckPayload } = await jwtVerify(appCheckToken, appCheckKeys, {
+    const verifiedAppCheck = await jwtVerify(appCheckToken, appCheckKeys, {
       issuer: `https://firebaseappcheck.googleapis.com/${env.FIREBASE_PROJECT_NUMBER}`,
       audience: `projects/${env.FIREBASE_PROJECT_NUMBER}`,
       algorithms: ["RS256"],
-    }));
+    });
+    appCheckSubject = verifiedAppCheck.payload.sub;
   } catch {
     throw new Error("Invalid Firebase App Check token.");
   }
-  if (typeof appCheckPayload.sub !== "string" || !appCheckPayload.sub) {
+  if (typeof appCheckSubject !== "string" || !appCheckSubject) {
     throw new Error("Invalid Firebase App Check token.");
   }
   return payload.sub;
