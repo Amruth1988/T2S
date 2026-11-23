@@ -1,162 +1,90 @@
-# T2S Studio final release test checklist
+# T2S Studio release work tracker
 
-Release branch: main  
-Application ID: com.t2sstudio.app  
-Historical release-build reference: [Android build #298](https://github.com/Amruth1988/T2S/actions/runs/44680894416)  
-Historical build commit: 05601858833d4229a1631fb1e9edbdf4edadbc69  
-The build #298 results below are historical evidence only and do not certify the current release branch or PR.
+Application ID: `com.t2sstudio.app`  
+Release line: `1.0`  
+Active implementation branch: `fix/release-workflow-and-guest-scope`  
+Pull request: [#3 — Enable guest audio and isolate account data](https://github.com/Amruth1988/T2S/pull/3)
 
-This checklist distinguishes CI evidence from manual device verification. Do not mark a manual item passed based only on a successful Gradle build.
+This tracker separates repository work, owner-side cloud configuration and the final hands-on test batch. Real-device and scenario testing is intentionally deferred until all code and configuration preparation is complete.
 
-## Responsibility split
+## 1. Repository work completed
 
-### Your tasks — physical-device testing only
+- [x] Guest access is limited to Home/local audio creation; account workspace destinations remain signed-in only.
+- [x] Guest audio generation uses installed Android system TTS voices and local WAV output; no Firebase account or cloud history is created for guests.
+- [x] Signed-in project, audio-history and My Voices data use Firebase-UID-derived storage namespaces.
+- [x] Legacy shared voice files are not automatically assigned to an account; old 32-bit preference namespaces are not auto-migrated because ownership cannot be proven.
+- [x] Account export creates a ZIP of known cloud metadata, account-local projects, saved audio, My Voices profiles and owned recordings; selected saved-voice preference is included.
+- [x] Account deletion requires recent authentication, recursively removes UID-owned Firestore data, clears hashed Firestore usage records, removes Cloudflare D1 quota rows before Firebase Auth deletion, and clears UID-owned local files/preferences.
+- [x] Account deletion notice and privacy/terms text explain that public Downloads, shared copies and provider-hosted cloned voice records require separate handling.
+- [x] India and Vakyam Worker routes validate Firebase ID tokens and Firebase App Check tokens.
+- [x] Cloudflare D1 per-account quotas use one atomic SQLite UPSERT per provider/UID hash: 10,000 characters/day, 100,000 characters/month and 30 requests/day. Missing D1 fails closed.
+- [x] Sarvam Android operations now call the authenticated Firebase Functions endpoints directly; the old hard-coded Apps Script deployment URL was removed from the Android client.
+- [x] Sarvam provider usage guard includes global configured budgets and per-account daily/monthly limits plus the additional 10-call/10,000-character daily Sarvam allowance.
+- [x] Worker quota SQL is shared between production code and automated Node/SQLite regression tests for daily/monthly reset, quota boundaries, account/provider isolation, burst reservations and account deletion.
+- [x] Added automated high-confidence provider/private-key scanning to pull-request and push CI. The public Firebase app-config key is excluded and documented as a public identifier, not a provider secret.
+- [x] Release workflow prepares ARM64 and ARMv7 APKs, verifies the signing certificate on main releases, publishes SHA-256 checksums and includes prepared release notes.
+- [x] Prepared T2S Studio 1.0 release notes.
+- [x] Updated Privacy Policy, Terms & Conditions, provider routing/setup documentation and Telugu model provenance decisions.
+- [x] Voice distribution decisions are documented: Venkatesh/Padmavathi packs retain CC BY 4.0 attribution; Maya remains excluded pending exact rights confirmation; DhVaani-0.5 remains excluded from commercial distribution; SYSPIN and Purohit candidates remain unshipped pending separate Android implementation and listening gates.
 
-Keep this list separate from coding work. These checks need your Android device(s), your account(s), or a Telugu speaker; I cannot truthfully complete them from repository code or CI.
+## 2. Owner-side cloud and release configuration still required
 
-- [ ] Install the latest verified APK on a real Android phone when a successful build artifact is available.
-- [ ] Test sign-in, sign-out, guest access, and switching between two Firebase accounts; confirm no projects, audio, drafts or voice samples leak between accounts.
-- [ ] Test project create/rename/select/delete and persistence after closing and reopening the app.
-- [ ] Generate, save, play, share and download English, Hindi and Telugu audio; check Recent/Saved Audio after relaunch.
-- [ ] Test guest offline WAV generation with an installed offline Android voice, including the no-offline-voice error.
-- [ ] Test network-offline behavior, interrupted generation, long text, rapid taps, low storage and app background/foreground.
-- [ ] Check playback and downloads on your Android version and, if available, a second device/ABI.
-- [ ] Have a native Telugu speaker review pronunciation and intelligibility of any offline Telugu voices before release.
-- [ ] Confirm upgrade/install behavior and that existing projects/audio are preserved.
+These are account operations, not source-code tasks. They are not marked complete because no Cloudflare/Firebase account changes or billing approvals have been made.
 
-I will keep these as unchecked until you report the results. You do not need to start these until I provide a successful build artifact and installation instructions.
+### Cloudflare (existing plan only; no paid upgrade)
 
-### Remaining tasks — repository/code work and release preparation
+- [ ] Confirm D1 is available on the current Cloudflare plan without upgrading.
+- [ ] Create the free-tier `t2s-usage` D1 database and put its real ID in `cloudflare/t2s-tts-worker/wrangler.toml`.
+- [ ] Apply `migrations/0001_user_provider_usage.sql` to the remote D1 database.
+- [ ] Set `VAKYAM_API_KEY` and, when required/available, `INDIA_API_KEY` as Worker secrets.
+- [ ] Configure GitHub Actions `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets with only the required Workers/D1 permissions.
+- [ ] Run the manual Worker deployment after all prerequisites are satisfied; verify `/health` reports `usageQuota: true`.
+- [ ] Run live D1 quota boundary and concurrent-request checks after deployment.
 
-- [x] Implement repository-side persistent per-user Worker quota enforcement using one atomic Cloudflare D1 UPSERT per UID/provider; daily/monthly character and daily request caps fail closed when D1 is unavailable.
-- [ ] Create the free-tier Cloudflare D1 database, replace the Wrangler placeholder database ID, apply `migrations/0001_user_provider_usage.sql`, and verify quota boundary/concurrency behavior against the live binding. This account-side setup is not complete and the Worker has not been deployed.
-- [x] Implement a complete account export ZIP containing known cloud profile/projects/scripts/voiceProfiles/settings metadata plus local projects, audio history, generated audio, My Voices profiles and local voice samples.
-- [x] Implement authenticated account deletion with a five-minute recent-auth requirement, recursive deletion of `users/{uid}` and nested collections, hashed usage-ledger cleanup, Firebase Auth deletion, and UID-scoped local file/preference cleanup.
-- [x] Build verification: PR head `60369418f8e7dd6cde791be13a7e2fbe27769d8a` passed Android Debug + Release APK assembly in Actions run [#924](https://github.com/Amruth1988/T2S/actions/runs/45253071718).
-- [ ] Test export ZIP contents and account deletion behavior with a disposable Firebase test account before release; CI assembly does not validate live Firebase behavior.
-- [x] Defined safe legacy-data handling: legacy project/audio preference namespaces are not auto-migrated because old 32-bit hash keys cannot prove UID ownership; legacy shared voice files are preserved and never assigned to an account automatically.
-- [ ] Validate account switching and confirm legacy data remains inaccessible to other accounts on a real device.
-- [ ] Complete Android App Check integration validation; Firebase Console provider registration, Play Integrity linkage, release fingerprints and debug-token registration still require your Firebase Console access.
-- [ ] Piper Telugu offline voice-pack import/playback remains deferred from this release; current guest offline generation uses Android's installed system TTS. A separate Android runtime/importer and device validation would be required before enabling Piper packs.
-- [ ] Complete final licence/provenance review, release signing, release APK publishing and release notes after code and device checks pass.
+### Firebase (do not enable billing without explicit owner approval)
 
+- [ ] Confirm Firebase project `t2s-studio` and Functions region `asia-south1`.
+- [ ] Configure Android Firebase App Check with Play Integrity and the correct Cloud project linkage.
+- [ ] Register the actual release signing fingerprints and a private debug token for local testing; never ship a debug token.
+- [ ] Configure `T2S_PROVIDER_PRIVATE_KEY` in Functions Secret Manager and `T2S_PROVIDER_PUBLIC_KEY` in the untracked Functions environment file.
+- [ ] Confirm the trusted owner account has the `admin: true` custom claim.
+- [ ] Save central Sarvam provider credentials using the encrypted admin workflow and configure enabled `provider_limits/{sarvam}` budgets.
+- [ ] Review Firebase Functions deployment billing requirements. Do not move the project to Blaze or add a payment method unless explicitly approved.
+- [ ] Deploy updated Functions only after App Check, secrets, admin claims, provider keys, quota documents and billing approval are ready.
+- [ ] Verify live callable functions and provider usage enforcement with a disposable Firebase test account.
 
-## A. Source and CI checks
+### Legacy gateway and signing
 
-- [x] Debug APK assembly passed in GitHub Actions run #298.
-- [x] Release APK assembly passed in GitHub Actions run #298.
-- [x] ABI-specific release APK preparation passed for arm64-v8a and armeabi-v7a.
-- [x] Direct release assets were published for both ABIs.
-- [x] Point 2 generated-audio persistence changes are included in build #298.
-- [x] Android PR build #890 passed Debug + Release APK assembly on current PR HEAD `0a82bb0967c98fb125bb6d0b878fd813260dee2c` (GitHub Actions run [#45244322218](https://github.com/Amruth1988/T2S/actions/runs/45244322218)); Functions typecheck #15 and Cloudflare Worker build #9 also passed for this change set. PR builds intentionally skip signing and release publishing.
-- [x] Telugu voice-pack validation workflow #14 passed: pinned Venkatesh/Padmavathi source downloads, conversion, CI synthesis, attribution/licence packaging, SHA-256 source manifests and versioned release publication.
-- [ ] Run automated unit/instrumentation tests if/when test suites are added; the current Android workflow is an assemble-and-publish workflow, not a full device test suite.
+- [ ] Once older released APKs no longer use it, disable/delete the legacy Google Apps Script Sarvam deployment and remove obsolete Script Properties from its owner account.
+- [ ] Confirm GitHub Actions signing secrets exist and point to the intended release keystore. Never place keystore files/passwords in the repository.
+- [ ] After the release branch is approved for merge, run the main-branch release workflow and verify both signed ABI APKs and their SHA-256 checksums.
 
-## B. Release artifact checks
+## 3. Final real-device/scenario test batch — intentionally deferred
 
-- [x] Build #298 published T2S-arm64-v8a.apk (88.5 MB).
-- [x] Build #298 published T2S-armeabi-v7a.apk (79.0 MB).
-- [ ] Install the ARM64 APK on a real arm64 Android device.
-- [ ] Install the ARMv7 APK on a compatible 32-bit ARM device/emulator.
-- [ ] Confirm app ID, app label, launch icon, version and upgrade behavior.
-- [ ] Confirm APK signature verification with Android SDK apksigner verify --verbose --print-certs.
-- [ ] Confirm install/upgrade from the previous public build without losing projects or audio history.
+Do not begin these until the repository work and owner-side configuration are complete. Run the scenarios together in one final pass.
 
-## C. Core app workflows
+- [ ] Install the latest signed ARM64 APK on a supported Android phone; use ARMv7 only if a compatible device is available.
+- [ ] Verify app ID, app label, launch icon, version, signature and upgrade behavior.
+- [ ] Test sign-in, sign-out, guest access and switching between two Firebase accounts; confirm no projects, drafts, audio or voice samples leak between accounts.
+- [ ] Test project create/rename/select/delete and persistence after closing/reopening.
+- [ ] Test Create → Generate → Save → Reopen → Play → Share/Export for English, Hindi and Telugu.
+- [ ] Test guest WAV generation using installed offline Android voices, including the no-offline-voice error and no-cloud-data guarantee.
+- [ ] Test India TTS, Vakyam and Sarvam only after their owner-side configuration and deployments are complete.
+- [ ] Test account export ZIP contents and account deletion with a disposable account, including stale-auth rejection and cleanup of Firestore, Auth, D1 and local account data.
+- [ ] Test offline/network interruption, rapid taps, long text, low storage, background/foreground and process recreation.
+- [ ] Review backup/restore and confirm raw voice samples are excluded from Android backup/device transfer.
+- [ ] Have a native Telugu speaker review any installed Telugu voice for pronunciation, intelligibility, naturalness, punctuation and numerals.
+- [ ] Confirm provider-hosted voice records and external provider retention/deletion behavior separately.
 
-- [ ] Fresh install → launch → verify signed-in navigation to Create, Projects, Recent, My Voices and Profile.
-- [ ] Signed-out guest sees Home only; account entry remains available for sign-in.
-- [ ] Create, rename, select and delete a project; verify persistence after force-stop/relaunch.
-- [ ] Generate short and long text in English, Hindi and Telugu while signed in.
-- [ ] As guest, generate WAV locally with an installed offline Android TTS voice; verify voice selection, speech rate/pitch and clear error when no offline voice is installed.
-- [ ] As guest, download generated WAV and verify it is stored under the guest audio directory; confirm generation does not create cloud records, account history, projects or drafts.
-- [ ] Verify online TTS success and expected MP3/WAV/OGG handling.
-- [ ] Disable network while signed in and verify online-provider failure/fallback behavior; guest local TTS must remain available when a compatible installed voice is present.
-- [ ] Save generated audio; confirm it appears in Recent/Saved Audio after relaunch.
-- [ ] Verify recordings retain the selected project ID/name, including after project rename and delete.
-- [ ] Play, pause, resume, stop, share, download and delete saved audio.
-- [ ] Confirm Downloads export on Android 10+ and app-specific storage behavior on older supported Android versions.
-- [ ] Test empty text, long text, rapid repeated taps, interrupted generation, storage-full and permission-denied paths.
-- [ ] Test audio output with screen rotation, background/foreground transitions and process recreation.
+## 4. Current verification boundary
 
-## D. Telugu offline voice packs (deferred; not currently integrated into the Android app)
+- Source changes and automated CI are not equivalent to live cloud deployment or Android runtime verification.
+- The Worker must remain fail-closed until a real D1 ID is configured and the migration is applied.
+- Firebase callable Functions and App Check must not be treated as production-ready until the owner-side setup and deployment steps above pass.
+- The public Firebase app config key is not a private provider secret; restrict its API usage and Android application identity in Google Cloud.
+- No production Worker deployment, Firebase Functions deployment, billing change, signed release publication or real-device test is claimed by this checklist.
+- The exact latest commit and CI run statuses are recorded in the PR and the final update after the current workflow completes.
 
-The current guest offline path uses Android's installed system TTS voices. The Piper pack generation workflow is not an Android import/playback feature at this time. Do not treat the import steps below as release-ready functionality.
+## 5. Voice model distribution policy
 
-- [ ] Download the t2s-telugu-piper-import-packs artifact from a successful voice-validation run.
-- [ ] Confirm each Venkatesh/Padmavathi pack contains model, tokens, JSON config, original model card, ATTRIBUTION.md and CC BY 4.0 licence text.
-- [ ] Import each pack on device and confirm malformed/duplicate/oversized ZIP entries are rejected safely.
-- [ ] Preview and synthesize Telugu on device for both voices; verify non-empty playable WAV files.
-- [ ] Have native Telugu speakers review pronunciation, intelligibility, naturalness, punctuation, numerals and common conjuncts.
-- [ ] Verify both ABIs and memory/performance on representative lower-memory devices.
-- [x] Maya is excluded from the app importer and public import artifact until IITM IndicTTS derivative-model redistribution terms are cleared.
-- [ ] SYSPIN candidate remains separate from Piper; do not expose it as selectable until a dedicated Android implementation and device review pass.
-
-## E. Licensing, provenance and privacy
-
-- [x] Venkatesh and Padmavathi are attributed to PravalX and AI4Bharat IndicVoices-R under CC BY 4.0 in pack-generation workflow.
-- [x] Original model cards and CC BY 4.0 legal text are included in generated import packs.
-- [x] Maya's exact IITM IndicTTS derivative-model redistribution terms remain unverified; its weights are excluded from distribution.
-- [x] DhVaani-0.5 is marked CC BY-NC 4.0 and excluded from commercial T2S release.
-- [x] Archive exact source revision and SHA-256 checksums for each released voice model/configuration, model card, attribution and licence file in each pack's SOURCE_MANIFEST.sha256; ZIP archives also have SHA-256 sidecars.
-- [ ] Confirm the final legal notices match the exact model and dataset revisions used for the release.
-- [x] Code review: reference-voice recording flow requires the user to confirm the recording is their own voice or that they have permission before registration; real-device confirmation remains pending.
-- [ ] Verify API keys never appear in logs, analytics, crash reports or exported project files.
-- [x] My Voices profile JSON and sample audio are now stored in Firebase-UID-specific local directories; sample audio uses `noBackupFilesDir`. Legacy shared profile/sample files are preserved but are not automatically assigned to an account. Verify this on a real device by switching between two accounts.
-- [ ] Verify backup/restore on real Android devices, including that raw voice samples are not included in automatic cloud backup or device transfer.
-- [x] Add complete user-data export source: the Account page creates a ZIP containing cloud profile/projects/scripts/voiceProfiles/settings metadata, local projects, audio history and owned audio files, plus My Voices profiles and owned local recordings.
-- [ ] Build-verify export and inspect the ZIP with a disposable account; verify empty/large collections, missing audio files, and provider metadata handling.
-- [x] Add recent-auth protected account deletion: Firebase callable requires auth within 5 minutes, recursively removes `users/{uid}` and all nested collections, clears UID-hashed provider usage ledgers, and deletes the Firebase Auth identity. Account page also clears that UID's local projects/audio history/generated audio/voice samples.
-- [ ] Build-verify deletion and run end-to-end tests using a disposable account; verify a stale-auth attempt is rejected and a successful deletion leaves no cloud/local account data.
-- [ ] Define and verify local-data cleanup on sign-out/account deletion. Current project, audio-history and generated-audio storage uses SHA-256 UID namespaces; verify switching accounts on one device never exposes another account's data. Legacy project/audio preference namespaces are intentionally not auto-migrated because their old 32-bit hash keys contain no reliable UID ownership metadata. Guest audio remains in its separate guest directory.
-- [ ] Verify generated audio for a signed-in user is stored under that user's UID-derived directory and never linked to a project unless the user explicitly selects one.
-- [ ] Verify My Voices profiles and samples remain isolated when switching between two Firebase accounts; verify legacy shared files remain untouched until an explicit migration flow exists.
-- [x] Worker source now reserves per-user India TTS and Vakyam TTS usage atomically in D1 (10,000 chars/day, 100,000 chars/month, 30 requests/day); failed upstream calls remain reserved.
-- [ ] Provision the free D1 database in Cloudflare, replace the placeholder ID in `wrangler.toml`, apply the migration, deploy, and run live quota boundary/concurrency checks. Until provisioned, the Worker fails closed with 503 for online generation.
-
-
-## F. Release sign-off
-
-- [ ] CI is green on the exact release commit.
-- [ ] Both release APKs install and launch on real supported devices.
-- [ ] Critical Create → Generate → Save → Reopen → Play/Export workflows pass.
-- [ ] Telugu offline voices pass native-speaker listening review on real devices.
-- [ ] Licence/provenance review is complete for every model actually distributed.
-- [ ] Release notes, version and checksums are recorded.
-
-## Per-account provider generation quotas
-
-- [ ] Verify each authenticated account is capped at 10,000 characters/day, 100,000 characters/month and 30 requests/day for each central India TTS, Vakyam TTS and Sarvam clone generation route.
-- [ ] Verify Sarvam voice registration also reserves the shared provider request budget and the account's 10-call daily Sarvam allowance before the upstream request.
-- [ ] Verify provider-wide daily/monthly character and request limits still apply across all users.
-- [ ] Run concurrent requests at the quota boundary and confirm Firestore transactions prevent over-reservation.
-- [ ] Confirm quota reservations happen before provider calls and are not refunded on provider errors/timeouts (conservative cost protection).
-- [ ] Confirm guest local Android TTS does not consume server-side provider quotas.
-
-## Firebase App Check configuration (required before enabling enforcement)
-
-- [ ] In Firebase Console, register the Android app with the Play Integrity App Check provider and complete the Play Integrity/API project linkage.
-- [ ] Add the release signing certificate fingerprints used by the distributed APK to the Firebase Android app settings.
-- [ ] Install a debug build, copy its Firebase App Check debug token from Logcat, and register that token in Firebase Console. Never ship or publish a debug token.
-- [ ] Verify debug and release builds can obtain App Check tokens and invoke callable Functions.
-- [ ] Verify an unregistered/debug-token-free client is rejected by Functions configured with `enforceAppCheck: true`.
-- [ ] Do not deploy or change Firebase Console enforcement/provider settings until the above checks are complete.
-
-The Android client initializes the debug provider only for debug builds (loaded reflectively so the debug-only SDK is not required by release compilation) and Play Integrity for release builds. Firebase Console registration and release signing fingerprints remain manual prerequisites.
-
-## Current verification boundary
-
-Latest checked PR branch: `fix/release-workflow-and-guest-scope`  
-Latest checked commit: `60369418f8e7dd6cde791be13a7e2fbe27769d8a` (23 November 2026)
-
-- [x] Android Debug + Release APK assembly passed in workflow [#924](https://github.com/Amruth1988/T2S/actions/runs/45253071718).
-- [x] PR APK artifact upload passed. Artifact [t2s-pr-3-apks](https://api.github.com/repos/Amruth1988/T2S/actions/artifacts/14857089696/zip) is available until 30 November 2026; PR artifacts are unsigned and are for testing, not production release.
-- [x] Cloudflare Worker build passed in workflow [#45253071887](https://github.com/Amruth1988/T2S/actions/runs/45253071887).
-- [x] Firebase Functions typecheck passed in workflow [#45253071763](https://github.com/Amruth1988/T2S/actions/runs/45253071763).
-- [ ] No Android unit or instrumentation test source sets currently exist; workflow #924 assembles APKs but is not a runtime test.
-- [ ] Real-device installation, sign-in/guest/account-switching, export/deletion, audio playback and Telugu listening checks remain unverified.
-- [ ] Cloudflare D1 is still unprovisioned: `wrangler.toml` contains the all-zero placeholder database ID. Do not deploy online generation until the free-tier D1 database is created, migration applied, and health/quota checks pass.
-- [ ] Firebase App Check Console registration, Play Integrity linkage, debug token registration and release signing fingerprints require account-owner Console access.
-- [ ] No production Worker deployment, Firebase Console configuration, release signing or production release is claimed.
-
-CI success is evidence of source compilation/assembly and workflow steps only. It does not certify live Firebase behavior, Cloudflare account configuration, device runtime behavior, or Telugu voice quality.
+The Android app's guest offline path uses Android system TTS. The repository's Piper validation workflow is not an Android model importer and must not be described as one. Do not enable Piper, SYSPIN, Hima, Maya, DhVaani or a Purohit-specific model in the app until its exact licence, Android runtime/ABI support and voice-quality gates are satisfied.
