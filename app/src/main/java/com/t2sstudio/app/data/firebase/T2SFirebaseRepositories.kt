@@ -383,6 +383,7 @@ class T2SFirestoreRepository(
             return
         }
         val data = mapOf(
+            "uid" to uid,
             "firstName" to firstName.trim(),
             "lastName" to lastName.trim(),
             "mobile" to mobile.trim(),
