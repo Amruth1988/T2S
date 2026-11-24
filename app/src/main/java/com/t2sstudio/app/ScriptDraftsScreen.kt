@@ -73,13 +73,14 @@ fun ScriptDraftsScreen(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("${drafts.size} saved ${if (drafts.size == 1) "draft" else "drafts"}", color = T2SSecondaryText, fontSize = 12.sp)
+                Text("My drafts", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                Text("${drafts.size} saved ${if (drafts.size == 1) "draft" else "drafts"}", fontSize = 13.sp, color = T2SSecondaryText)
             }
             Box(
-                modifier = Modifier.size(42.dp).background(T2SOrange.copy(alpha = 0.12f), CircleShape),
+                modifier = Modifier.size(46.dp).background(T2SOrange.copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.Description, contentDescription = null, tint = T2SOrange, modifier = Modifier.size(22.dp))
+                Icon(Icons.Filled.Description, contentDescription = null, tint = T2SOrange, modifier = Modifier.size(24.dp))
             }
         }
 
