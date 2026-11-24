@@ -186,6 +186,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
       service: "t2s-tts-worker",
       providers: { vakyam: Boolean(env.VAKYAM_API_KEY), india: Boolean(env.INDIA_API_KEY) },
       usageQuota: Boolean(env.USAGE_DB),
+      vakyamPublicVoiceCount: VAKYAM_PUBLIC_VOICES.length,
     });
   }
 
