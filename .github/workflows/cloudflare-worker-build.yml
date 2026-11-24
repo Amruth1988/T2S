@@ -7,7 +7,7 @@ on:
       - "cloudflare/t2s-tts-worker/**"
       - ".github/workflows/cloudflare-worker-build.yml"
   pull_request:
-    branches: [develop]
+    branches: [main, develop]
     paths:
       - "cloudflare/t2s-tts-worker/**"
       - ".github/workflows/cloudflare-worker-build.yml"
@@ -38,5 +38,7 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Type-check Worker
         run: npm run typecheck
+      - name: Test D1 quota and deletion SQL against SQLite
+        run: npm test
       - name: Validate Wrangler bundle
         run: npx wrangler deploy --dry-run --outdir .wrangler-build

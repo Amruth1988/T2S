@@ -3,6 +3,7 @@ package com.t2sstudio.app
 import android.util.Base64
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.appcheck.FirebaseAppCheck
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -40,6 +41,9 @@ object CentralOnlineTtsClient {
         connection.connectTimeout = 15_000
         connection.readTimeout = if (method == "POST") 120_000 else 30_000
         connection.setRequestProperty("Authorization", authorizationHeader())
+        val appCheckToken = Tasks.await(FirebaseAppCheck.getInstance().getAppCheckToken(false)).token
+            ?: error("Could not verify this app installation. Please try again.")
+        connection.setRequestProperty("X-Firebase-AppCheck", appCheckToken)
         connection.setRequestProperty("Accept", "application/json")
         if (body != null) {
             connection.doOutput = true

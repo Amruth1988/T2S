@@ -101,6 +101,37 @@ private fun audioMimeType(file: File): String = when (file.extension.lowercase(L
     "ogg" -> "audio/ogg"
     else -> "audio/wav"
 }
+private suspend fun synthesizeInstalledVoiceToFile(
+    engine: TextToSpeech, text: String, voice: Voice,
+    speechRate: Float, speechPitch: Float, output: File
+) = kotlinx.coroutines.suspendCancellableCoroutine<Unit> { continuation ->
+    val utteranceId = "guest-${java.util.UUID.randomUUID()}"
+    engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+        override fun onStart(id: String) = Unit
+        override fun onDone(id: String) {
+            if (id == utteranceId && continuation.isActive) continuation.resume(Unit)
+        }
+        @Deprecated("Deprecated in Java")
+        override fun onError(id: String) {
+            if (id == utteranceId && continuation.isActive) continuation.resumeWithException(IllegalStateException("Android speech engine could not create the audio file."))
+        }
+        override fun onError(id: String, errorCode: Int) {
+            if (id == utteranceId && continuation.isActive) continuation.resumeWithException(IllegalStateException("Android speech engine failed (code $errorCode)."))
+        }
+    })
+    runCatching {
+        check(engine.setVoice(voice) == TextToSpeech.SUCCESS) { "The selected offline voice could not be activated." }
+        check(engine.setSpeechRate(speechRate.coerceIn(0.5f, 2f)) == TextToSpeech.SUCCESS) { "The selected speech rate is not supported." }
+        check(engine.setPitch(speechPitch.coerceIn(0.5f, 2f)) == TextToSpeech.SUCCESS) { "The selected voice pitch is not supported." }
+        engine.synthesizeToFile(text, Bundle(), output, utteranceId)
+    }.onFailure {
+        if (continuation.isActive) continuation.resumeWithException(it)
+    }.onSuccess { result ->
+        if (result == TextToSpeech.ERROR && continuation.isActive) continuation.resumeWithException(IllegalStateException("Android speech engine rejected this voice or language."))
+    }
+    continuation.invokeOnCancellation { runCatching { engine.stop() } }
+}
+
 
 private data class PurohitPreset(
     val name: String,
@@ -348,7 +379,7 @@ fun SpeechStudioScreen(
                     // Firebase stores voice metadata only; the original sample audio stays
                     // in app-private storage. Reattach local sample paths by stable voice ID
                     // so My Voices previews play the user's actual recording after cloud load.
-                    val localSaved = MyVoicesClient.list(context)
+                    val localSaved = MyVoicesClient.list(context, uid)
                     val localById = localSaved.associateBy { it.id }
                     val merged = cloudSaved.map { cloud ->
                         localById[cloud.id]?.let { local ->
@@ -368,7 +399,7 @@ fun SpeechStudioScreen(
                     if (merged.isEmpty()) statusMessage = "No saved voices found on this device or in Firebase."
                 }.onFailure { error ->
                     // Even if Firebase is offline, local voice recordings remain playable.
-                    val localSaved = MyVoicesClient.list(context)
+                    val localSaved = MyVoicesClient.list(context, uid)
                     myVoices.clear()
                     myVoices.addAll(localSaved)
                     restoreSavedVoiceSelection()
@@ -988,7 +1019,7 @@ fun SpeechStudioScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf("Online", "Installed", "My Voices").forEach { tab ->
+                    (if (isRegisteredUser) listOf("Online", "Installed", "My Voices") else listOf("Installed")).forEach { tab ->
                         FilterChip(
                             modifier = Modifier.weight(1f),
                             selected = voiceLibraryTab == tab,
@@ -1229,7 +1260,7 @@ fun SpeechStudioScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text("Output format:", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-                listOf("WAV", "MP3", "OGG").forEach { format ->
+                (if (isRegisteredUser) listOf("WAV", "MP3", "OGG") else listOf("WAV")).forEach { format ->
                     val formatSupported = !(selectedOnlineVoice?.provider == "Vakyam" && format == "OGG")
                     FilterChip(
                         selected = outputFormat == format,
@@ -1290,11 +1321,10 @@ fun SpeechStudioScreen(
                 val personalVoice = selectedSavedVoice
                 val onlineVoice = selectedOnlineVoice
                 val usingPersonalVoice = personalVoice != null
-                val outputFormatForRequest = if (usingPersonalVoice) "wav" else outputFormat.lowercase(Locale.ROOT)
-                val directory = File(
-                    context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir,
-                    "T2SStudio"
-                ).apply { mkdirs() }
+                val guestMode = !isRegisteredUser
+                val installedVoice = selectedVoice
+                val outputFormatForRequest = if (usingPersonalVoice || guestMode) "wav" else outputFormat.lowercase(Locale.ROOT)
+                val directory = generatedAudioDirectory(context, com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid)
                 val output = File(directory, "speech_" + System.currentTimeMillis() + "." + outputFormatForRequest)
                 when {
                     textToSpeak.isBlank() -> statusMessage = "Please enter some text first."
@@ -1312,22 +1342,32 @@ fun SpeechStudioScreen(
                         statusMessage = "${personalVoice.name} is saved locally but is not registered with Sarvam yet. Open My Voices and complete voice registration before generating."
                     personalVoice != null && textToSpeak.length > 1000 ->
                         statusMessage = "My Voices supports up to 1,000 characters per generation. Shorten your text and try again."
-                    personalVoice == null && textToSpeak.length > 3000 ->
+                    guestMode && (!engineReady || installedVoice == null) ->
+                        statusMessage = "No installed ${selectedLanguage} voice is available. Install an offline voice in Android Text-to-speech settings and try again."
+                    guestMode && installedVoice?.isNetworkConnectionRequired == true ->
+                        statusMessage = "This voice requires a network connection. Choose an installed offline voice for Guest mode."
+                    guestMode && textToSpeak.length > 2000 ->
+                        statusMessage = "Guest audio is limited to 2,000 characters. Shorten your text and try again."
+                    !guestMode && personalVoice == null && textToSpeak.length > 3000 ->
                         statusMessage = "Online TTS supports up to 3,000 characters per request. Shorten your text and try again."
-                    personalVoice == null && (onlineVoice == null || !onlineVoice.language.substringBefore('-').equals(languageCode, ignoreCase = true)) ->
+                    !guestMode && personalVoice == null && (onlineVoice == null || !onlineVoice.language.substringBefore('-').equals(languageCode, ignoreCase = true)) ->
                         statusMessage = "Choose an online ${selectedLanguage} voice before generating speech."
                     else -> {
                         isGenerating = true
                         generatedFile = null
                         stopVoicePreview()
-                        statusMessage = if (personalVoice != null) {
-                            "Generating speech with your voice: ${personalVoice.name}…"
-                        } else {
-                            "Generating ${selectedLanguage} speech online…"
+                        statusMessage = when {
+                            guestMode -> "Creating audio on this device with ${installedVoice?.name ?: "the installed voice"}…"
+                            personalVoice != null -> "Generating speech with your voice: ${personalVoice.name}…"
+                            else -> "Generating ${selectedLanguage} speech online…"
                         }
                         coroutineScope.launch {
                             val result = runCatching {
-                                withContext(Dispatchers.IO) {
+                                if (guestMode) {
+                                    withContext(Dispatchers.Main) {
+                                        kotlinx.coroutines.withTimeout(120_000L) { synthesizeInstalledVoiceToFile(requireNotNull(ttsEngine), textToSpeak, requireNotNull(installedVoice), speechRate, speechPitch, output) }
+                                    }
+                                } else withContext(Dispatchers.IO) {
                                     if (personalVoice != null) {
                                         SarvamVoiceCloneClient.generateCentral(
                                             voiceId = personalVoice.sarvamVoiceId,
@@ -1351,7 +1391,7 @@ fun SpeechStudioScreen(
                             if (result.isSuccess && output.isFile && output.length() > 1024L) {
                                 isGenerating = false
                                 generatedFile = output
-                                onAudioGenerated(
+                                if (!guestMode) onAudioGenerated(
                                     AudioRecord(
                                         id = java.util.UUID.randomUUID().toString(),
                                         filePath = output.absolutePath,
@@ -1366,10 +1406,10 @@ fun SpeechStudioScreen(
                                         voiceGender = personalVoice?.gender.orEmpty()
                                     )
                                 )
-                                statusMessage = if (personalVoice != null) {
-                                    "Speech generated with ${personalVoice.name}. Your audio is ready in Preview."
-                                } else {
-                                    "Online speech audio is ready and saved in T2S Studio."
+                                statusMessage = when {
+                                    guestMode -> "Your audio is ready. Tap Download to save it to your device."
+                                    personalVoice != null -> "Speech generated with ${personalVoice.name}. Your audio is ready in Preview."
+                                    else -> "Online speech audio is ready and saved in T2S Studio."
                                 }
                                 if (autoPlayAfterGeneration || personalVoice != null) playGeneratedFile(output)
                             } else {
@@ -1379,8 +1419,11 @@ fun SpeechStudioScreen(
                                 if (generationError.contains("Daily limit reached", ignoreCase = true)) {
                                     dailyGenerationLimitReached = true
                                 }
-                                statusMessage = (if (personalVoice != null) "My Voice generation failed: " else "Online TTS failed: ") +
-                                    generationError +
+                                statusMessage = (when {
+                                    guestMode -> "Guest audio generation failed: "
+                                    personalVoice != null -> "My Voice generation failed: "
+                                    else -> "Online TTS failed: "
+                                }) + generationError +
                                     if (dailyGenerationLimitReached) "" else " Check the selected voice and try again."
                             }
                         }
@@ -1480,7 +1523,7 @@ fun SpeechStudioScreen(
 
         Text(statusMessage, fontSize = 13.sp, color = T2SSecondaryText)
         Text(
-            "Online-only speech generation. An internet connection is required; generated audio is saved in app storage.",
+            if (isRegisteredUser) "Online speech generation is available for signed-in users. Guest mode uses an installed offline Android voice; generated audio can be downloaded." else "Guest mode creates audio on this device using an installed offline Android voice. Audio is not saved to an account.",
             fontSize = 11.sp,
             color = T2SSecondaryText
         )

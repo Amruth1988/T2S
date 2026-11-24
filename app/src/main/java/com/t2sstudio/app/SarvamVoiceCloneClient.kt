@@ -1,90 +1,34 @@
 package com.t2sstudio.app
 
 import android.util.Base64
-import org.json.JSONObject
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.android.gms.tasks.Tasks
 import java.io.File
 import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
-import java.net.HttpURLConnection
-import java.net.URL
 
-/** Sarvam Instant Voice Cloning client. Provider credentials remain in the authenticated Apps Script gateway. */
+/** Sarvam Instant Voice Cloning client. Provider credentials remain in Firebase Functions Secret Manager. */
 object SarvamVoiceCloneClient {
-    // Replace this placeholder with the deployed Google Apps Script /exec URL.
-    private const val SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzreX70ong9CQwtGMZ4tcSSLLY3iZ28MFL0ny6L6pitmRLUq6duHCJXiYZ_O2Do8wPP/exec"
-
     private fun centralCall(name: String, data: Map<String, Any?> = emptyMap()): Map<*, *> {
-        require(!SCRIPT_URL.contains("PASTE_DEPLOYMENT_ID")) {
-            "T2S shared Sarvam gateway is not configured yet. Deploy the Apps Script gateway and add its /exec URL."
-        }
-        val user = FirebaseAuth.getInstance().currentUser
+        FirebaseAuth.getInstance().currentUser
             ?: error("Sign in to T2S before using shared Sarvam voices.")
-        val token = com.google.android.gms.tasks.Tasks.await(user.getIdToken(false)).token
-            ?: error("Could not verify your T2S sign-in. Sign in again.")
-        val action = when (name) {
-            "listCentralSarvamVoices" -> "list"
-            "createCentralSarvamVoice" -> "create"
-            "generateCentralSarvamClone" -> "generate"
-            else -> error("Unsupported shared Sarvam operation.")
-        }
-        val payload = JSONObject().put("action", action).put("idToken", token)
-        data.forEach { (key, value) -> payload.put(key, value) }
-        var url = URL(SCRIPT_URL)
-        var method = "POST"
-        repeat(5) { attempt ->
-            val connection = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = method
-                connectTimeout = 30000
-                readTimeout = 120000
-                instanceFollowRedirects = false
-                setRequestProperty("Accept", "application/json")
-                if (method == "POST") {
-                    doOutput = true
-                    setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                }
-            }
-            try {
-                if (method == "POST") connection.outputStream.use {
-                    it.write(payload.toString().toByteArray(Charsets.UTF_8))
-                }
-                val status = connection.responseCode
-                if (status in 300..399) {
-                    val location = connection.getHeaderField("Location")
-                        ?: error("T2S gateway redirect did not include a destination.")
-                    url = URL(url, location)
-                    method = "GET"
-                    return@repeat
-                }
-                val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
-                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
-                val result = runCatching { JSONObject(body) }.getOrNull()
-                if (status !in 200..299) {
-                    // Never surface proxy, gateway, or provider response bodies to users.
-                    error("Voice service temporarily unavailable. Please try again later.")
-                }
-                val parsed = result ?: error("T2S gateway returned an invalid response (HTTP $status).")
-                if (parsed.has("error")) {
-                    val detail = parsed.optString("error", "Shared Sarvam request failed.")
-                    val normalizedDetail = detail.lowercase()
-                    if (listOf("credit", "quota", "limit", "balance", "insufficient", "payment", "billing", "subscription").any(normalizedDetail::contains)) {
-                        error("Generation temporarily unavailable. Please try again later.")
-                    }
-                    error(detail)
-                }
-                val map = mutableMapOf<String, Any?>()
-                result.keys().forEach { key ->
-                    map[key] = if (result.isNull(key)) null else result.get(key)
-                }
-                return map
-            } finally {
-                connection.disconnect()
-            }
-        }
-        error("T2S gateway redirect limit exceeded.")
+        val supported = setOf(
+            "listCentralSarvamVoices",
+            "createCentralSarvamVoice",
+            "generateCentralSarvamClone"
+        )
+        require(name in supported) { "Unsupported shared Sarvam operation." }
+        val result = Tasks.await(
+            FirebaseFunctions.getInstance("asia-south1")
+                .getHttpsCallable(name)
+                .call(data)
+        )
+        return result.getData() as? Map<*, *>
+            ?: error("T2S server returned an invalid Sarvam response.")
     }
 
     fun testCentralConnection(): String {
@@ -192,7 +136,7 @@ object SarvamVoiceCloneClient {
 
     fun createCentralVoice(sample: File, name: String, language: String, gender: String): String {
         require(sample.isFile && sample.length() >= 1024L) { "Voice sample is missing or empty." }
-        val uploadSample = if (sample.extension.lowercase() in setOf("wav", "mp3", "flac", "aac", "opus")) {
+        val uploadSample = if (sample.extension.lowercase() in setOf("wav", "mp3", "flac", "aac")) {
             sample
         } else {
             convertToWav(sample)
@@ -206,11 +150,14 @@ object SarvamVoiceCloneClient {
                 "mp3" -> "audio/mpeg"
                 "flac" -> "audio/flac"
                 "aac" -> "audio/aac"
-                "opus" -> "audio/opus"
                 else -> error("Could not prepare the recording in a Sarvam-supported audio format.")
             }
             val locale = when (language) { "te" -> "te-IN"; "hi" -> "hi-IN"; else -> "en-IN" }
-            val normalizedGender = gender.trim().lowercase().takeIf { it == "male" || it == "female" }
+            val normalizedGender = when (gender.trim().lowercase()) {
+                "male" -> "Male"
+                "female" -> "Female"
+                else -> "Other"
+            }
             val result = centralCall("createCentralSarvamVoice", mapOf(
                 "name" to name,
                 "language" to locale,

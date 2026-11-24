@@ -1,84 +1,103 @@
-# T2S Studio central provider keys
+# T2S Studio central provider credentials and usage controls
 
-## Encryption design
-- A trusted setup client fetches the RSA public key from `getProviderEncryptionPublicKey`. There is currently no connected in-app admin screen for central provider management.
-- Android encrypts the provider API key with RSA-OAEP using SHA-256 for both OAEP and MGF1.
-- Only the Base64 ciphertext is submitted to `saveCentralProviderKey` and stored in Firestore.
-- The RSA private key is a Firebase Functions Secret Manager secret. It is never shipped in the APK or returned by a callable.
-- Firestore client rules deny all direct reads and writes to `provider_keys`.
-- The backend-only `decryptProviderKey` helper decrypts credentials for future server-side provider proxy handlers. No callable returns plaintext.
+Last reviewed: 24 November 2026
 
-## One-time key-pair setup (owner action; not performed)
-Use OpenSSL on a trusted computer. Keep the private key private and back it up securely.
+## Active Android routing
 
+| Feature | Android route | Credential location | Quota storage |
+|---|---|---|---|
+| India TTS | Cloudflare Worker `/v1/india/*` | Cloudflare Worker secret `INDIA_API_KEY` (optional for the provider's current keyless allowance) | Cloudflare D1, hashed Firebase UID |
+| Vakyam TTS | Cloudflare Worker `/v1/vakyam/*` | Cloudflare Worker secret `VAKYAM_API_KEY` | Cloudflare D1, hashed Firebase UID |
+| Sarvam voice registration and cloned speech | Firebase callable Functions | Firebase Functions Secret Manager + encrypted Firestore provider-key record | Firestore provider usage ledgers |
+
+The Android Sarvam client now calls `createCentralSarvamVoice`, `listCentralSarvamVoices` and `generateCentralSarvamClone` through Firebase callable Functions. It no longer calls the legacy Google Apps Script URL. The Apps Script source under `scripts/sarvam-apps-script` is retained for reference only and is not the current Android route. Disable any old Apps Script deployment after confirming no older installed client still depends on it.
+
+## Security boundaries
+
+- The Android app does not contain provider API credentials.
+- India/Vakyam requests carry a Firebase Authentication ID token and Firebase App Check token. The Worker validates both, including project/app identity and token signatures.
+- Sarvam provider credentials are decrypted only inside Firebase Functions. The RSA private key is a Secret Manager secret; Firestore stores only RSA-OAEP-SHA256 ciphertext.
+- Do not commit, log, export or paste provider credentials, private keys, Firebase ID tokens or App Check debug tokens.
+- The new CI secret scanner checks high-confidence credential patterns in the current tracked working tree; it is not a full Git-history scanner. If any real credential was ever committed, rotate/revoke it even after removing it from the latest source.
+- The Firebase Web API key in `google-services.json` is an app identifier, not a provider secret. Restrict it to the required Firebase APIs and Android app where supported.
+- Existing device-local provider-key and self-hosted voice-clone settings remain for compatibility, but the active central online TTS and Sarvam flows do not need end-user provider keys.
+
+## India and Vakyam quota policy
+
+The Cloudflare Worker reserves usage atomically in D1 before each provider call. Per Firebase account and provider, the source limits are:
+- 10,000 characters per UTC day;
+- 100,000 characters per UTC month;
+- 30 requests per UTC day.
+
+D1 stores a SHA-256 hash of the Firebase UID rather than the raw UID. Failed upstream requests remain reserved to prevent retries from bypassing cost controls. Online generation fails closed with HTTP 503 if D1 is absent or unavailable. The account-deletion callable asks the Worker to delete the caller's hashed usage rows before deleting Firebase Auth; a failed D1 cleanup stops deletion so it can be retried.
+
+The database is not yet provisioned: `wrangler.toml` still contains the all-zero placeholder database ID. Do not deploy the Worker until the owner creates the free-tier D1 database, inserts its real ID, applies the checked-in migration and verifies the Worker health response reports `usageQuota: true`.
+
+## Sarvam quota policy
+
+Firebase Functions reserve both:
+- configured provider-wide daily/monthly character and daily-request budgets from `provider_limits/{provider}`; and
+- per-account caps of 10,000 characters/day, 100,000 characters/month and 30 requests/day for central provider operations.
+
+Sarvam voice registration and cloned generation also use a separate per-account allowance of 10 requests/day and 10,000 characters/day. Reservations occur before contacting the provider and are not refunded after provider failures. The Firebase Functions guard fails closed unless each provider's `provider_limits` document is enabled with positive integer `dailyCharacters`, `monthlyCharacters` and `dailyRequests`.
+
+Provider-wide limits are application-side ceilings, not a live view of provider wallet balances. Set them below the known provider allowance, monitor provider dashboards and disable a provider before its actual balance is exhausted. Do not assume a top-up resets app-side quota counters.
+
+## Cloudflare owner setup (not yet performed)
+
+Do not upgrade Cloudflare or enable paid services for T2S. Confirm D1 is available on the existing account plan first.
+
+From `cloudflare/t2s-tts-worker`:
 ```bash
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out t2s-provider-private.pem
-openssl pkey -in t2s-provider-private.pem -pubout -out t2s-provider-public.pem
+npm install
+npx wrangler login
+npx wrangler d1 create t2s-usage
 ```
 
-Set the private key as a Functions secret:
+Copy the returned database ID into `wrangler.toml`, replacing the all-zero placeholder, then run:
 ```bash
-firebase functions:secrets:set T2S_PROVIDER_PRIVATE_KEY
+npx wrangler d1 migrations apply t2s-usage --remote
+npm run typecheck
+npm test
+npx wrangler deploy --dry-run --outdir .wrangler-build
 ```
-When prompted, paste the complete contents of `t2s-provider-private.pem`.
 
-For the public key, create `functions/.env.t2s-studio` (do not commit it) with:
+Configure Worker secrets interactively:
+```bash
+npx wrangler secret put VAKYAM_API_KEY
+npx wrangler secret put INDIA_API_KEY
 ```
-T2S_PROVIDER_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\\n...base64 lines...\\n-----END PUBLIC KEY-----"
-```
-Replace the example with the actual public PEM, putting literal `\\n` between PEM lines. Firebase Functions parameter configuration reads this file during deploy.
 
-## Firebase requirements
-- Confirm project `t2s-studio` and region `asia-south1`.
-- Cloud Functions deployment generally requires the Firebase project to be on the Blaze plan and a billing account. This repository change does not enable billing or deploy anything. Do not upgrade or enable billing without the owner's explicit approval.
-- Set up Firebase Authentication, grant the owner account the `admin: true` custom claim using a trusted Admin SDK environment, and configure Firebase App Check for Android.
-- Deploy only after the project owner has approved the billing implications and reviewed IAM:
-  `cd functions && npm install && npm run deploy`.
+The deploy workflow also needs GitHub repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, with Workers and D1 migration permissions. Do not paste these secrets into chat or commit them. The deploy workflow is manual and has not been run from this PR branch.
 
-## Current scope and limitations
-- The Android admin key-save flow now performs encryption before upload.
-- Existing KMS-encrypted documents from the previous prototype are not compatible with RSA-OAEP. Re-enter/rotate those credentials after the new backend is configured; do not delete old data until verified.
-- The backend helper is ready for server-side provider integration, but provider voice-list, speech-generation and Sarvam registration proxy endpoints are not yet implemented. Until those endpoints are built and deployed, existing device-local provider key flows remain active.
-- No provider key, plaintext or ciphertext should be written to logs.
-- RSA-2048 OAEP-SHA256 supports plaintext up to 190 bytes. Provider API keys longer than this must use a hybrid envelope (AES-GCM data key wrapped by RSA) before enabling such a provider.
+## Firebase owner setup (not yet performed)
 
+Firebase Functions source is prepared, but deployment and Console configuration are not complete. Functions deployment may require Firebase Blaze billing. Do not enable billing or upgrade the project without the owner's explicit approval.
 
-## Central India TTS and Vakyam proxy (implementation added)
-The Functions source now includes authenticated, App-Check-protected callable endpoints:
-- `listCentralIndiaTtsVoices`
-- `generateCentralIndiaTts`
-- `listCentralVakyamVoices`
-- `generateCentralVakyamTts`
+Before enabling the Sarvam callable path:
+1. Confirm the Firebase project and `asia-south1` region.
+2. Configure Firebase App Check for the Android app with Play Integrity and register the actual release signing fingerprints. Register a debug token only for a private debug build; never ship it.
+3. Create an RSA-2048 key pair on a trusted computer:
+   ```bash
+   openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out t2s-provider-private.pem
+   openssl pkey -in t2s-provider-private.pem -pubout -out t2s-provider-public.pem
+   ```
+4. Store the private PEM in Functions Secret Manager as `T2S_PROVIDER_PRIVATE_KEY`. Configure `T2S_PROVIDER_PUBLIC_KEY` in the untracked Functions environment file using literal `\\n` separators.
+5. Grant the owner account the `admin: true` custom claim using a trusted Admin SDK environment.
+6. Save the Sarvam credential through the authenticated admin key workflow and configure enabled `provider_limits/sarvam` ceilings. Never write plaintext credentials to Firestore or logs.
+7. Review Firebase billing implications and approve them before any Functions deployment.
 
-The Android Speech Studio calls these endpoints for both providers. Provider credentials are decrypted only in the Functions runtime and are never returned to Android. Profile → Online TTS access no longer asks each user to enter a provider key. Provider credentials must be configured through trusted owner/admin tooling; there is no connected in-app admin screen.
+The callable code uses recent-auth protection for account deletion and App Check enforcement. Console registration, secrets, custom claims, provider credentials, quota documents and deployment are owner-side actions; they are not marked complete by a source build.
 
-Before these endpoints can work in production, the owner must complete the RSA key-pair / Functions Secret Manager setup above, configure Firebase Auth admin claim and App Check, save the India and Vakyam credentials centrally, and deploy Functions. Deployment has not been performed by this code change. Firebase Functions deployment generally requires Blaze billing; do not upgrade or enable billing without explicit owner approval.
+## Automated checks
 
-The callable speech endpoints return Base64 audio in the Firebase callable response and reject responses larger than the configured safety limits. Provider usage is charged/limited according to the provider's own account and plan. This implementation does not add a user quota for India or Vakyam; configure provider-side limits and monitor usage before opening access broadly.
+The Worker build workflow runs:
+- TypeScript type-check;
+- Wrangler bundle dry-run;
+- Node's built-in SQLite regression suite for the exact D1 quota reservation and deletion SQL, including daily/monthly resets, per-account isolation, boundary rejection and burst attempts.
 
-Existing device-local key stores and direct HTTP clients remain in the code for backward compatibility, but the Speech Studio path no longer calls them.
+These tests validate the SQLite statement semantics locally in CI. They do not provision a remote D1 database, exercise Cloudflare account credentials, or replace the final live/device verification batch.
 
+## Legacy Apps Script gateway
 
-## Provider usage safety guard (implemented; not yet deployed)
-- Every central speech-generation callable now reserves usage in a Firestore transaction before contacting Sarvam, India TTS or Vakyam.
-- Generation is **blocked by default** unless `provider_limits/{sarvam|india|vakyam}` has been explicitly configured and enabled by a T2S admin. This is fail-closed: a missing/invalid budget means no provider request is sent.
-- Configure three positive integer ceilings per provider: `dailyCharacters`, `monthlyCharacters`, and `dailyRequests`, plus `enabled: true`. There is no connected in-app admin screen for these controls. A trusted administrator must configure the limits through the authenticated `setProviderUsageLimits` callable or directly in the Firebase Console at `provider_limits/{provider}`. To pause a provider, set `enabled: false`.
-- Global daily and monthly reservations are tracked in `provider_usage`; the existing Sarvam per-user daily quota remains in place. Reservations happen before the provider request and are intentionally conservative: failed or interrupted requests still count, preventing retries from bypassing the cap.
-- **Important limitation:** provider APIs do not expose a common, reliable remaining-credit balance endpoint. These app-side ceilings do not read or guarantee the exact provider wallet balance. Set them below the known free/prepaid allowance, monitor each provider dashboard, and disable the provider before its actual balance is exhausted. Automatic provider-wallet synchronization is not claimed.
-- This change does not add a payment method, upgrade Firebase, deploy Functions, or authorize paid provider usage. Cloud Functions deployment still requires the owner to approve any Firebase Blaze/billing implications. Until the updated Functions are deployed and limits are configured, this protection is not active in production.
-
-
-## End-user behavior when generation is unavailable
-- Provider credit exhaustion, configured usage ceilings, and the existing Sarvam daily quota return the same neutral message: "Generation temporarily unavailable. Please try again later."
-- User-facing generation errors do not tell users to recharge, name provider wallets, or expose provider credit/billing details. Sarvam gateway credit/quota error text is also masked in the Android client.
-- These changes are source-code updates only. They do not deploy Cloud Functions or the Android app.
-- A provider recharge does not currently have a universal automatic detection mechanism. The providers do not share a reliable common balance API/webhook, and this repository does not yet implement provider-specific balance polling or recharge webhooks. The app-side daily/monthly usage ceilings reset on their configured UTC periods, not immediately when a provider wallet is topped up. Automatic immediate re-enable after recharge must not be claimed until a provider-specific balance/recharge integration is implemented and tested.
-
-
-## Recharge recovery and user-visible errors (source update)
-- The active Android India TTS/Vakyam path uses the Cloudflare Worker at `cloudflare/t2s-tts-worker`; the Sarvam voice-clone path uses `scripts/sarvam-apps-script/Code.gs`. The Firebase Functions proxy is a separate backend path and is not the Android client's current route for these features.
-- The Cloudflare Worker now masks upstream provider error bodies and returns the neutral user message: "Generation temporarily unavailable. Please try again later." Sarvam generation quota and provider credit/rate-limit failures use the same neutral message. No recharge instruction, provider wallet balance, or billing detail is shown to end users.
-- There is no persistent "disabled" flag in these active gateways after an upstream credit error. Each later generation attempt checks the provider again. When the provider accepts requests after a successful top-up, generation resumes automatically on that next attempt; no key rotation, manual app setting, or redeploy is needed for this retry-based recovery.
-- Important exception: the Sarvam gateway also has a separate per-user allowance of 10 generations or 10,000 characters per UTC day. A provider top-up does not reset that independent app safety allowance; it refreshes at the next UTC day. Configured Firebase Functions `provider_limits` ceilings are also separate and are not automatically raised by provider recharge.
-- India TTS documents a free API-key allowance and rate limit, not a prepaid wallet balance. A 429/rate-limit response is temporary capacity exhaustion, not proof that a recharge is needed. Vakyam's public terms mention prepaid credits, but a public balance-query API was not found. The next request's upstream response is therefore the practical recovery check; no live balance display or polling is implemented.
-- These source changes do not deploy the Cloudflare Worker or Apps Script. Deployment/publishing is still required before live traffic receives the new neutral error handling. Do not enable paid plans, add payment methods, or change Firebase billing as part of this work.
+The app no longer routes Sarvam operations through `scripts/sarvam-apps-script/Code.gs`. Do not add its URL back to Android. If a previous Apps Script deployment remains live, disable or delete that deployment from the Google Apps Script project after confirming that older released APKs no longer use it. Its Script Properties may contain a legacy Firebase web key or provider credential; review and remove obsolete properties in the Apps Script owner account. This cannot be completed from the repository.

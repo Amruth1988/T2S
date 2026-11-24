@@ -1,13 +1,31 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, decodeProtectedHeader, jwtVerify } from "jose";
+import { DELETE_USAGE_SQL, RESERVE_USAGE_SQL } from "./usage-sql.js";
 
+interface D1Result {
+  success: boolean;
+  meta?: { changes?: number };
+}
+interface D1Statement {
+  bind(...values: (string | number)[]): D1Statement;
+  run<T = unknown>(): Promise<D1Result & { results?: T[] }>;
+}
+interface D1Database {
+  prepare(query: string): D1Statement;
+}
 interface Env {
   FIREBASE_PROJECT_ID: string;
+  FIREBASE_PROJECT_NUMBER: string;
+  FIREBASE_APP_ID: string;
   VAKYAM_API_KEY: string;
   INDIA_API_KEY?: string;
+  USAGE_DB?: D1Database;
 }
 
 const firebaseKeys = createRemoteJWKSet(
   new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com")
+);
+const appCheckKeys = createRemoteJWKSet(
+  new URL("https://firebaseappcheck.googleapis.com/v1/jwks")
 );
 
 function json(data: unknown, status = 200): Response {
@@ -20,12 +38,38 @@ function json(data: unknown, status = 200): Response {
 async function authenticate(request: Request, env: Env): Promise<string> {
   const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) throw new Error("Sign in to T2S Studio to use online TTS.");
-  const { payload } = await jwtVerify(token, firebaseKeys, {
-    issuer: `https://securetoken.google.com/${env.FIREBASE_PROJECT_ID}`,
-    audience: env.FIREBASE_PROJECT_ID,
-    algorithms: ["RS256"],
-  });
+  let payload: Awaited<ReturnType<typeof jwtVerify>>["payload"];
+  try {
+    ({ payload } = await jwtVerify(token, firebaseKeys, {
+      issuer: `https://securetoken.google.com/${env.FIREBASE_PROJECT_ID}`,
+      audience: env.FIREBASE_PROJECT_ID,
+      algorithms: ["RS256"],
+    }));
+  } catch {
+    throw new Error("Invalid Firebase user token.");
+  }
   if (typeof payload.sub !== "string" || !payload.sub) throw new Error("Invalid Firebase user token.");
+
+  const appCheckToken = request.headers.get("x-firebase-appcheck");
+  if (!appCheckToken) throw new Error("A valid Firebase App Check token is required.");
+  let appCheckSubject: unknown;
+  try {
+    const protectedHeader = decodeProtectedHeader(appCheckToken);
+    if (protectedHeader.typ !== "JWT" || protectedHeader.alg !== "RS256") {
+      throw new Error("Unsupported App Check token header.");
+    }
+    const verifiedAppCheck = await jwtVerify(appCheckToken, appCheckKeys, {
+      issuer: `https://firebaseappcheck.googleapis.com/${env.FIREBASE_PROJECT_NUMBER}`,
+      audience: `projects/${env.FIREBASE_PROJECT_NUMBER}`,
+      algorithms: ["RS256"],
+    });
+    appCheckSubject = verifiedAppCheck.payload.sub;
+  } catch {
+    throw new Error("Invalid Firebase App Check token.");
+  }
+  if (typeof appCheckSubject !== "string" || appCheckSubject !== env.FIREBASE_APP_ID) {
+    throw new Error("Invalid Firebase App Check token.");
+  }
   return payload.sub;
 }
 
@@ -45,11 +89,36 @@ class ProviderRequestError extends Error {
 }
 
 async function providerError(response: Response, _provider: string): Promise<never> {
-  // Never forward provider billing, wallet, quota, or internal error details to users.
-  // A later generation request is the recovery check: once the provider accepts
-  // the request again after a top-up, generation resumes without key rotation.
-  await response.text(); // Drain the upstream body without exposing it.
+  await response.text();
   throw new ProviderRequestError(response.status);
+}
+
+/**
+ * One atomic D1 UPSERT enforces per-account daily and monthly limits. A single
+ * row per UID/provider avoids split daily/monthly reservations and race windows.
+ * Failed upstream calls remain charged as a conservative cost-control measure.
+ */
+async function reserveUsage(env: Env, uid: string, provider: "india" | "vakyam", characters: number): Promise<void> {
+  if (!env.USAGE_DB) {
+    throw new ProviderRequestError(503);
+  }
+  const uidHash = Array.from(new Uint8Array(await crypto.subtle.digest(
+    "SHA-256", new TextEncoder().encode(uid)
+  ))).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  const now = new Date();
+  const day = now.toISOString().slice(0, 10);
+  const month = day.slice(0, 7);
+  let result: D1Result;
+  try {
+    result = await env.USAGE_DB.prepare(RESERVE_USAGE_SQL)
+      .bind(provider, uidHash, day, characters, month, characters, now.toISOString()).run();
+  } catch {
+    throw new ProviderRequestError(503);
+  }
+  if (!result.success) throw new ProviderRequestError(503);
+  if ((result.meta?.changes ?? 0) !== 1) {
+    throw new ProviderRequestError(429);
+  }
 }
 
 async function handle(request: Request, env: Env): Promise<Response> {
@@ -58,10 +127,32 @@ async function handle(request: Request, env: Env): Promise<Response> {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
   if (url.pathname === "/health" && request.method === "GET") {
-    return json({ ok: true, service: "t2s-tts-worker", providers: { vakyam: Boolean(env.VAKYAM_API_KEY), india: Boolean(env.INDIA_API_KEY) } });
+    return json({
+      ok: true,
+      service: "t2s-tts-worker",
+      providers: { vakyam: Boolean(env.VAKYAM_API_KEY), india: Boolean(env.INDIA_API_KEY) },
+      usageQuota: Boolean(env.USAGE_DB),
+    });
   }
 
-  await authenticate(request, env);
+  const uid = await authenticate(request, env);
+
+  // Account deletion calls this route before Firebase Auth is removed so the
+  // hashed per-account quota ledger is erased from D1 as well as Firestore.
+  if (url.pathname === "/v1/account/usage" && request.method === "DELETE") {
+    if (!env.USAGE_DB) return json({ deleted: 0 });
+    const uidHash = Array.from(new Uint8Array(await crypto.subtle.digest(
+      "SHA-256", new TextEncoder().encode(uid)
+    ))).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    let result: D1Result;
+    try {
+      result = await env.USAGE_DB.prepare(DELETE_USAGE_SQL).bind(uidHash).run();
+    } catch {
+      throw new ProviderRequestError(503);
+    }
+    if (!result.success) throw new ProviderRequestError(503);
+    return json({ deleted: result.meta?.changes ?? 0 });
+  }
 
   if (url.pathname === "/v1/india/voices" && request.method === "GET") {
     const response = await fetch("https://api.dharun.dev/v1/tts/voices", {
@@ -83,6 +174,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (!text || text.length > 3000) return json({ error: "Text must contain 1–3,000 characters." }, 400);
     const voice = input.voice?.trim() || languageLocale(input.language || "en");
     const format = ["mp3", "wav", "ogg"].includes(input.format || "") ? input.format! : "mp3";
+    await reserveUsage(env, uid, "india", text.length);
     const query = new URLSearchParams({ text, voice, format, speed: String(Math.min(2, Math.max(0.5, input.speed || 1))) });
     const headers: Record<string, string> = { accept: format === "mp3" ? "audio/mpeg" : format === "wav" ? "audio/wav" : "audio/ogg" };
     if (env.INDIA_API_KEY) headers.authorization = `Bearer ${env.INDIA_API_KEY}`;
@@ -102,9 +194,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
       headers: { authorization: `Bearer ${env.VAKYAM_API_KEY}`, accept: "application/json" },
     });
     if (!response.ok) return providerError(response, "Vakyam");
-    // Vakyam returns the language-grouped voice map at the top level:
-    // { "te-IN": [{ "voice_name": "Archana", "gender": "female" }, ...] }.
-    // Accept a nested "data" wrapper as a compatibility fallback.
     const root = await response.json() as Record<string, unknown> & { data?: Record<string, unknown> };
     const locale = languageLocale(url.searchParams.get("language") || "te");
     const grouped = root.data && typeof root.data === "object" ? root.data : root;
@@ -124,6 +213,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (!input.voice?.trim()) return json({ error: "Choose a Vakyam voice." }, 400);
     const locale = languageLocale(input.language || "en");
     const format = input.format === "wav" ? "wav" : "mp3";
+    await reserveUsage(env, uid, "vakyam", text.length);
     const response = await fetch("https://api.vakyam.ai/v1/tts/generate", {
       method: "POST",
       headers: { authorization: `Bearer ${env.VAKYAM_API_KEY}`, "content-type": "application/json", accept: "application/json" },
@@ -144,8 +234,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
 const corsHeaders = {
   "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET, POST, OPTIONS",
-  "access-control-allow-headers": "authorization, content-type",
+  "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
+  "access-control-allow-headers": "authorization, content-type, x-firebase-appcheck",
 };
 
 export default {
@@ -156,13 +246,21 @@ export default {
       for (const [key, value] of Object.entries(corsHeaders)) headers.set(key, value);
       return new Response(response.body, { status: response.status, headers });
     } catch (error) {
+      let response: Response;
       if (error instanceof ProviderRequestError) {
-        const status = error.status === 402 ? 402 : error.status === 429 ? 429 : 502;
-        return json({ error: "Generation temporarily unavailable. Please try again later." }, status);
+        const status = error.status === 429 ? 429 : error.status === 503 ? 503 : error.status === 402 ? 402 : 502;
+        response = json({ error: "Generation temporarily unavailable. Please try again later." }, status);
+      } else {
+        const message = error instanceof Error ? error.message : "Generation temporarily unavailable. Please try again later.";
+        const status = message.startsWith("Sign in") || message.startsWith("Invalid Firebase") || message.startsWith("A valid Firebase App Check") ? 401 : 502;
+        response = json(
+          { error: status === 401 ? message : "Generation temporarily unavailable. Please try again later." },
+          status
+        );
       }
-      const message = error instanceof Error ? error.message : "Generation temporarily unavailable. Please try again later.";
-      const status = message.startsWith("Sign in") || message.startsWith("Invalid Firebase") ? 401 : 502;
-      return json({ error: status === 401 ? message : "Generation temporarily unavailable. Please try again later." }, status);
+      const headers = new Headers(response.headers);
+      for (const [key, value] of Object.entries(corsHeaders)) headers.set(key, value);
+      return new Response(response.body, { status: response.status, headers });
     }
   },
 };

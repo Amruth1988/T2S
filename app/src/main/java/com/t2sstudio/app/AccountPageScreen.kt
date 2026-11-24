@@ -14,6 +14,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Logout
@@ -72,7 +75,26 @@ fun AccountPageScreen(
     var user by remember { mutableStateOf(auth.currentUser) }
     var showProfile by remember { mutableStateOf(false) }
     var infoDialog by remember { mutableStateOf<String?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var deletingAccount by remember { mutableStateOf(false) }
+    var deleteMessage by remember { mutableStateOf<String?>(null) }
+    var exportMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/zip")
+    ) { destination ->
+        val uid = auth.currentUser?.uid
+        if (destination != null && !uid.isNullOrBlank()) {
+            AccountDataExporter.export(context, uid, destination) { result ->
+                exportMessage = result.fold(
+                    { "Your export ZIP was created with ${it} file entries. It includes cloud metadata, local projects, saved audio and My Voices recordings." },
+                    { "Export failed: ${it.localizedMessage ?: "Please try again."}" }
+                )
+            }
+        } else if (destination != null) {
+            exportMessage = "Sign in before exporting account data."
+        }
+    }
     BackHandler(enabled = showProfile) { showProfile = false }
     if (showProfile) {
         UserProfileScreen(onBack = { showProfile = false })
@@ -103,53 +125,56 @@ fun AccountPageScreen(
             Text("Text to Speech Studio", color = T2SText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            QuickAccountAction("Projects", Icons.Filled.Folder, Modifier.weight(1f)) { onNavigate(1) }
-            QuickAccountAction("My Voices", Icons.Filled.RecordVoiceOver, Modifier.weight(1f)) { onNavigate(3) }
-            QuickAccountAction("Recent", Icons.Filled.AccessTime, Modifier.weight(1f)) { onNavigate(2) }
-        }
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = T2SCream,
-            shape = RoundedCornerShape(24.dp)
-        ) {
-            Row(
-                modifier = Modifier.padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+        if (user != null) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                QuickAccountAction("Projects", Icons.Filled.Folder, Modifier.weight(1f)) { onNavigate(1) }
+                QuickAccountAction("My Voices", Icons.Filled.RecordVoiceOver, Modifier.weight(1f)) { onNavigate(3) }
+                QuickAccountAction("Recent", Icons.Filled.AccessTime, Modifier.weight(1f)) { onNavigate(2) }
+            }
+    
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = T2SCream,
+                shape = RoundedCornerShape(24.dp)
             ) {
-                Surface(shape = RoundedCornerShape(16.dp), color = T2SBackground) {
-                    Icon(Icons.Filled.RecordVoiceOver, contentDescription = null, tint = T2SOrange,
-                        modifier = Modifier.padding(16.dp).size(30.dp))
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("Your voice, your creativity", color = T2SText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("Create, manage and revisit your speech projects.",
-                        color = T2SSecondaryText, fontSize = 14.sp)
+                Row(
+                    modifier = Modifier.padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Surface(shape = RoundedCornerShape(16.dp), color = T2SBackground) {
+                        Icon(Icons.Filled.RecordVoiceOver, contentDescription = null, tint = T2SOrange,
+                            modifier = Modifier.padding(16.dp).size(30.dp))
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text("Your voice, your creativity", color = T2SText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Create, manage and revisit your speech projects.",
+                            color = T2SSecondaryText, fontSize = 14.sp)
+                    }
                 }
             }
-        }
-
-        AccountSectionCard(
-            title = "Your information",
-            subtitle = "Personal account details",
-            icon = Icons.Filled.AccountCircle
-        ) {
-            AccountMenuRow("Profile", "Update your personal details", Icons.Filled.AccountCircle) { showProfile = true }
-            AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
-            AccountMenuRow("My Drafts", "Continue your saved scripts", Icons.Filled.Description) { onNavigate(4) }
-        }
-
-        AccountSectionCard(
-            title = "Your T2S workspace",
-            subtitle = "Your creative tools and activity",
-            icon = Icons.Filled.Folder
-        ) {
-            AccountMenuRow("Projects", "Manage your projects", Icons.Filled.Folder) { onNavigate(1) }
-            AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
-            AccountMenuRow("Recent audio", "Listen to your generated speech", Icons.Filled.AccessTime) { onNavigate(2) }
-        }
+    
+            AccountSectionCard(
+                title = "Your information",
+                subtitle = "Personal account details",
+                icon = Icons.Filled.AccountCircle
+            ) {
+                AccountMenuRow("Profile", "Update your personal details", Icons.Filled.AccountCircle) { showProfile = true }
+                AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
+                AccountMenuRow("My Drafts", "Continue your saved scripts", Icons.Filled.Description) { onNavigate(4) }
+            }
+    
+            AccountSectionCard(
+                title = "Your T2S workspace",
+                subtitle = "Your creative tools and activity",
+                icon = Icons.Filled.Folder
+            ) {
+                AccountMenuRow("Projects", "Manage your projects", Icons.Filled.Folder) { onNavigate(1) }
+                AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
+                AccountMenuRow("Recent audio", "Listen to your generated speech", Icons.Filled.AccessTime) { onNavigate(2) }
+            }
+    
+            }
 
         AccountSectionCard(
             title = "T2S Studio",
@@ -160,7 +185,100 @@ fun AccountPageScreen(
             AccountMenuRow("Privacy", "How your audio and information are handled", Icons.Filled.PrivacyTip, onPrivacy)
             AccountMenuRow("Terms & Conditions", "Read the terms for using T2S Studio", Icons.Filled.Gavel, onTerms)
             AccountMenuRow("Contact", "Email or call T2S Studio support", Icons.Filled.MailOutline, onContact)
-            AccountMenuRow("Sign out", "Sign out of your T2S account", Icons.Filled.Logout) { auth.signOut() }
+            if (user != null) {
+                AccountMenuRow(
+                    "Export my data",
+                    "Create a ZIP of your cloud and on-device T2S data",
+                    Icons.Filled.Description
+                ) {
+                    exportLauncher.launch("T2S-Studio-Account-Export.zip")
+                }
+                AccountMenuRow(
+                    "Delete account",
+                    "Permanently delete your T2S account and cloud data",
+                    Icons.Filled.Delete
+                ) {
+                    showDeleteConfirm = true
+                }
+            }
+            if (user != null) {
+                AccountMenuRow("Sign out", "Sign out of your T2S account", Icons.Filled.Logout) { auth.signOut() }
+            }
+        }
+
+        if (showDeleteConfirm) {
+            AlertDialog(
+                onDismissRequest = { if (!deletingAccount) showDeleteConfirm = false },
+                title = { Text("Delete T2S account?") },
+                text = {
+                    Text(
+                        "This permanently deletes your Firebase account and its cloud projects, scripts, voice profiles and settings. " +
+                            "T2S will also remove this account's local projects, audio history, generated audio and saved voice samples from this device. " +
+                            "Files copied to public Downloads or shared outside the app are not deleted. Voice models or recordings retained by Sarvam or another provider must be deleted with that provider. " +
+                            "For security, your last sign-in must be within the past 5 minutes."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = !deletingAccount,
+                        onClick = {
+                            val uid = auth.currentUser?.uid
+                            if (uid.isNullOrBlank()) {
+                                showDeleteConfirm = false
+                                deleteMessage = "No signed-in account was found."
+                            } else {
+                                deletingAccount = true
+                                com.google.firebase.functions.FirebaseFunctions.getInstance("asia-south1")
+                                    .getHttpsCallable("deleteT2SAccount")
+                                    .call()
+                                    .addOnSuccessListener {
+                                        val cleanup = runCatching { AccountDataCleanup.clear(context, uid) }
+                                        auth.signOut()
+                                        deletingAccount = false
+                                        showDeleteConfirm = false
+                                        deleteMessage = if (cleanup.isSuccess) {
+                                            "Your T2S account and its cloud data were deleted. This device's account data was cleared."
+                                        } else {
+                                            "Your cloud account was deleted, but some local files could not be cleared. Remove T2S app data from Android Settings."
+                                        }
+                                    }
+                                    .addOnFailureListener { error ->
+                                        deletingAccount = false
+                                        deleteMessage = error.localizedMessage
+                                            ?: "Account deletion failed. Check your connection and try again."
+                                    }
+                            }
+                        }
+                    ) { Text(if (deletingAccount) "Deleting…" else "Delete permanently") }
+                },
+                dismissButton = {
+                    TextButton(enabled = !deletingAccount, onClick = { showDeleteConfirm = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        deleteMessage?.let { message ->
+            AlertDialog(
+                onDismissRequest = { deleteMessage = null },
+                title = { Text("Account deletion") },
+                text = { Text(message) },
+                confirmButton = {
+                    TextButton(onClick = { deleteMessage = null }) { Text("Close") }
+                }
+            )
+        }
+
+        exportMessage?.let { message ->
+            AlertDialog(
+                onDismissRequest = { exportMessage = null },
+                title = { Text("Account data export") },
+                text = { Text(message) },
+                confirmButton = {
+                    TextButton(onClick = { exportMessage = null }) { Text("Close") }
+                }
+            )
         }
 
         infoDialog?.let { section ->

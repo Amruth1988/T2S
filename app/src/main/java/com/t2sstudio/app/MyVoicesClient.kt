@@ -10,12 +10,28 @@ import java.util.UUID
 data class SavedUserVoice(val id: String, val name: String, val localSamplePath: String? = null, val language: String = "en", val gender: String = "Unknown", val sarvamVoiceId: String = "", val firebaseSynced: Boolean = false)
 
 object MyVoicesClient {
-    private fun localProfilesFile(context: Context) = File(context.filesDir, "voice_profiles.json")
+    private fun accountKey(uid: String): String {
+        require(uid.isNotBlank()) { "Sign in before accessing saved voice profiles." }
+        return java.security.MessageDigest.getInstance("SHA-256")
+            .digest(uid.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+    }
+
+    private fun accountVoiceDirectory(context: Context, uid: String) =
+        File(context.filesDir, "accounts/${accountKey(uid)}/voices").apply { mkdirs() }
+
+    private fun localProfilesFile(context: Context, uid: String) =
+        File(accountVoiceDirectory(context, uid), "voice_profiles.json")
+
+    // Personal recordings live in noBackupFilesDir so Android cloud/device backup
+    // never copies voice samples to another device or account.
+    private fun sampleDirectory(context: Context, uid: String) =
+        File(context.noBackupFilesDir, "accounts/${accountKey(uid)}/voices/samples").apply { mkdirs() }
     
     private const val BACKUP_VERSION = 1
     private const val MAX_BACKUP_BYTES = 100L * 1024L * 1024L
 
-    private fun writeProfiles(context: Context, voices: List<SavedUserVoice>) {
+    private fun writeProfiles(context: Context, uid: String, voices: List<SavedUserVoice>) {
         val array = JSONArray()
         voices.forEach { voice ->
             array.put(JSONObject().apply {
@@ -28,7 +44,7 @@ object MyVoicesClient {
                 put("firebaseSynced", voice.firebaseSynced)
             })
         }
-        val target = localProfilesFile(context)
+        val target = localProfilesFile(context, uid)
         val temp = File(target.parentFile, target.name + ".tmp")
         temp.writeText(array.toString())
         if (target.exists() && !target.delete()) {
@@ -41,8 +57,8 @@ object MyVoicesClient {
         }
     }
 
-    fun exportBackup(context: Context, destination: Uri): Int {
-        val voices = list(context)
+    fun exportBackup(context: Context, uid: String, destination: Uri): Int {
+        val voices = list(context, uid)
         context.contentResolver.openOutputStream(destination, "wt")?.use { raw ->
             java.util.zip.ZipOutputStream(raw.buffered()).use { zip ->
                 val manifest = JSONObject().put("version", BACKUP_VERSION)
@@ -77,7 +93,7 @@ object MyVoicesClient {
         return voices.size
     }
 
-    fun importBackup(context: Context, source: Uri): Pair<Int, Int> {
+    fun importBackup(context: Context, uid: String, source: Uri): Pair<Int, Int> {
         val files = linkedMapOf<String, ByteArray>()
         var totalBytes = 0L
         context.contentResolver.openInputStream(source)?.use { raw ->
@@ -117,9 +133,9 @@ object MyVoicesClient {
         val items = manifest.optJSONArray("voices") ?: error("Backup has no voice list.")
         require(items.length() <= 50) { "Backup contains too many voice profiles." }
 
-        val current = list(context).toMutableList()
+        val current = list(context, uid).toMutableList()
         val existingIds = current.map { it.id }.toMutableSet()
-        val sampleDir = File(context.filesDir, "voice_samples").apply { mkdirs() }
+        val sampleDir = sampleDirectory(context, uid)
         val createdFiles = mutableListOf<File>()
         var imported = 0
         var skipped = 0
@@ -159,7 +175,7 @@ object MyVoicesClient {
                 existingIds.add(importedId)
                 imported++
             }
-            writeProfiles(context, current)
+            writeProfiles(context, uid, current)
         } catch (error: Exception) {
             createdFiles.forEach { it.delete() }
             throw error
@@ -167,8 +183,8 @@ object MyVoicesClient {
         return imported to skipped
     }
 
-    fun list(context: Context): List<SavedUserVoice> {
-        val file = localProfilesFile(context)
+    fun list(context: Context, uid: String): List<SavedUserVoice> {
+        val file = localProfilesFile(context, uid)
         if (!file.exists()) return emptyList()
         val array = JSONArray(file.readText())
         return (0 until array.length()).mapNotNull { index ->
@@ -189,7 +205,7 @@ object MyVoicesClient {
         }
     }
 
-    fun createLocal(context: Context, name: String, audioUri: Uri, language: String, gender: String): SavedUserVoice {
+    fun createLocal(context: Context, uid: String, name: String, audioUri: Uri, language: String, gender: String): SavedUserVoice {
         val cleanName = name.trim()
         require(cleanName.length in 2..40) { "Voice name must be between 2 and 40 characters." }
         require(cleanName.none { it.isISOControl() }) { "Voice name contains invalid characters." }
@@ -200,10 +216,10 @@ object MyVoicesClient {
             "female" -> "Female"
             else -> error("Select Male or Female voice gender.")
         }
-        require(list(context).none { it.name.trim().equals(cleanName, ignoreCase = true) }) {
+        require(list(context, uid).none { it.name.trim().equals(cleanName, ignoreCase = true) }) {
             "A voice profile with this name already exists. Choose a different name."
         }
-        val sampleDir = File(context.filesDir, "voice_samples").apply { mkdirs() }
+        val sampleDir = sampleDirectory(context, uid)
         val id = "local-" + UUID.randomUUID().toString()
         val mime = context.contentResolver.getType(audioUri).orEmpty()
         val extension = when {
@@ -234,7 +250,7 @@ object MyVoicesClient {
 
             val voice = SavedUserVoice(id, cleanName, sample.absolutePath, cleanLanguage, cleanGender)
             val profiles = JSONArray()
-            list(context).filterNot { it.id == id }.forEach { existing ->
+            list(context, uid).filterNot { it.id == id }.forEach { existing ->
                 profiles.put(JSONObject().apply {
                     put("id", existing.id); put("name", existing.name); put("language", existing.language); put("gender", existing.gender)
                     put("localSamplePath", existing.localSamplePath); put("sarvamVoiceId", existing.sarvamVoiceId)
@@ -244,7 +260,7 @@ object MyVoicesClient {
                 put("id", voice.id); put("name", voice.name); put("language", voice.language); put("gender", voice.gender)
                 put("localSamplePath", voice.localSamplePath); put("sarvamVoiceId", voice.sarvamVoiceId); put("firebaseSynced", voice.firebaseSynced)
             })
-            localProfilesFile(context).writeText(profiles.toString())
+            localProfilesFile(context, uid).writeText(profiles.toString())
             return voice
         } catch (error: Exception) {
             sample.delete()
@@ -252,11 +268,11 @@ object MyVoicesClient {
         }
     }
 
-    fun attachSarvamVoiceId(context: Context, id: String, voiceId: String) {
+    fun attachSarvamVoiceId(context: Context, uid: String, id: String, voiceId: String) {
         require(voiceId.startsWith("svc-")) { "Invalid Sarvam voice ID." }
         val profiles = JSONArray()
         var found = false
-        list(context).forEach { voice ->
+        list(context, uid).forEach { voice ->
             val updated = if (voice.id == id) voice.copy(sarvamVoiceId = voiceId).also { found = true } else voice
             profiles.put(JSONObject().apply {
                 put("id", updated.id); put("name", updated.name); put("language", updated.language)
@@ -266,18 +282,18 @@ object MyVoicesClient {
             })
         }
         require(found) { "Saved voice profile could not be found." }
-        localProfilesFile(context).writeText(profiles.toString())
+        localProfilesFile(context, uid).writeText(profiles.toString())
     }
 
-    fun markFirebaseSynced(context: Context, id: String) {
-        val voices = list(context)
+    fun markFirebaseSynced(context: Context, uid: String, id: String) {
+        val voices = list(context, uid)
         val target = voices.firstOrNull { it.id == id } ?: error("Saved voice profile could not be found.")
         require(target.sarvamVoiceId.startsWith("svc-")) { "Register the voice with Sarvam before syncing metadata." }
-        writeProfiles(context, voices.map { if (it.id == id) it.copy(firebaseSynced = true) else it })
+        writeProfiles(context, uid, voices.map { if (it.id == id) it.copy(firebaseSynced = true) else it })
     }
 
-    fun deleteLocal(context: Context, id: String) {
-        val current = list(context)
+    fun deleteLocal(context: Context, uid: String, id: String) {
+        val current = list(context, uid)
         val target = current.firstOrNull { it.id == id }
         val remaining = current.filterNot { it.id == id }
         val array = JSONArray()
@@ -287,7 +303,7 @@ object MyVoicesClient {
                 put("localSamplePath", voice.localSamplePath); put("sarvamVoiceId", voice.sarvamVoiceId)
             })
         }
-        localProfilesFile(context).writeText(array.toString())
+        localProfilesFile(context, uid).writeText(array.toString())
         target?.localSamplePath?.let { File(it).delete() }
     }
 }

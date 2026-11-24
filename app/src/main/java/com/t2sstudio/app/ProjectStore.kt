@@ -12,7 +12,13 @@ data class T2SProject(
 )
 
 object ProjectStore {
-    private fun prefsName(uid: String) = "t2s_projects_${uid.hashCode().toUInt().toString(16)}"
+    private fun prefsName(uid: String): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(uid.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        return "t2s_projects_$digest"
+    }
+
     private const val KEY_ITEMS = "items"
 
     fun load(context: Context, uid: String?): List<T2SProject> {

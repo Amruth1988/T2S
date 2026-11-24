@@ -29,6 +29,7 @@ jobs:
           java-version: "17"
 
       - name: Set up shared signing key
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
           T2S_SIGNING_KEY_BASE64: ${{ secrets.T2S_SIGNING_KEY_BASE64 }}
           T2S_KEYSTORE_PASSWORD: ${{ secrets.T2S_KEYSTORE_PASSWORD }}
@@ -47,14 +48,28 @@ jobs:
           echo "T2S_KEY_PASSWORD=$T2S_KEY_PASSWORD" >> "$GITHUB_ENV"
 
       - name: Set up Gradle
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: "8.9"
 
       - name: Build Debug and Release APKs
         run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease
 
+      # PR builds remain unsigned, but upload both variants so they can be
+      # installed and tested without merging the feature branch into main.
+      - name: Upload pull request APKs for device testing
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: t2s-pr-${{ github.event.number }}-apks
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Report APK signing certificate SHA-1
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           apksigner="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -n 1)"
@@ -76,6 +91,7 @@ jobs:
       # GitHub Actions artifacts are always ZIP files. Publish APKs as
       # individual GitHub Release assets so Android users can download .apk directly.
       - name: Prepare ABI-specific APK downloads
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           mkdir -p dist
@@ -85,20 +101,26 @@ jobs:
             cp "$apk" "dist/T2S-${abi}.apk"
           done
 
+          (cd dist && sha256sum T2S-*.apk > SHA256SUMS.txt)
+          test -s dist/SHA256SUMS.txt
+
       - name: Publish T2S APK files as direct downloads
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: t2s-build-${{ github.run_number }}
           name: T2S Build #${{ github.run_number }}
+          body_path: docs/RELEASE_NOTES_1.0.0.md
           files: |
             dist/T2S-arm64-v8a.apk
             dist/T2S-armeabi-v7a.apk
+            dist/SHA256SUMS.txt
           draft: false
           prerelease: false
           make_latest: false
 
       - name: Add direct APK link to build summary
-        if: success()
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && success()
         env:
           GH_REPOSITORY: ${{ github.repository }}
           GH_RUN_NUMBER: ${{ github.run_number }}
@@ -107,5 +129,6 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- [ARM64 (most modern Android phones)](https://github.com/$GH_REPOSITORY/releases/download/t2s-build-$GH_RUN_NUMBER/T2S-arm64-v8a.apk)" >> "$GITHUB_STEP_SUMMARY"
           echo "- [ARMv7 (32-bit ARM devices)](https://github.com/$GH_REPOSITORY/releases/download/t2s-build-$GH_RUN_NUMBER/T2S-armeabi-v7a.apk)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- [SHA-256 checksums](https://github.com/$GH_REPOSITORY/releases/download/t2s-build-$GH_RUN_NUMBER/SHA256SUMS.txt)" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Install only the APK matching the device CPU architecture." >> "$GITHUB_STEP_SUMMARY"

@@ -1,8 +1,9 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { defineSecret, defineString } from "firebase-functions/params";
-import { constants, privateDecrypt } from "node:crypto";
+import { createHash, constants, privateDecrypt } from "node:crypto";
 
 initializeApp();
 const db = getFirestore();
@@ -160,15 +161,25 @@ export const setProviderUsageLimits = onCall({ region: REGION, enforceAppCheck: 
 });
 
 async function reserveProviderUsage(provider: Provider, uid: string, characters: number): Promise<void> {
-  const now = new Date();
-  const day = now.toISOString().slice(0, 10);
+  const day = new Date().toISOString().slice(0, 10);
   const month = day.slice(0, 7);
+  const uidHash = createHash("sha256").update(uid).digest("hex");
   const limitsRef = db.collection("provider_limits").doc(provider);
-  const dayRef = db.collection("provider_usage").doc(`${provider}_global_${day}`);
-  const monthRef = db.collection("provider_usage").doc(`${provider}_global_${month}`);
+  const globalDayRef = db.collection("provider_usage").doc(`${provider}_global_${day}`);
+  const globalMonthRef = db.collection("provider_usage").doc(`${provider}_global_${month}`);
+  const userDayRef = db.collection("provider_usage").doc(`${provider}_user_${uidHash}_${day}`);
+  const userMonthRef = db.collection("provider_usage").doc(`${provider}_user_${uidHash}_${month}`);
+
+  // Per-account ceilings are deliberately conservative and independent of the
+  // provider-wide budget. The global limits remain the final shared-wallet guard.
+  const USER_DAILY_CHARACTERS = 10000;
+  const USER_MONTHLY_CHARACTERS = 100000;
+  const USER_DAILY_REQUESTS = 30;
+
   await db.runTransaction(async (tx) => {
-    const [limitsSnap, daySnap, monthSnap] = await Promise.all([
-      tx.get(limitsRef), tx.get(dayRef), tx.get(monthRef),
+    const [limitsSnap, globalDaySnap, globalMonthSnap, userDaySnap, userMonthSnap] = await Promise.all([
+      tx.get(limitsRef), tx.get(globalDayRef), tx.get(globalMonthRef),
+      tx.get(userDayRef), tx.get(userMonthRef),
     ]);
     const limits = limitsSnap.data();
     if (!limitsSnap.exists || limits?.enabled !== true) {
@@ -181,26 +192,48 @@ async function reserveProviderUsage(provider: Provider, uid: string, characters:
         dailyCharacters <= 0 || monthlyCharacters <= 0 || dailyRequests <= 0) {
       throw new HttpsError("resource-exhausted", USER_GENERATION_UNAVAILABLE);
     }
-    const usedToday = Number(daySnap.get("characters") ?? 0);
-    const requestsToday = Number(daySnap.get("requests") ?? 0);
-    const usedMonth = Number(monthSnap.get("characters") ?? 0);
-    if (usedToday + characters > dailyCharacters || requestsToday + 1 > dailyRequests ||
-        usedMonth + characters > monthlyCharacters) {
+
+    const globalUsedToday = Number(globalDaySnap.get("characters") ?? 0);
+    const globalRequestsToday = Number(globalDaySnap.get("requests") ?? 0);
+    const globalUsedMonth = Number(globalMonthSnap.get("characters") ?? 0);
+    const userUsedToday = Number(userDaySnap.get("characters") ?? 0);
+    const userRequestsToday = Number(userDaySnap.get("requests") ?? 0);
+    const userUsedMonth = Number(userMonthSnap.get("characters") ?? 0);
+
+    if (globalUsedToday + characters > dailyCharacters ||
+        globalRequestsToday + 1 > dailyRequests ||
+        globalUsedMonth + characters > monthlyCharacters ||
+        userUsedToday + characters > USER_DAILY_CHARACTERS ||
+        userRequestsToday + 1 > USER_DAILY_REQUESTS ||
+        userUsedMonth + characters > USER_MONTHLY_CHARACTERS) {
       throw new HttpsError("resource-exhausted", USER_GENERATION_UNAVAILABLE);
     }
-    const reservation = {
-      provider, characters, requests: FieldValue.increment(1),
-      updatedAt: FieldValue.serverTimestamp(), lastUserId: uid,
-    };
-    tx.set(dayRef, { ...reservation, day, characters: usedToday + characters, requests: requestsToday + 1 }, { merge: true });
-    tx.set(monthRef, { ...reservation, month, characters: usedMonth + characters, requests: FieldValue.increment(1) }, { merge: true });
+
+    const now = FieldValue.serverTimestamp();
+    tx.set(globalDayRef, {
+      provider, day, characters: globalUsedToday + characters,
+      requests: globalRequestsToday + 1, updatedAt: now,
+    }, { merge: true });
+    tx.set(globalMonthRef, {
+      provider, month, characters: globalUsedMonth + characters,
+      requests: FieldValue.increment(1), updatedAt: now,
+    }, { merge: true });
+    tx.set(userDayRef, {
+      provider, day, uidHash, characters: userUsedToday + characters,
+      requests: userRequestsToday + 1, updatedAt: now,
+    }, { merge: true });
+    tx.set(userMonthRef, {
+      provider, month, uidHash, characters: userUsedMonth + characters,
+      requests: FieldValue.increment(1), updatedAt: now,
+    }, { merge: true });
   });
 }
 
 /** Per-user UTC quota for shared, billable Sarvam voice-clone requests. */
 async function reserveSarvamUsage(uid: string, characters: number): Promise<void> {
   const day = new Date().toISOString().slice(0, 10);
-  const ref = db.collection("provider_usage").doc(`sarvam_${uid}_${day}`);
+  const uidHash = createHash("sha256").update(uid).digest("hex");
+  const ref = db.collection("provider_usage").doc(`sarvam_${uidHash}_${day}`);
   await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const calls = Number(snapshot.get("calls") ?? 0);
@@ -210,7 +243,7 @@ async function reserveSarvamUsage(uid: string, characters: number): Promise<void
     }
     transaction.set(ref, {
       provider: "sarvam",
-      uid,
+      uidHash,
       day,
       calls: calls + 1,
       characters: usedCharacters + characters,
@@ -250,6 +283,10 @@ export const createCentralSarvamVoice = onCall({
   if (typeof mimeType !== "string" || !allowedMime.includes(mimeType)) {
     throw new HttpsError("invalid-argument", "Unsupported audio format.");
   }
+  // Voice registration is a billable Sarvam operation too: reserve both the
+  // provider-wide budget and the account daily call allowance before contacting Sarvam.
+  await reserveProviderUsage("sarvam", request.auth.uid, 0);
+  await reserveSarvamUsage(request.auth.uid, 0);
   const apiKey = await decryptProviderKey("sarvam");
   const form = new FormData();
   form.append("name", name.trim());
@@ -503,4 +540,74 @@ export const generateCentralVakyamTts = onCall({
     throw new HttpsError("unavailable", "Vakyam returned missing or invalid audio data.");
   }
   return { audioBase64, contentType: input.format === "wav" ? "audio/wav" : "audio/mpeg" };
+});
+
+
+/**
+ * Permanently deletes the caller's T2S account and all data below users/{uid}.
+ * A recent sign-in is required so a stolen long-lived ID token cannot erase an
+ * account. Firestore recursiveDelete removes every nested user collection.
+ */
+export const deleteT2SAccount = onCall({
+  region: REGION,
+  enforceAppCheck: true,
+  timeoutSeconds: 540,
+  memory: "512MiB",
+}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in before deleting your account.");
+  const uid = request.auth.uid;
+  const authTime = Number(request.auth.token.auth_time ?? 0);
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  if (!Number.isFinite(authTime) || authTime <= 0 ||
+      authTime > nowSeconds + 60 || nowSeconds - authTime > 300) {
+    throw new HttpsError(
+      "failed-precondition",
+      "For your security, sign in again and retry account deletion."
+    );
+  }
+
+  const uidHash = createHash("sha256").update(uid).digest("hex");
+  const userRef = db.collection("users").doc(uid);
+
+  // Remove the matching hashed Worker quota row before deleting Firebase Auth.
+  // The Worker independently verifies this caller's Firebase ID and App Check tokens.
+  const authorization = request.rawRequest.headers["authorization"];
+  const appCheckHeader = request.rawRequest.headers["x-firebase-appcheck"];
+  const appCheck = Array.isArray(appCheckHeader) ? appCheckHeader[0] : appCheckHeader;
+  if (typeof authorization !== "string" || typeof appCheck !== "string") {
+    throw new HttpsError("failed-precondition", "Could not verify this app session for complete account deletion. Sign in again and retry.");
+  }
+  let workerCleanup: Response;
+  try {
+    workerCleanup = await fetch("https://t2s.amruth4official.workers.dev/v1/account/usage", {
+      method: "DELETE",
+      headers: {
+        authorization,
+        "x-firebase-appcheck": appCheck,
+        accept: "application/json",
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch {
+    throw new HttpsError("unavailable", "Could not clear online TTS usage data. Please retry account deletion.");
+  }
+  if (!workerCleanup.ok) {
+    throw new HttpsError("unavailable", "Could not clear online TTS usage data. Please retry account deletion.");
+  }
+
+  // Remove all UID-owned Firestore data, including nested projects, scripts,
+  // voiceProfiles and any future subcollections below the user document.
+  await db.recursiveDelete(userRef);
+
+  // Remove hashed quota ledgers without exposing the original Firebase UID.
+  const usage = await db.collection("provider_usage").where("uidHash", "==", uidHash).get();
+  for (let offset = 0; offset < usage.docs.length; offset += 400) {
+    const batch = db.batch();
+    usage.docs.slice(offset, offset + 400).forEach((document) => batch.delete(document.ref));
+    await batch.commit();
+  }
+
+  // Delete the Firebase Authentication identity only after its data cleanup succeeds.
+  await getAuth().deleteUser(uid);
+  return { deleted: true };
 });

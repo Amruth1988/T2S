@@ -7,7 +7,7 @@ on:
       - "functions/**"
       - ".github/workflows/functions-build.yml"
   pull_request:
-    branches: [develop]
+    branches: [main, develop]
     paths:
       - "functions/**"
       - ".github/workflows/functions-build.yml"

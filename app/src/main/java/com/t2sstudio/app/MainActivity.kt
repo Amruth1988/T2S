@@ -1,6 +1,9 @@
 package com.t2sstudio.app
 
 import android.os.Bundle
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.AppCheckProviderFactory
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
@@ -182,6 +185,14 @@ private object T2SSplashMusic {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val appCheck = FirebaseAppCheck.getInstance()
+        val providerFactory = if (BuildConfig.DEBUG) {
+            Class.forName("com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory")
+                .getMethod("getInstance").invoke(null) as AppCheckProviderFactory
+        } else {
+            PlayIntegrityAppCheckProviderFactory.getInstance()
+        }
+        appCheck.installAppCheckProviderFactory(providerFactory)
         setContent { T2SStudioTheme { T2SApp() } }
     }
 }
@@ -216,7 +227,7 @@ private fun T2SApp() {
     var showTermsPage by remember { mutableStateOf(false) }
     var showContactPage by remember { mutableStateOf(false) }
     var returnToAccountOnBack by remember { mutableStateOf(false) }
-    val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+    var currentUid by remember { mutableStateOf(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid) }
     val audioRecords = remember(currentUid) {
         mutableStateListOf<AudioRecord>().apply { addAll(AudioHistoryStore.load(context, currentUid)) }
     }
@@ -227,6 +238,7 @@ private fun T2SApp() {
     androidx.compose.runtime.DisposableEffect(Unit) {
         val firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
         val listener = com.google.firebase.auth.FirebaseAuth.AuthStateListener { auth ->
+            currentUid = auth.currentUser?.uid
             if (auth.currentUser != null) {
                 showLoginPage = false
                 showAccountPage = false
@@ -284,14 +296,15 @@ private fun T2SApp() {
 
     LaunchedEffect(currentUid, selectedDestination) {
         scriptDrafts.clear()
-        if (currentUid != null && selectedDestination == 4) {
-            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().loadDrafts(currentUid) { result ->
+        val uid = currentUid
+        if (uid != null && selectedDestination == 4) {
+            com.t2sstudio.app.data.firebase.T2SFirestoreRepository().loadDrafts(uid) { result ->
                 result.onSuccess { cloudDrafts ->
                     scriptDrafts.clear()
                     scriptDrafts.addAll(cloudDrafts)
                 }
             }
-        } else if (currentUid == null) {
+        } else if (uid == null) {
             scriptDrafts.clear()
         }
     }
@@ -389,7 +402,8 @@ private fun T2SApp() {
         },
         bottomBar = {
             NavigationBar(containerColor = Color.White, tonalElevation = 0.dp) {
-                destinations.forEachIndexed { index, destination ->
+                val visibleDestinations = if (currentUid.isNullOrBlank()) listOf(destinations.first()) else destinations
+                visibleDestinations.forEachIndexed { index, destination ->
                     NavigationBarItem(
                         selected = selectedDestination == index,
                         onClick = {
