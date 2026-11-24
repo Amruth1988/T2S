@@ -76,6 +76,7 @@ fun AccountPageScreen(
     val auth = remember { FirebaseAuth.getInstance() }
     var user by remember { mutableStateOf(auth.currentUser) }
     var showProfile by remember { mutableStateOf(false) }
+    var showVoicesList by remember { mutableStateOf(false) }
     var infoDialog by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var deletingAccount by remember { mutableStateOf(false) }
@@ -97,9 +98,15 @@ fun AccountPageScreen(
             exportMessage = "Sign in before exporting account data."
         }
     }
-    BackHandler(enabled = showProfile) { showProfile = false }
+    BackHandler(enabled = showProfile || showVoicesList) {
+        if (showProfile) showProfile = false else showVoicesList = false
+    }
     if (showProfile) {
         UserProfileScreen(onBack = { showProfile = false })
+        return
+    }
+    if (showVoicesList) {
+        MyVoicesListScreen(onBack = { showVoicesList = false })
         return
     }
     DisposableEffect(auth) {
@@ -162,7 +169,7 @@ fun AccountPageScreen(
                 icon = Icons.Filled.AccountCircle
             ) {
                 AccountMenuRow("Profile", "Update your personal details", Icons.Filled.AccountCircle) { showProfile = true }
-                AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
+                AccountMenuRow("My Voices List", "View and preview your saved voice profiles", Icons.Filled.RecordVoiceOver) { showVoicesList = true }
                 AccountMenuRow("My Drafts", "Continue your saved scripts", Icons.Filled.Description) { onNavigate(4) }
             }
     
