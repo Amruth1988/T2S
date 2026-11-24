@@ -74,23 +74,43 @@ async function authenticate(request: Request, env: Env): Promise<string> {
 }
 
 function extractVoiceRecords(payload: unknown, language: string): Array<Record<string, unknown>> {
-  const locale = languageLocale(language);
-  const candidates: unknown[] = [payload];
+  const locale = languageLocale(language).toLowerCase();
+  const shortCode = language.toLowerCase();
+  const asRecords = (value: unknown): Array<Record<string, unknown>> => Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> =>
+        !!item && typeof item === "object" && !Array.isArray(item)
+      )
+    : [];
+
+  // Providers may return a bare list, a standard { data: [...] } envelope,
+  // or a grouped catalogue such as { "te-IN": [...] }. Walk known envelope
+  // layers and language-keyed groups without assuming one fixed wrapper.
+  const roots: unknown[] = [payload];
   if (payload && typeof payload === "object" && !Array.isArray(payload)) {
     const root = payload as Record<string, unknown>;
-    candidates.push(root.voices, root.data, root.results, root.items);
-    if (root.data && typeof root.data === "object" && !Array.isArray(root.data)) {
-      const data = root.data as Record<string, unknown>;
-      candidates.push(data[locale], data[language], data.voices, data.results, data.items);
-    }
-    candidates.push(root[locale], root[language]);
+    roots.push(root.data, root.voices, root.results, root.items);
   }
-  for (const candidate of candidates) {
-    if (Array.isArray(candidate)) {
-      const records = candidate.filter((item): item is Record<string, unknown> =>
-        !!item && typeof item === "object" && !Array.isArray(item)
-      );
-      if (records.length > 0) return records;
+  for (const candidate of roots) {
+    const direct = asRecords(candidate);
+    if (direct.length > 0) return direct;
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) continue;
+    const object = candidate as Record<string, unknown>;
+    for (const [key, value] of Object.entries(object)) {
+      const normalizedKey = key.toLowerCase();
+      if (normalizedKey === locale || normalizedKey === shortCode) {
+        const grouped = asRecords(value);
+        if (grouped.length > 0) return grouped;
+      }
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        const nested = value as Record<string, unknown>;
+        for (const [nestedKey, nestedValue] of Object.entries(nested)) {
+          const normalizedNestedKey = nestedKey.toLowerCase();
+          if (normalizedNestedKey === locale || normalizedNestedKey === shortCode) {
+            const grouped = asRecords(nestedValue);
+            if (grouped.length > 0) return grouped;
+          }
+        }
+      }
     }
   }
   return [];
