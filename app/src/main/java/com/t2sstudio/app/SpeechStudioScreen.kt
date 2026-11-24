@@ -1327,7 +1327,7 @@ fun SpeechStudioScreen(
                 val usingPersonalVoice = personalVoice != null
                 val guestMode = !isRegisteredUser
                 val installedVoice = selectedVoice
-                val usingInstalledVoice = personalVoice == null && onlineVoice == null && installedVoice != null
+                val usingInstalledVoice = voiceLibraryTab == "Installed" && personalVoice == null && onlineVoice == null && installedVoice != null
                 val outputFormatForRequest = if (usingPersonalVoice || guestMode) "wav" else outputFormat.lowercase(Locale.ROOT)
                 val directory = generatedAudioDirectory(context, com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid)
                 val output = File(directory, "speech_" + System.currentTimeMillis() + "." + outputFormatForRequest)
