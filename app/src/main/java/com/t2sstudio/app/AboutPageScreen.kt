@@ -54,7 +54,7 @@ fun AboutPageScreen(onBack: () -> Unit) {
             }
             Text(
                 "About Us",
-                color = T2SText,
+                color = T2SOrange,
                 fontSize = 25.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -69,7 +69,7 @@ fun AboutPageScreen(onBack: () -> Unit) {
             )
             Text(
                 "Your words, brought to life.",
-                color = T2SText,
+                color = T2SOrange,
                 fontSize = 27.sp,
                 lineHeight = 33.sp,
                 fontWeight = FontWeight.ExtraBold
@@ -124,7 +124,7 @@ private fun AboutTextSection(title: String, body: String) {
     ) {
         Text(
             title,
-            color = T2SText,
+            color = T2SOrange,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )
