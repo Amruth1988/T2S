@@ -1327,6 +1327,7 @@ fun SpeechStudioScreen(
                 val usingPersonalVoice = personalVoice != null
                 val guestMode = !isRegisteredUser
                 val installedVoice = selectedVoice
+                val usingInstalledVoice = personalVoice == null && onlineVoice == null && installedVoice != null
                 val outputFormatForRequest = if (usingPersonalVoice || guestMode) "wav" else outputFormat.lowercase(Locale.ROOT)
                 val directory = generatedAudioDirectory(context, com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid)
                 val output = File(directory, "speech_" + System.currentTimeMillis() + "." + outputFormatForRequest)
@@ -1346,28 +1347,29 @@ fun SpeechStudioScreen(
                         showGenerationNotification("${personalVoice.name} is saved locally but is not registered with Sarvam yet. Open My Voices and complete voice registration before generating.")
                     personalVoice != null && textToSpeak.length > 1000 ->
                         showGenerationNotification("My Voices supports up to 1,000 characters per generation. Shorten your text and try again.")
-                    guestMode && (!engineReady || installedVoice == null) ->
-                        showGenerationNotification("No installed ${selectedLanguage} voice is available. Install an offline voice in Android Text-to-speech settings and try again.")
+                    (guestMode || usingInstalledVoice) && (!engineReady || installedVoice == null) ->
+                        showGenerationNotification("No installed ${selectedLanguage} voice is available. Install an Android voice in Text-to-speech settings and try again.")
                     guestMode && installedVoice?.isNetworkConnectionRequired == true ->
                         showGenerationNotification("This voice requires a network connection. Choose an installed offline voice for Guest mode.")
                     guestMode && textToSpeak.length > 2000 ->
                         showGenerationNotification("Guest audio is limited to 2,000 characters. Shorten your text and try again.")
                     !guestMode && personalVoice == null && textToSpeak.length > 3000 ->
                         showGenerationNotification("Online TTS supports up to 3,000 characters per request. Shorten your text and try again.")
-                    !guestMode && personalVoice == null && (onlineVoice == null || !onlineVoice.language.substringBefore('-').equals(languageCode, ignoreCase = true)) ->
-                        showGenerationNotification("Choose an online ${selectedLanguage} voice before generating speech.")
+                    !guestMode && personalVoice == null && !usingInstalledVoice &&
+                        (onlineVoice == null || !onlineVoice.language.substringBefore('-').equals(languageCode, ignoreCase = true)) ->
+                        showGenerationNotification("Choose an online or installed ${selectedLanguage} voice before generating speech.")
                     else -> {
                         isGenerating = true
                         generatedFile = null
                         stopVoicePreview()
                         statusMessage = when {
-                            guestMode -> "Creating audio on this device with ${installedVoice?.name ?: "the installed voice"}…"
+                            guestMode || usingInstalledVoice -> "Creating audio on this device with ${installedVoice?.name ?: "the installed voice"}…"
                             personalVoice != null -> "Generating speech with your voice: ${personalVoice.name}…"
                             else -> "Generating ${selectedLanguage} speech online…"
                         }
                         coroutineScope.launch {
                             val result = runCatching {
-                                if (guestMode) {
+                                if (guestMode || usingInstalledVoice) {
                                     withContext(Dispatchers.Main) {
                                         kotlinx.coroutines.withTimeout(120_000L) { synthesizeInstalledVoiceToFile(requireNotNull(ttsEngine), textToSpeak, requireNotNull(installedVoice), speechRate, speechPitch, output) }
                                     }
@@ -1406,12 +1408,13 @@ fun SpeechStudioScreen(
                                         projectName = "Unassigned",
                                         scriptContent = textToSpeak,
                                         voiceSource = if (personalVoice != null) "My Voice" else "Standard",
-                                        voiceName = personalVoice?.name.orEmpty(),
+                                        voiceName = personalVoice?.name ?: if (usingInstalledVoice) installedVoice?.name.orEmpty() else "",
                                         voiceGender = personalVoice?.gender.orEmpty()
                                     )
                                 )
                                 statusMessage = when {
                                     guestMode -> "Your audio is ready. Tap Download to save it to your device."
+                                    usingInstalledVoice -> "Speech generated with installed voice ${installedVoice?.name}. Your audio is ready in Preview."
                                     personalVoice != null -> "Speech generated with ${personalVoice.name}. Your audio is ready in Preview."
                                     else -> "Online speech audio is ready and saved in T2S Studio."
                                 }
@@ -1424,7 +1427,7 @@ fun SpeechStudioScreen(
                                     dailyGenerationLimitReached = true
                                 }
                                 showGenerationNotification((when {
-                                    guestMode -> "Guest audio generation failed: "
+                                    guestMode || usingInstalledVoice -> "Installed voice generation failed: "
                                     personalVoice != null -> "My Voice generation failed: "
                                     else -> "Online TTS failed: "
                                 }) + generationError +
