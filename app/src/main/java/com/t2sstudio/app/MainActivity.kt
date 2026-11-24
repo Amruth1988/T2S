@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -305,6 +306,7 @@ private fun T2SApp() {
     var selectedDestination by remember { mutableIntStateOf(0) }
     val destinationBackStack = remember { mutableStateListOf<Int>() }
     var showAccountPage by remember { mutableStateOf(false) }
+    val accountScrollState = rememberScrollState()
     var showAboutPage by remember { mutableStateOf(false) }
     var showPrivacyPage by remember { mutableStateOf(false) }
     var showTermsPage by remember { mutableStateOf(false) }
@@ -447,6 +449,7 @@ private fun T2SApp() {
             onPrivacy = { showPrivacyPage = true },
             onTerms = { showTermsPage = true },
             onContact = { showContactPage = true },
+            scrollState = accountScrollState,
             onNavigate = { destination ->
                 // Keep the account page as the return destination for system Back.
                 returnToAccountOnBack = true
