@@ -54,6 +54,9 @@ import com.t2sstudio.app.ui.theme.T2SOrange
 import com.t2sstudio.app.ui.theme.T2SSecondaryText
 import com.t2sstudio.app.ui.theme.T2SText
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun MyVoicesListScreen(onBack: () -> Unit) {
@@ -107,56 +110,89 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
     }
 
     fun togglePreview(voice: SavedUserVoice) {
-        if (previewingVoiceId == voice.id && previewPlayer?.isPlaying == true) {
-            previewPlayer?.pause()
-            previewPlayer?.seekTo(0)
+        if (previewingVoiceId == voice.id) {
+            previewPlayer?.stop()
             previewPlayer?.release()
             previewPlayer = null
             previewingVoiceId = null
             return
         }
-        runCatching {
-            previewPlayer?.release()
-            previewPlayer = null
-            previewingVoiceId = null
-            val sampleFile = voice.localSamplePath?.let(::File)
-                ?: error("The original recording is not available on this device.")
-            require(sampleFile.exists() && sampleFile.length() > 1024L) {
-                "The original recording is missing or empty. Restore the voice backup to preview it."
-            }
-            val player = ExoPlayer.Builder(context).build()
-            previewPlayer = player
-            player.setAudioAttributes(
-                Media3AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                    .build(),
-                true
-            )
-            player.volume = 1f
-            player.addListener(object : Player.Listener {
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_ENDED) {
-                        player.release()
-                        if (previewPlayer === player) previewPlayer = null
-                        previewingVoiceId = null
+
+        runCatching { previewPlayer?.release() }
+        previewPlayer = null
+        previewingVoiceId = voice.id
+        loadMessage = null
+
+        kotlinx.coroutines.CoroutineScope(Dispatchers.Main).launch {
+            var generatedPreview: File? = null
+            val result = runCatching {
+                val localSample = voice.localSamplePath?.let(::File)
+                    ?.takeIf { it.isFile && it.length() > 1024L }
+                val audioFile = if (localSample != null) {
+                    localSample
+                } else {
+                    require(voice.sarvamVoiceId.startsWith("svc-")) {
+                        "This voice has no recording on this device or registered AI voice to preview."
                     }
+                    val languageCode = when (voice.language.lowercase().substringBefore('-')) {
+                        "te", "telugu" -> "te"
+                        "hi", "hindi" -> "hi"
+                        else -> "en"
+                    }
+                    val sampleText = when (languageCode) {
+                        "te" -> "నమస్కారం. ఇది మీ వాయిస్ ప్రివ్యూ నమూనా."
+                        "hi" -> "नमस्ते। यह आपकी आवाज़ का नमूना है।"
+                        else -> "Hello. This is a sample of your saved voice."
+                    }
+                    File(context.cacheDir, "saved_voice_preview_" + voice.id + "_" + System.currentTimeMillis() + ".wav")
+                        .also { output ->
+                            generatedPreview = output
+                            withContext(Dispatchers.IO) {
+                                SarvamVoiceCloneClient.generateCentral(
+                                    voice.sarvamVoiceId, sampleText, languageCode, output
+                                )
+                            }
+                        }
                 }
 
-                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    player.release()
-                    if (previewPlayer === player) previewPlayer = null
-                    previewingVoiceId = null
-                    loadMessage = "Preview failed. Please try again."
-                }
-            })
-            player.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(sampleFile)))
-            player.prepare()
-            player.play()
-            previewingVoiceId = voice.id
-        }.onFailure { error ->
-            previewingVoiceId = null
-            loadMessage = error.localizedMessage ?: "Could not preview this voice."
+                val player = ExoPlayer.Builder(context).build()
+                player.skipSilenceEnabled = false
+                player.setAudioAttributes(
+                    Media3AudioAttributes.Builder()
+                        .setUsage(C.USAGE_MEDIA)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                        .build(),
+                    true
+                )
+                player.volume = 1f
+                player.addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        if (playbackState == Player.STATE_ENDED) {
+                            player.release()
+                            if (previewPlayer === player) previewPlayer = null
+                            generatedPreview?.delete()
+                            previewingVoiceId = null
+                        }
+                    }
+
+                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                        player.release()
+                        if (previewPlayer === player) previewPlayer = null
+                        generatedPreview?.delete()
+                        previewingVoiceId = null
+                        loadMessage = "Preview playback failed. Please try again."
+                    }
+                })
+                player.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(audioFile)))
+                player.prepare()
+                player.play()
+                previewPlayer = player
+            }
+            result.onFailure { error ->
+                generatedPreview?.delete()
+                previewingVoiceId = null
+                loadMessage = error.localizedMessage ?: "Could not preview this voice."
+            }
         }
     }
 
@@ -256,6 +292,8 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
                     voices.forEach { voice ->
                         val sampleFile = voice.localSamplePath?.let(::File)
                         val sampleAvailable = sampleFile != null && sampleFile.exists() && sampleFile.length() > 1024L
+                        val remotePreviewAvailable = voice.sarvamVoiceId.startsWith("svc-")
+                        val canPreview = sampleAvailable || remotePreviewAvailable
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(18.dp),
@@ -308,7 +346,7 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
                                     )
                                     Button(
                                         onClick = { togglePreview(voice) },
-                                        enabled = sampleAvailable,
+                                        enabled = canPreview,
                                         shape = RoundedCornerShape(12.dp),
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = T2SOrange,
@@ -328,9 +366,16 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
                                         )
                                     }
                                 }
-                                if (!sampleAvailable) {
+                                if (!sampleAvailable && remotePreviewAvailable) {
                                     Text(
-                                        "Original recording is not available on this device, so preview is unavailable.",
+                                        "Original recording is not on this device. Preview will be generated using your saved AI voice.",
+                                        color = T2SSecondaryText,
+                                        fontSize = 11.sp,
+                                        lineHeight = 14.sp
+                                    )
+                                } else if (!canPreview) {
+                                    Text(
+                                        "Preview is unavailable because the original recording and registered AI voice are not available.",
                                         color = T2SSecondaryText,
                                         fontSize = 11.sp,
                                         lineHeight = 14.sp
