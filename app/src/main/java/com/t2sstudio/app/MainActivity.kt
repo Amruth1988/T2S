@@ -9,6 +9,7 @@ import android.media.AudioFormat
 import android.media.AudioTrack
 import kotlin.math.PI
 import kotlin.math.sin
+import kotlin.math.exp
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -83,9 +84,98 @@ import java.io.File
 private object T2SSplashMusic {
     private const val SAMPLE_RATE = 22_050
     private const val LOOP_SECONDS = 8
+    private const val CHUNK_SAMPLES = 4_096
+
     @Volatile private var track: AudioTrack? = null
     @Volatile private var streaming = false
     private var writer: Thread? = null
+
+    /**
+     * Original synthwave-inspired T2S splash theme:
+     * 120 BPM electronic kick, crisp backbeat, ticking hats, pulsing bass,
+     * bright eighth-note arpeggio and a soft sustained synth chord bed.
+     */
+    private fun createSynthwaveLoop(): ShortArray {
+        val totalSamples = SAMPLE_RATE * LOOP_SECONDS
+        val pcm = ShortArray(totalSamples)
+        val lead = doubleArrayOf(
+            440.00, 554.37, 659.25, 880.00,
+            659.25, 554.37, 493.88, 739.99
+        )
+        val bass = doubleArrayOf(55.00, 82.41, 55.00, 82.41)
+        val chords = arrayOf(
+            doubleArrayOf(220.00, 261.63, 329.63),
+            doubleArrayOf(196.00, 246.94, 293.66),
+            doubleArrayOf(174.61, 220.00, 261.63),
+            doubleArrayOf(196.00, 246.94, 329.63)
+        )
+
+        for (i in 0 until totalSamples) {
+            val time = i.toDouble() / SAMPLE_RATE
+            val beat = (time / 0.5).toInt()
+            val beatTime = time - beat * 0.5
+            val eighth = (time / 0.25).toInt()
+            val eighthTime = time - eighth * 0.25
+
+            // Tight electronic kick on every quarter-note beat.
+            val kick = if (beatTime < 0.22) {
+                val phase = 2.0 * PI * (48.0 * beatTime + 25.0 * (1.0 - exp(-22.0 * beatTime)))
+                sin(phase) * exp(-17.0 * beatTime) * 0.72
+            } else 0.0
+
+            // Short, filtered-noise-like clap on beats 2 and 4.
+            val clap = if (beat % 4 == 1 || beat % 4 == 3) {
+                val clapTime = beatTime
+                if (clapTime < 0.16) {
+                    val noise = sin(2.0 * PI * 1733.0 * time) * 0.48 +
+                        sin(2.0 * PI * 2381.0 * time) * 0.32 +
+                        sin(2.0 * PI * 3191.0 * time) * 0.20
+                    noise * exp(-25.0 * clapTime) * 0.20
+                } else 0.0
+            } else 0.0
+
+            // Light off-beat hi-hats keep the groove moving without becoming harsh.
+            val hat = if (eighthTime < 0.045) {
+                val noise = sin(2.0 * PI * 5101.0 * time) * 0.55 +
+                    sin(2.0 * PI * 6907.0 * time) * 0.30 +
+                    sin(2.0 * PI * 7901.0 * time) * 0.15
+                noise * exp(-75.0 * eighthTime) * 0.055
+            } else 0.0
+
+            // Bright, slightly detuned synth pluck arpeggio.
+            val leadFrequency = lead[eighth % lead.size]
+            val leadEnvelope = (eighthTime / 0.008).coerceIn(0.0, 1.0) *
+                ((1.0 - eighthTime) / 0.13).coerceIn(0.0, 1.0)
+            val pluck = (
+                sin(2.0 * PI * leadFrequency * time) +
+                    0.18 * sin(2.0 * PI * leadFrequency * 2.0 * time)
+                ) * leadEnvelope * 0.15
+
+            // Warm pulsing sub-bass follows the four-bar progression.
+            val bassFrequency = bass[(beat / 4) % bass.size]
+            val bassEnvelope = (beatTime / 0.012).coerceIn(0.0, 1.0) *
+                ((1.0 - beatTime) / 0.16).coerceIn(0.0, 1.0)
+            val bassPulse = sin(2.0 * PI * bassFrequency * time) * bassEnvelope * 0.20
+
+            // Sustained synth chords change every two seconds.
+            val chordIndex = ((time / 2.0).toInt()).coerceIn(0, chords.lastIndex)
+            val chordTime = time % 2.0
+            val chordEnvelope = (chordTime / 0.22).coerceIn(0.0, 1.0) *
+                ((2.0 - chordTime) / 0.42).coerceIn(0.0, 1.0)
+            val chord = chords[chordIndex].sumOf { frequency ->
+                sin(2.0 * PI * frequency * time) * 0.027
+            } * chordEnvelope
+
+            // Fade only the loop edges to prevent clicks when the eight-second theme repeats.
+            val fadeIn = (time / 0.10).coerceIn(0.0, 1.0)
+            val fadeOut = ((LOOP_SECONDS - time) / 0.14).coerceIn(0.0, 1.0)
+            val sample = (kick + clap + hat + pluck + bassPulse + chord) *
+                minOf(fadeIn, fadeOut)
+            pcm[i] = (sample * Short.MAX_VALUE)
+                .toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+        }
+        return pcm
+    }
 
     @Synchronized
     fun start() {
@@ -94,29 +184,7 @@ private object T2SSplashMusic {
 
         var audio: AudioTrack? = null
         try {
-            // Stream short PCM chunks instead of relying on static-buffer loop points,
-            // which can fail on some Android audio HAL/device combinations.
-            val samplesPerChunk = SAMPLE_RATE
-            val pcm = ShortArray(samplesPerChunk)
-            val melody = doubleArrayOf(523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 783.99, 659.25)
-            val chordRoots = doubleArrayOf(130.81, 164.81, 196.00, 146.83)
-            for (i in pcm.indices) {
-                val time = i.toDouble() / SAMPLE_RATE
-                val beat = time.toInt()
-                val note = melody[beat % melody.size]
-                val within = time % 1.0
-                val envelope = (within / 0.10).coerceIn(0.0, 1.0) *
-                    ((1.0 - within) / 0.18).coerceIn(0.0, 1.0)
-                val flute = sin(2.0 * PI * note * time) * 0.62 +
-                    sin(2.0 * PI * note * 2.0 * time) * 0.14
-                val root = chordRoots[(beat / 2) % chordRoots.size]
-                val chord = sin(2.0 * PI * root * time) * 0.18 +
-                    sin(2.0 * PI * root * 1.5 * time) * 0.07
-                val sample = (flute * envelope * 0.42 + chord * 0.30)
-                pcm[i] = (sample * Short.MAX_VALUE).toInt()
-                    .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
-            }
-
+            val pcm = createSynthwaveLoop()
             val minBuffer = AudioTrack.getMinBufferSize(
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_OUT_MONO,
@@ -138,12 +206,14 @@ private object T2SSplashMusic {
                         .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                         .build()
                 )
-                .setBufferSizeInBytes(maxOf(minBuffer * 4, samplesPerChunk * 2))
+                .setBufferSizeInBytes(maxOf(minBuffer * 4, CHUNK_SAMPLES * 2))
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
 
-            check(audio.state == AudioTrack.STATE_INITIALIZED) { "Splash AudioTrack could not initialize" }
-            audio.setVolume(1.0f)
+            check(audio.state == AudioTrack.STATE_INITIALIZED) {
+                "Splash AudioTrack could not initialize"
+            }
+            audio.setVolume(0.72f)
             track = audio
             streaming = true
             audio.play()
@@ -152,18 +222,30 @@ private object T2SSplashMusic {
             writer = Thread({
                 try {
                     while (streaming && track === activeTrack) {
-                        val written = activeTrack.write(pcm, 0, pcm.size, AudioTrack.WRITE_BLOCKING)
-                        if (written < 0) {
-                            android.util.Log.e("T2SSplashMusic", "AudioTrack write failed: $written")
-                            break
+                        var offset = 0
+                        while (offset < pcm.size && streaming && track === activeTrack) {
+                            val count = minOf(CHUNK_SAMPLES, pcm.size - offset)
+                            val written = activeTrack.write(
+                                pcm, offset, count, AudioTrack.WRITE_BLOCKING
+                            )
+                            if (written < 0) {
+                                throw IllegalStateException("Splash audio write failed: $written")
+                            }
+                            if (written == 0) break
+                            offset += written
                         }
                     }
                 } catch (error: Exception) {
-                    if (streaming) android.util.Log.e("T2SSplashMusic", "Splash music stream stopped unexpectedly", error)
+                    if (streaming) {
+                        android.util.Log.e("T2SSplashMusic", "Splash music stream stopped unexpectedly", error)
+                    }
                 }
-            }, "T2S-Splash-Audio").apply { isDaemon = true; start() }
+            }, "T2S-Synthwave-Splash").apply {
+                isDaemon = true
+                start()
+            }
         } catch (error: Exception) {
-            android.util.Log.e("T2SSplashMusic", "Unable to start splash music", error)
+            android.util.Log.e("T2SSplashMusic", "Unable to start synthwave splash music", error)
             streaming = false
             track = null
             try { audio?.release() } catch (_: Exception) { }
