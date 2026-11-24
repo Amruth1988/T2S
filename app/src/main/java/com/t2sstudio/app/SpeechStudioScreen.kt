@@ -812,7 +812,7 @@ fun SpeechStudioScreen(
                             selectedLanguage,
                             modifier = Modifier.weight(1f),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                            fontSize = 10.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White,
                             maxLines = 1,
@@ -886,7 +886,7 @@ fun SpeechStudioScreen(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                     listOf("All", "Male", "Female").forEach { gender ->
                         FilterChip(
-                            modifier = Modifier.weight(when (gender) { "All" -> 0.8f; "Male" -> 0.9f; else -> 1.3f }).height(34.dp),
+                            modifier = Modifier.weight(when (gender) { "All" -> 0.8f; "Male" -> 0.9f; else -> 1.3f }).height(36.dp),
                             selected = selectedGender == gender,
                             colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color(0xFFF47721),
@@ -917,7 +917,7 @@ fun SpeechStudioScreen(
                                     Text(
                                         gender,
                                         modifier = Modifier.padding(horizontal = 2.dp),
-                                        fontSize = 9.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
                                         softWrap = false,
