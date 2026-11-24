@@ -149,14 +149,19 @@ fun ScriptDraftsScreen(
                             verticalArrangement = Arrangement.spacedBy(7.dp)
                         ) {
                             Text(draft.title, color = T2SText, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, maxLines = 2)
-                            Text(
-                                "${draft.language} • ${draft.projectName} • ${SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(draft.updatedAt))}",
-                                color = T2SSecondaryText, fontSize = 11.sp
-                            )
                             Text(draft.content.take(180).replace('\n', ' '), color = T2SSecondaryText,
                                 fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Spacer(Modifier.weight(1f))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "${draft.language} • ${draft.projectName} • ${SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(draft.updatedAt))}",
+                                    modifier = Modifier.weight(1f),
+                                    color = T2SSecondaryText,
+                                    fontSize = 11.sp,
+                                    maxLines = 2
+                                )
                                 IconButton(onClick = { onOpen(draft) }) {
                                     Icon(
                                         Icons.Filled.Edit,
