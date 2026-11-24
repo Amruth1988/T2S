@@ -35,13 +35,7 @@ The database is not yet provisioned: `wrangler.toml` still contains the all-zero
 
 ## Sarvam quota policy
 
-Firebase Functions reserve both:
-- configured provider-wide daily/monthly character and daily-request budgets from `provider_limits/{provider}`; and
-- per-account caps of 10,000 characters/day, 100,000 characters/month and 30 requests/day for central provider operations.
-
-Sarvam voice registration and cloned generation also use a separate per-account allowance of 10 requests/day and 10,000 characters/day. Reservations occur before contacting the provider and are not refunded after provider failures. The Firebase Functions guard fails closed unless each provider's `provider_limits` document is enabled with positive integer `dailyCharacters`, `monthlyCharacters` and `dailyRequests`.
-
-Provider-wide limits are application-side ceilings, not a live view of provider wallet balances. Set them below the known provider allowance, monitor provider dashboards and disable a provider before its actual balance is exhausted. Do not assume a top-up resets app-side quota counters.
+The active Apps Script gateway enforces per-Firebase-UID daily limits: up to 10 successful generations and 10,000 generated characters, plus up to 3 successful voice registrations. Reservations use a script lock and timestamped pending entries to avoid concurrent overuse; failed calls release their reservation. Sarvam provider usage may incur Sarvam charges independently of Firebase billing.
 
 ## Cloudflare owner setup (not yet performed)
 
