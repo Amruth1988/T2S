@@ -140,7 +140,7 @@ fun AccountPageScreen(
                 shape = RoundedCornerShape(24.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -323,7 +323,7 @@ private fun AccountSectionCard(
     ) {
         Column {
             Row(
-                modifier = Modifier.fillMaxWidth().background(T2SOrange).padding(horizontal = 18.dp, vertical = 18.dp),
+                modifier = Modifier.fillMaxWidth().background(T2SOrange).padding(horizontal = 16.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -352,7 +352,7 @@ private fun AccountSectionCard(
 private fun QuickAccountAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, onClick: () -> Unit) {
     Surface(modifier = modifier.clickable(onClick = onClick), color = androidx.compose.ui.graphics.Color.White,
         shape = RoundedCornerShape(22.dp)) {
-        Column(modifier = Modifier.padding(vertical = 12.dp, horizontal = 6.dp),
+        Column(modifier = Modifier.padding(vertical = 9.dp, horizontal = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Icon(icon, contentDescription = null, tint = T2SOrange, modifier = Modifier.size(27.dp))
             Text(label, color = T2SText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
@@ -363,7 +363,7 @@ private fun QuickAccountAction(label: String, icon: androidx.compose.ui.graphics
 @Composable
 private fun AccountMenuRow(label: String, description: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 16.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
