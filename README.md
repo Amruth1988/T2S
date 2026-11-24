@@ -13,7 +13,7 @@ T2S Studio is an Android text-to-speech studio built with Kotlin and Jetpack Com
 ## Online speech and voice services
 
 - India TTS and Vakyam online speech routes use the authenticated Cloudflare Worker. Requests require a Firebase Authentication ID token and Firebase App Check token.
-- Sarvam voice registration and cloned speech use authenticated Firebase callable Functions. Provider credentials remain server-side; they are not embedded in the Android client.
+- Sarvam voice registration and cloned speech use the existing authenticated Google Apps Script gateway. The Sarvam credential remains server-side in Apps Script Script Properties; it is not embedded in the Android client.
 - Online speech supports English, Telugu and Hindi, subject to the configured provider's supported voices and output formats.
 - The Worker enforces per-account limits of 10,000 characters/day, 100,000 characters/month and 30 requests/day for each India/Vakyam provider. Missing D1 configuration fails closed.
 - Sarvam additionally has configured global budgets and per-account quotas. Missing/disabled Firebase provider limits fail closed.
