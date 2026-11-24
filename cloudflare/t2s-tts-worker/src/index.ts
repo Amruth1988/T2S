@@ -73,6 +73,28 @@ async function authenticate(request: Request, env: Env): Promise<string> {
   return payload.sub;
 }
 
+function extractVoiceRecords(payload: unknown, language: string): Array<Record<string, unknown>> {
+  const locale = languageLocale(language);
+  const candidates: unknown[] = [payload];
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const root = payload as Record<string, unknown>;
+    candidates.push(root.voices, root.data, root.results, root.items);
+    if (root.data && typeof root.data === "object" && !Array.isArray(root.data)) {
+      const data = root.data as Record<string, unknown>;
+      candidates.push(data[locale], data[language], data.voices, data.results, data.items);
+    }
+    candidates.push(root[locale], root[language]);
+  }
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      const records = candidate.filter((item): item is Record<string, unknown> =>
+        !!item && typeof item === "object" && !Array.isArray(item)
+      );
+      if (records.length > 0) return records;
+    }
+  }
+  return [];
+}
 function languageLocale(language: string): string {
   const code = language.toLowerCase();
   if (code === "te") return "te-IN";
@@ -159,9 +181,13 @@ async function handle(request: Request, env: Env): Promise<Response> {
       headers: env.INDIA_API_KEY ? { authorization: `Bearer ${env.INDIA_API_KEY}` } : {},
     });
     if (!response.ok) return providerError(response, "India TTS");
-    const body = await response.json() as { data?: Array<Record<string, unknown>> };
+    const body: unknown = await response.json();
     const language = url.searchParams.get("language") || "te";
-    const voices = (body.data || []).filter(v =>
+    const records = extractVoiceRecords(body, language);
+    if (records.length === 0) {
+      return json({ error: "India TTS returned an empty or unsupported voice catalogue response." }, 502);
+    }
+    const voices = records.filter(v =>
       String(v.language || "").split("-")[0].toLowerCase() === language.toLowerCase() &&
       v.non_commercial !== true
     );
@@ -194,15 +220,15 @@ async function handle(request: Request, env: Env): Promise<Response> {
       headers: { authorization: `Bearer ${env.VAKYAM_API_KEY}`, accept: "application/json" },
     });
     if (!response.ok) return providerError(response, "Vakyam");
-    const root = await response.json() as Record<string, unknown> & { data?: Record<string, unknown> };
-    const locale = languageLocale(url.searchParams.get("language") || "te");
-    const grouped = root.data && typeof root.data === "object" ? root.data : root;
-    const data = grouped[locale];
-    const voices = Array.isArray(data)
-      ? data.filter((item): item is Record<string, unknown> =>
-          !!item && typeof item === "object" &&
-          typeof (item as Record<string, unknown>).voice_name === "string")
-      : [];
+    const root: unknown = await response.json();
+    const language = url.searchParams.get("language") || "te";
+    const records = extractVoiceRecords(root, language);
+    if (records.length === 0) {
+      return json({ error: "Vakyam returned an empty or unsupported voice catalogue response." }, 502);
+    }
+    const voices = records.filter(item =>
+      typeof item.voice_name === "string" || typeof item.name === "string"
+    );
     return json({ voices });
   }
 
