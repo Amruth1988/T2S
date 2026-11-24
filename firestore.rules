@@ -13,12 +13,14 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
           'uid', 'displayName', 'email', 'photoUrl',
           'accountStatus', 'schemaVersion', 'createdAt',
-          'updatedAt', 'lastSignInAt'
+          'updatedAt', 'lastSignInAt',
+          'firstName', 'lastName', 'mobile', 'city', 'gender'
         ]);
       allow update: if signedInAs(uid)
         && request.resource.data.uid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'displayName', 'email', 'photoUrl', 'updatedAt', 'lastSignInAt'
+          'displayName', 'email', 'photoUrl', 'updatedAt', 'lastSignInAt',
+          'firstName', 'lastName', 'mobile', 'city', 'gender'
         ]);
       allow delete: if false;
 
