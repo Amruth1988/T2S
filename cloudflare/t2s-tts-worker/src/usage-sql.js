@@ -28,3 +28,14 @@ export const RESERVE_USAGE_SQL = `
 `;
 
 export const DELETE_USAGE_SQL = "DELETE FROM user_provider_usage WHERE uid_hash = ?";
+
+export const RESERVE_SARVAM_USER_SQL = `
+  INSERT INTO sarvam_user_usage (uid_hash, day, calls, characters, updated_at)
+  VALUES (?, ?, 1, ?, ?)
+  ON CONFLICT(uid_hash, day) DO UPDATE SET
+    calls = sarvam_user_usage.calls + 1,
+    characters = sarvam_user_usage.characters + excluded.characters,
+    updated_at = excluded.updated_at
+  WHERE sarvam_user_usage.calls + 1 <= 10
+    AND sarvam_user_usage.characters + excluded.characters <= 10000
+`;
