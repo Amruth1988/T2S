@@ -1288,13 +1288,19 @@ fun SpeechStudioScreen(
             )
         ) {
             if (isGenerating) {
-                CircularProgressIndicator(
-                    modifier = Modifier.height(20.dp),
-                    color = T2SBackground,
-                    strokeWidth = 2.dp
-                )
-                Spacer(Modifier.width(10.dp))
-                Text("✨ Creating your audio…", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = T2SBackground,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("✨ Creating your audio…", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
             } else {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
