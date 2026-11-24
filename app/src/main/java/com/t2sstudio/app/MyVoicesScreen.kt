@@ -30,7 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -164,9 +164,21 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back to account", tint = T2SText) }
-            Text("My Voices", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = T2SText)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("My Voices", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = T2SText)
+                Text("${voices.size} saved ${if (voices.size == 1) "voice" else "voices"}", fontSize = 13.sp, color = T2SSecondaryText)
+            }
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier.size(46.dp).background(T2SOrange.copy(alpha = 0.12f), RoundedCornerShape(50)),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                Icon(Icons.Filled.RecordVoiceOver, contentDescription = null, tint = T2SOrange, modifier = Modifier.size(24.dp))
+            }
         }
         androidx.compose.material3.TabRow(selectedTabIndex = if (selectedAddTab == "Add Voice") 0 else 1) {
             listOf("Add Voice", "Add AI Voice").forEach { tab ->
