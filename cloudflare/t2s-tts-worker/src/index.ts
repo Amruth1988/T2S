@@ -248,41 +248,40 @@ async function handle(request: Request, env: Env): Promise<Response> {
   }
 
   if (url.pathname === "/v1/vakyam/voices" && request.method === "GET") {
-    const response = await fetch("https://api.vakyam.ai/v1/voices?group_by=language", {
-      headers: { authorization: `Bearer ${env.VAKYAM_API_KEY}`, accept: "application/json" },
-    });
-    if (!response.ok) {
-      const upstreamBody = await response.text();
-      // Vakyam documents a stable public preset roster. If its catalogue
-      // endpoint blocks server-side discovery with an attestation 403, keep
-      // the voice picker usable using that documented roster. Speech
-      // generation still uses the authenticated provider endpoint unchanged.
-      if (response.status === 403 && /app attestation failed/i.test(upstreamBody)) {
-        const language = url.searchParams.get("language") || "te";
-        return json({ voices: vakyamPublicVoiceFallback(language), source: "documented-public-roster" });
-      }
-      return json({ error: `Vakyam voice catalogue unavailable (HTTP ${response.status}).` }, response.status);
-    }
-    const root: unknown = await response.json();
     const language = url.searchParams.get("language") || "te";
-    const records = extractVoiceRecords(root, language);
-    // A successful but empty/unrecognized provider response must not prevent
-    // the documented public roster from being returned.
-    const providerVoices = records.filter(item =>
-      typeof item.voice_name === "string" || typeof item.name === "string"
-    );
-    // Vakyam documents all 16 public preset voices for every supported language.
-    // Merge that stable public roster with the live catalogue so a partial
-    // successful upstream response cannot hide documented public voices.
-    const merged = new Map<string, Record<string, unknown>>();
-    for (const voice of vakyamPublicVoiceFallback(language)) {
-      merged.set(voice.voice_name, voice);
+    const publicRoster = vakyamPublicVoiceFallback(language);
+    try {
+      const response = await fetch("https://api.vakyam.ai/v1/voices?group_by=language", {
+        headers: { authorization: `Bearer ${env.VAKYAM_API_KEY}`, accept: "application/json" },
+      });
+      // Catalogue discovery is independent of speech generation. Always keep
+      // the documented public voices selectable if the provider catalogue is
+      // blocked, rate-limited, unavailable, or returns an unsupported response.
+      if (!response.ok) {
+        return json({
+          voices: publicRoster,
+          source: "documented-public-roster-provider-unavailable",
+          providerStatus: response.status,
+        });
+      }
+      const root: unknown = await response.json();
+      const records = extractVoiceRecords(root, language);
+      const providerVoices = records.filter(item =>
+        typeof item.voice_name === "string" || typeof item.name === "string"
+      );
+      // Seed with all 16 documented public presets, then enrich/override matching
+      // names with provider metadata when the live catalogue is available.
+      const merged = new Map<string, Record<string, unknown>>();
+      for (const voice of publicRoster) merged.set(voice.voice_name, voice);
+      for (const voice of providerVoices) {
+        const name = String(voice.voice_name || voice.name || "").trim();
+        if (name) merged.set(name, { ...merged.get(name), ...voice });
+      }
+      return json({ voices: Array.from(merged.values()), source: "public-roster-plus-provider" });
+    } catch {
+      // Network or JSON parsing failures must not hide the public roster.
+      return json({ voices: publicRoster, source: "documented-public-roster-provider-unavailable" });
     }
-    for (const voice of providerVoices) {
-      const name = String(voice.voice_name || voice.name || "").trim();
-      if (name) merged.set(name, { ...merged.get(name), ...voice });
-    }
-    return json({ voices: Array.from(merged.values()), source: "public-roster-plus-provider" });
   }
 
   if (url.pathname === "/v1/vakyam/tts" && request.method === "POST") {
