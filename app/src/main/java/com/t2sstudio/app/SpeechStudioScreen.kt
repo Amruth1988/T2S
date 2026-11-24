@@ -323,7 +323,7 @@ fun SpeechStudioScreen(
             val previousName = selectedVoice?.name
             availableVoices.clear()
             availableVoices.addAll(matching)
-            selectedVoice = matching.firstOrNull { it.name == previousName } ?: matching.firstOrNull()
+            selectedVoice = matching.firstOrNull { it.name == previousName }
         }.onFailure {
             availableVoices.clear()
             selectedVoice = null
@@ -464,8 +464,7 @@ fun SpeechStudioScreen(
         }
         selectedOnlineVoice = selectedOnlineVoice?.let { selected ->
             onlineVoices.firstOrNull { it.provider == selected.provider && it.id == selected.id }
-        } ?: onlineVoices.firstOrNull { selectedGender == "All" || onlineVoiceGender(it) == selectedGender }
-            ?: onlineVoices.firstOrNull()
+        }
 
         onlineCatalogueStatus = buildString {
             if (onlineVoices.isNotEmpty()) append("${onlineVoices.size} online voices available • India API: ${onlineVoices.count { it.provider != "Vakyam" }} • Vakyam: ${onlineVoices.count { it.provider == "Vakyam" }}")
@@ -915,10 +914,8 @@ fun SpeechStudioScreen(
                             ),
                             onClick = {
                                 selectedGender = gender
-                                selectedVoice = availableVoices.firstOrNull()
-                                selectedOnlineVoice = onlineVoices.firstOrNull { voice ->
-                                    gender == "All" || onlineVoiceGender(voice) == gender
-                                }
+                                selectedVoice = null
+                                selectedOnlineVoice = null
                             },
                             label = {
                                 Box(
@@ -1021,16 +1018,8 @@ fun SpeechStudioScreen(
                                     selectedSavedVoice = null
                                     selectedSavedVoiceId = null
                                     selectedOnlineVoice = null
-                                    selectedVoice = availableVoices.firstOrNull()
-                                    selectedVoice?.let { voice ->
-                                        ttsEngine?.let { engine ->
-                                            engine.stop()
-                                            engine.setLanguage(voice.locale)
-                                            engine.voice = voice
-                                        }
-                                    }
-                                    statusMessage = selectedVoice?.let { "Voice search cleared. ${it.name} is selected as the installed voice." }
-                                        ?: "Voice search cleared. Select an installed voice to continue."
+                                    selectedVoice = null
+                                    statusMessage = "Voice search cleared. Select an installed voice to continue."
                                 }
                             ) { Text("✕ Clear") }
                         }
@@ -1100,13 +1089,14 @@ fun SpeechStudioScreen(
                                 ) {
                                     Column(Modifier.weight(1f).clickable {
                                         isPurohitMode = false
-                                        selectedVoice = voice
+                                        val wasSelected = selectedVoice?.let { it.name == voice.name && it.locale == voice.locale } == true
+                                        selectedVoice = if (wasSelected) null else voice
                                         selectedOnlineVoice = null
                                         selectedSavedVoice = null
                                         selectedSavedVoiceId = null
-                                        voiceSearch = "Voice ${installedPool.indexOf(voice) + 1}"
-                                        ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
-                                        statusMessage = "${voice.name} selected."
+                                        voiceSearch = if (wasSelected) "" else "Voice ${installedPool.indexOf(voice) + 1}"
+                                        if (!wasSelected) ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
+                                        statusMessage = if (wasSelected) "${voice.name} deselected." else "${voice.name} selected."
                                     }) {
                                         Text(
                                             installedVoiceDisplayName(voice, installedPool.indexOf(voice) + 1),
@@ -1200,17 +1190,18 @@ fun SpeechStudioScreen(
                               Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f).clickable {
                                     isPurohitMode = false
-                                    selectedOnlineVoice = voice
+                                    val wasSelected = selectedOnlineVoice?.let { it.provider == voice.provider && it.id == voice.id } == true
+                                    selectedOnlineVoice = if (wasSelected) null else voice
                                     selectedVoice = null
                                     selectedSavedVoice = null
                                     selectedSavedVoiceId = null
-                                    voiceSearch = voice.name
-                                    statusMessage = voice.name + " selected from " + voice.provider + ". Voice licence: " + voice.licence + ". " + voice.attribution
+                                    voiceSearch = if (wasSelected) "" else voice.name
+                                    statusMessage = if (wasSelected) "${voice.name} deselected." else voice.name + " selected from " + voice.provider + ". Voice licence: " + voice.licence + ". " + voice.attribution
                                 }) {
                                     Text(voice.name, color = T2SText, fontWeight = FontWeight.SemiBold)
+                                }
                                 if (isSelected) {
                                     Text("✓", color = T2SOrange, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
-                                }
                                 }
                                 TextButton(enabled = true, onClick = { previewOnlineVoice(voice.id, previewKey = "online:${voice.provider}:${voice.id}", provider = voice.provider) }) {
                                     Text(if (activePreviewKey == "online:${voice.provider}:${voice.id}" && isPreviewing) "■ Stop" else "▶ Play", color = Color(0xFFF47721), fontWeight = FontWeight.Bold)
