@@ -812,7 +812,7 @@ fun SpeechStudioScreen(
                             selectedLanguage,
                             modifier = Modifier.weight(1f),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White,
                             maxLines = 1,
@@ -931,7 +931,7 @@ fun SpeechStudioScreen(
                                     Text(
                                         gender,
                                         modifier = Modifier.padding(horizontal = 2.dp),
-                                        fontSize = 14.sp,
+                                        fontSize = 13.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
                                         softWrap = false,
