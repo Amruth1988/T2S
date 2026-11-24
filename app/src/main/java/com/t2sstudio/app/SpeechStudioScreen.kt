@@ -877,7 +877,7 @@ fun SpeechStudioScreen(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                     listOf("All", "Male", "Female").forEach { gender ->
                         FilterChip(
-                            modifier = Modifier.weight(1f).height(34.dp),
+                            modifier = Modifier.weight(when (gender) { "All" -> 0.8f; "Male" -> 0.9f; else -> 1.3f }).height(34.dp),
                             selected = selectedGender == gender,
                             colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color(0xFFF47721),
