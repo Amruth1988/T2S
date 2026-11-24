@@ -501,19 +501,17 @@ fun SpeechStudioScreen(
         statusMessage = if (localSample != null) "Preparing your saved recording…" else "Generating preview…"
         coroutineScope.launch {
             val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.${localSample?.extension ?: "mp3"}")
-            val sample = when (languageCode) {
-                "hi" -> "नमस्ते। यह आवाज़ का नमूना है।"
-                "te" -> "నమస్కారం. ఇది మీ వాయిస్ ప్రివ్యూ నమూనా."
-                else -> "Hello. This is a sample of the selected voice."
-            }
+            val sample = "అందరికి నమస్కారం. T2S స్టూడియో కి స్వాగతం."
+            val previewLanguageCode = "te"
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     when {
-                        localSample != null -> localSample.copyTo(previewFile, overwrite = true)
                         sarvamVoiceId.startsWith("svc-") ->
-                            SarvamVoiceCloneClient.generateCentral(sarvamVoiceId, sample, languageCode, previewFile)
+                            SarvamVoiceCloneClient.generateCentral(sarvamVoiceId, sample, previewLanguageCode, previewFile)
+                        localSample != null ->
+                            error("This saved voice is only a recording. Register it as an AI voice to preview the standard T2S greeting in your voice.")
                         localSamplePath != null ->
-                            error("This voice's saved recording is missing. Re-add the voice sample to preview it.")
+                            error("This voice's saved recording is missing. Re-add the voice sample and register it as an AI voice to preview.")
                         provider == "India API" || provider == "Vakyam" ->
                             CentralOnlineTtsClient.generate(
                                 provider, sample, voiceId, languageCode,
@@ -1151,11 +1149,7 @@ fun SpeechStudioScreen(
                                                         mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Voice preview failed (code $errorCode)." }
                                                     }
                                                 })
-                                                val sample = when (voice.locale.language) {
-                                                    "te" -> "నమస్కారం. ఇది స్వర నమూనా."
-                                                    "hi" -> "नमस्ते। यह आवाज़ का नमूना है।"
-                                                    else -> "Hello. This is a sample voice preview."
-                                                }
+                                                val sample = "అందరికి నమస్కారం. T2S స్టూడియో కి స్వాగతం."
                                                 val speakResult = engine.speak(sample, TextToSpeech.QUEUE_FLUSH, Bundle(), "t2s-preview-${voice.name}")
                                                 if (speakResult == TextToSpeech.ERROR) {
                                                     isPreviewing = false
