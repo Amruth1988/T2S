@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
@@ -73,14 +72,8 @@ fun ScriptDraftsScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "Back to account", tint = T2SText)
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("My drafts", color = T2SText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Text("${drafts.size} saved ${if (drafts.size == 1) "draft" else "drafts"}", color = T2SSecondaryText, fontSize = 12.sp)
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("${drafts.size} saved ${if (drafts.size == 1) "draft" else "drafts"}", color = T2SSecondaryText, fontSize = 12.sp)
             }
             Box(
                 modifier = Modifier.size(42.dp).background(T2SOrange.copy(alpha = 0.12f), CircleShape),
