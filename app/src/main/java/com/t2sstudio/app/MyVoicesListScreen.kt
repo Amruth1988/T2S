@@ -14,7 +14,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RecordVoiceOver
@@ -179,20 +178,9 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 4.dp),
+            horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = {
-                previewPlayer?.release()
-                previewPlayer = null
-                previewingVoiceId = null
-                onBack()
-            }) {
-                Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = T2SText)
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("My Voices List", color = T2SText, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-                Text("Your saved voice profiles", color = T2SSecondaryText, fontSize = 12.sp)
-            }
             IconButton(onClick = { loadVoices() }, enabled = !loading) {
                 Icon(Icons.Filled.Refresh, contentDescription = "Refresh voices", tint = T2SOrange)
             }
