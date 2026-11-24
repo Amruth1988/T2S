@@ -16,7 +16,7 @@ T2S Studio is an Android text-to-speech studio built with Kotlin and Jetpack Com
 - Sarvam voice registration and cloned speech use the existing authenticated Google Apps Script gateway. The Sarvam credential remains server-side in Apps Script Script Properties; it is not embedded in the Android client.
 - Online speech supports English, Telugu and Hindi, subject to the configured provider's supported voices and output formats.
 - The Worker enforces per-account limits of 10,000 characters/day, 100,000 characters/month and 30 requests/day for each India/Vakyam provider. Missing D1 configuration fails closed.
-- Sarvam additionally has configured global budgets and per-account quotas. Missing/disabled Firebase provider limits fail closed.
+- The Apps Script Sarvam gateway enforces per-account daily generation and voice-registration quotas.
 - Online generation sends submitted text to the selected provider. Voice registration sends the selected recording to Sarvam for provider-hosted voice creation. Review the Privacy Policy and provider terms before using these features.
 
 ## Offline voices and Telugu model status
