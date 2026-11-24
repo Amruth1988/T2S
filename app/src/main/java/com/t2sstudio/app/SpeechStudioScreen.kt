@@ -1247,7 +1247,7 @@ fun SpeechStudioScreen(
                     }
                     if ((voiceLibraryTab == "Installed" && filteredInstalled.isEmpty()) || (voiceLibraryTab == "Online" && filteredOnline.isEmpty()) || (voiceLibraryTab == "My Voices" && filteredPersonal.isEmpty())) {
                         DropdownMenuItem(
-                            text = { Text(when (voiceLibraryTab) { "Installed" -> if (filteredInstalled.isEmpty()) "No installed voices match this search and language." else ""; "Online" -> if (onlineCatalogueStatus.startsWith("Loading")) "Loading online voices…" else "No online voices match this search and language."; else -> "No saved voices match this search." }, color = T2SSecondaryText) },
+                            text = { Text(when (voiceLibraryTab) { "Installed" -> if (filteredInstalled.isEmpty()) "No installed voices match this search and language." else ""; "Online" -> if (onlineCatalogueStatus.startsWith("Loading")) "Loading online voices…" else if (onlineCatalogueStatus.isNotBlank()) onlineCatalogueStatus else "No online voices match this search and language."; else -> "No saved voices match this search." }, color = T2SSecondaryText) },
                             onClick = {},
                             enabled = false
                         )
