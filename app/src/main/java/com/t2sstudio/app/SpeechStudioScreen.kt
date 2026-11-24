@@ -1240,9 +1240,26 @@ fun SpeechStudioScreen(
                             }
                         }
                     }
-                    if ((voiceLibraryTab == "Installed" && filteredInstalled.isEmpty()) || (voiceLibraryTab == "Online" && filteredOnline.isEmpty()) || (voiceLibraryTab == "My Voices" && filteredPersonal.isEmpty())) {
+                    if (voiceLibraryTab == "Online" && filteredOnline.isEmpty()) {
+                        Text(
+                            onlineCatalogueStatus.ifBlank { "No online voices are available." },
+                            color = T2SSecondaryText,
+                            fontSize = 12.sp
+                        )
+                        Button(
+                            onClick = { onlineCatalogueRefreshKey++ },
+                            enabled = !onlineCatalogueStatus.startsWith("Loading"),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = T2SOrange)
+                        ) {
+                            Text(
+                                if (onlineCatalogueStatus.startsWith("Loading")) "Loading voices…" else "Retry online voices",
+                                color = Color.White
+                            )
+                        }
+                    } else if ((voiceLibraryTab == "Installed" && filteredInstalled.isEmpty()) || (voiceLibraryTab == "My Voices" && filteredPersonal.isEmpty())) {
                         DropdownMenuItem(
-                            text = { Text(when (voiceLibraryTab) { "Installed" -> if (filteredInstalled.isEmpty()) "No installed voices match this search and language." else ""; "Online" -> if (onlineCatalogueStatus.startsWith("Loading")) "Loading online voices…" else "No online voices match this search and language."; else -> "No saved voices match this search." }, color = T2SSecondaryText) },
+                            text = { Text(if (voiceLibraryTab == "Installed") "No installed voices match this search and language." else "No saved voices match this search.", color = T2SSecondaryText) },
                             onClick = {},
                             enabled = false
                         )
