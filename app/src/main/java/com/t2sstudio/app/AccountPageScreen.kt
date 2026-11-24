@@ -136,7 +136,7 @@ fun AccountPageScreen(
     
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = T2SCream,
+                color = T2SOrange,
                 shape = RoundedCornerShape(24.dp)
             ) {
                 Row(
@@ -144,14 +144,14 @@ fun AccountPageScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Surface(shape = RoundedCornerShape(16.dp), color = T2SBackground) {
+                    Surface(shape = RoundedCornerShape(16.dp), color = T2SCream) {
                         Icon(Icons.Filled.RecordVoiceOver, contentDescription = null, tint = T2SOrange,
                             modifier = Modifier.padding(16.dp).size(30.dp))
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text("Your voice, your creativity", color = T2SText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Your voice, your creativity", color = androidx.compose.ui.graphics.Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Text("Create, manage and revisit your speech projects.",
-                            color = T2SSecondaryText, fontSize = 14.sp)
+                            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.9f), fontSize = 14.sp)
                     }
                 }
             }
@@ -332,7 +332,7 @@ private fun AccountSectionCard(
     ) {
         Column {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp),
+                modifier = Modifier.fillMaxWidth().background(T2SOrange).padding(horizontal = 18.dp, vertical = 18.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -344,8 +344,8 @@ private fun AccountSectionCard(
                     Icon(icon, contentDescription = null, tint = T2SOrange, modifier = Modifier.padding(9.dp))
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(title, color = T2SText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text(subtitle, color = T2SSecondaryText, fontSize = 12.sp)
+                    Text(title, color = androidx.compose.ui.graphics.Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(subtitle, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
                 }
             }
             androidx.compose.material3.HorizontalDivider(
