@@ -54,6 +54,7 @@ fun UserProfileScreen(onBack: () -> Unit) {
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var saved by remember { mutableStateOf(false) }
+    var validationAttempted by remember { mutableStateOf(false) }
 
     LaunchedEffect(user?.uid) {
         if (user == null) {
@@ -123,9 +124,9 @@ fun UserProfileScreen(onBack: () -> Unit) {
                 Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("Personal information", color = T2SText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Text("Fields marked with * are required.", color = T2SSecondaryText, fontSize = 12.sp)
-                    OutlinedTextField(value = firstName, onValueChange = { firstName = it; saved = false }, label = { Text("First name *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = firstName, onValueChange = { firstName = it; saved = false }, label = { Text("First name *") }, isError = validationAttempted && firstName.isBlank(), singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = lastName, onValueChange = { lastName = it; saved = false }, label = { Text("Last name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = mobile, onValueChange = { mobile = it.filter { ch -> ch.isDigit() || ch == '+' || ch == ' ' || ch == '-' }; saved = false }, label = { Text("Mobile number *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = mobile, onValueChange = { mobile = it.filter { ch -> ch.isDigit() || ch == '+' || ch == ' ' || ch == '-' }; saved = false }, label = { Text("Mobile number *") }, isError = validationAttempted && (mobile.isBlank() || mobile.count { it.isDigit() } < 7), singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = city, onValueChange = { city = it; saved = false }, label = { Text("City") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Text("Gender", color = T2SText, fontWeight = FontWeight.SemiBold)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -144,12 +145,12 @@ fun UserProfileScreen(onBack: () -> Unit) {
                     Button(
                         onClick = {
                             val activeUser = user
+                            validationAttempted = true
                             when {
                                 activeUser == null -> error = "Please sign in to save your profile."
-                                firstName.isBlank() -> error = "First name is required."
-                                mobile.isBlank() -> error = "Mobile number is required."
-                                mobile.count { it.isDigit() } < 7 -> error = "Enter a valid mobile number."
+                                firstName.isBlank() || mobile.isBlank() || mobile.count { it.isDigit() } < 7 -> error = null
                                 else -> {
+                                    error = null
                                     saving = true
                                     error = null
                                     repository.saveUserProfile(activeUser.uid, firstName, lastName, mobile, city, gender) { result ->
