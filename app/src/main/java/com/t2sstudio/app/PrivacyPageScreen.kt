@@ -46,12 +46,12 @@ fun PrivacyPageScreen(onBack: () -> Unit) {
                 Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = T2SOrange,
                     modifier = Modifier.padding(10.dp).size(22.dp))
             }
-            Text("Privacy Policy", color = T2SText, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+            Text("Privacy Policy", color = T2SOrange, fontSize = 25.sp, fontWeight = FontWeight.Bold)
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Your privacy matters", color = T2SOrange, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-            Text("How T2S Studio handles your information", color = T2SText, fontSize = 26.sp,
+            Text("How T2S Studio handles your information", color = T2SOrange, fontSize = 26.sp,
                 lineHeight = 32.sp, fontWeight = FontWeight.ExtraBold)
             Text(
                 "This Privacy Policy explains what information is handled when you use T2S Studio, why it is used, and the choices available to you. Some features rely on online services to provide account synchronization and speech or voice processing.",
@@ -97,7 +97,7 @@ fun PrivacyPageScreen(onBack: () -> Unit) {
 @Composable
 private fun PrivacyTextSection(title: String, body: String) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text(title, color = T2SText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text(title, color = T2SOrange, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Text(body, color = T2SSecondaryText, fontSize = 14.sp, lineHeight = 22.sp)
     }
 }
