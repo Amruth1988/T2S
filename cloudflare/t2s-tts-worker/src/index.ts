@@ -135,6 +135,18 @@ async function providerError(response: Response, _provider: string): Promise<nev
   throw new ProviderRequestError(response.status);
 }
 
+const VAKYAM_PUBLIC_VOICES = [
+  ["Aakash", "male"], ["Amit", "male"], ["Anand", "male"], ["Archana", "female"],
+  ["Bhamini", "female"], ["Jay", "male"], ["Kavya", "female"], ["Kiran", "male"],
+  ["Meena", "female"], ["Mohan", "male"], ["Neha", "female"], ["Nisha", "female"],
+  ["Priya", "female"], ["Vidya", "female"], ["Vikram", "male"], ["Yash", "male"],
+] as const;
+
+function vakyamPublicVoiceFallback(language: string): Array<Record<string, string>> {
+  const locale = languageLocale(language);
+  return VAKYAM_PUBLIC_VOICES.map(([voice_name, gender]) => ({ voice_name, gender, language: locale }));
+}
+
 /**
  * One atomic D1 UPSERT enforces per-account daily and monthly limits. A single
  * row per UID/provider avoids split daily/monthly reservations and race windows.
@@ -239,7 +251,18 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const response = await fetch("https://api.vakyam.ai/v1/voices?group_by=language", {
       headers: { authorization: `Bearer ${env.VAKYAM_API_KEY}`, accept: "application/json" },
     });
-    if (!response.ok) return providerError(response, "Vakyam");
+    if (!response.ok) {
+      const upstreamBody = await response.text();
+      // Vakyam documents a stable public preset roster. If its catalogue
+      // endpoint blocks server-side discovery with an attestation 403, keep
+      // the voice picker usable using that documented roster. Speech
+      // generation still uses the authenticated provider endpoint unchanged.
+      if (response.status === 403 && /app attestation failed/i.test(upstreamBody)) {
+        const language = url.searchParams.get("language") || "te";
+        return json({ voices: vakyamPublicVoiceFallback(language), source: "documented-public-roster" });
+      }
+      return json({ error: `Vakyam voice catalogue unavailable (HTTP ${response.status}).` }, response.status);
+    }
     const root: unknown = await response.json();
     const language = url.searchParams.get("language") || "te";
     const records = extractVoiceRecords(root, language);
