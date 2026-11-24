@@ -8,9 +8,9 @@ Last reviewed: 24 November 2026
 |---|---|---|---|
 | India TTS | Cloudflare Worker `/v1/india/*` | Cloudflare Worker secret `INDIA_API_KEY` (optional for the provider's current keyless allowance) | Cloudflare D1, hashed Firebase UID |
 | Vakyam TTS | Cloudflare Worker `/v1/vakyam/*` | Cloudflare Worker secret `VAKYAM_API_KEY` | Cloudflare D1, hashed Firebase UID |
-| Sarvam voice registration and cloned speech | Firebase callable Functions | Firebase Functions Secret Manager + encrypted Firestore provider-key record | Firestore provider usage ledgers |
+| Sarvam voice registration and cloned speech | Deployed Google Apps Script gateway (`scripts/sarvam-apps-script/Code.gs`) | Apps Script Script Properties (`SARVAM_API_KEY`, `FIREBASE_WEB_API_KEY`) | Script Properties quota ledger, keyed by Firebase UID |
 
-The Android Sarvam client now calls `createCentralSarvamVoice`, `listCentralSarvamVoices` and `generateCentralSarvamClone` through Firebase callable Functions. It no longer calls the legacy Google Apps Script URL. The Apps Script source under `scripts/sarvam-apps-script` is retained for reference only and is not the current Android route. Disable any old Apps Script deployment after confirming no older installed client still depends on it.
+The Android Sarvam client calls the existing deployed Google Apps Script gateway for list, registration and cloned speech. The gateway verifies the Firebase ID token with Identity Toolkit and keeps the Sarvam credential in Script Properties. Keep the existing deployment URL and Script Properties; do not create a duplicate project or switch this flow back to Firebase callable Functions on the Spark plan.
 
 ## Security boundaries
 
@@ -70,11 +70,11 @@ npx wrangler secret put INDIA_API_KEY
 
 The deploy workflow also needs GitHub repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, with Workers and D1 migration permissions. Do not paste these secrets into chat or commit them. The deploy workflow is manual and has not been run from this PR branch.
 
-## Firebase owner setup (not yet performed)
+## Firebase owner setup (not required for Sarvam while using the Apps Script gateway)
 
 Firebase Functions source is prepared, but deployment and Console configuration are not complete. Functions deployment may require Firebase Blaze billing. Do not enable billing or upgrade the project without the owner's explicit approval.
 
-Before enabling the Sarvam callable path:
+The following Firebase Functions setup applies only if the owner later chooses to migrate Sarvam back to Firebase callable Functions. It is not needed for the current Apps Script route:
 1. Confirm the Firebase project and `asia-south1` region.
 2. Configure Firebase App Check for the Android app with Play Integrity and register the actual release signing fingerprints. Register a debug token only for a private debug build; never ship it.
 3. Create an RSA-2048 key pair on a trusted computer:
@@ -98,6 +98,6 @@ The Worker build workflow runs:
 
 These tests validate the SQLite statement semantics locally in CI. They do not provision a remote D1 database, exercise Cloudflare account credentials, or replace the final live/device verification batch.
 
-## Legacy Apps Script gateway
+## Active Apps Script gateway
 
-The app no longer routes Sarvam operations through `scripts/sarvam-apps-script/Code.gs`. Do not add its URL back to Android. If a previous Apps Script deployment remains live, disable or delete that deployment from the Google Apps Script project after confirming that older released APKs no longer use it. Its Script Properties may contain a legacy Firebase web key or provider credential; review and remove obsolete properties in the Apps Script owner account. This cannot be completed from the repository.
+The Android app uses `scripts/sarvam-apps-script/Code.gs` through the already deployed `/exec` endpoint. Preserve that deployment and its `SARVAM_API_KEY` and `FIREBASE_WEB_API_KEY` Script Properties. Do not disable it while the current Android client depends on it. The endpoint URL is configured in `SarvamVoiceCloneClient.kt` and is an endpoint identifier, not a secret.
