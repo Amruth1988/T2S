@@ -957,8 +957,9 @@ fun SpeechStudioScreen(
                 selectedGender == "All" || onlineVoiceGender(voice) == selectedGender
             }
             val searchTerm = voiceSearch.trim().lowercase(Locale.ROOT)
-            val searchedInstalled = installedPool.filter { voice ->
-                "${voice.name} ${voice.locale.displayName} ${voice.locale.toLanguageTag()}".lowercase(Locale.ROOT).contains(searchTerm)
+            val searchedInstalled = installedPool.filterIndexed { index, voice ->
+                val displayName = installedVoiceDisplayName(voice, index + 1)
+                "${displayName} ${voice.name} ${voice.locale.displayName} ${voice.locale.toLanguageTag()}".lowercase(Locale.ROOT).contains(searchTerm)
             }
             val searchedOnline = onlinePool.filter { voice ->
                 "${voice.name} ${voice.language}".lowercase(Locale.ROOT).contains(searchTerm)
@@ -1087,12 +1088,12 @@ fun SpeechStudioScreen(
                                         selectedOnlineVoice = null
                                         selectedSavedVoice = null
                                         selectedSavedVoiceId = null
-                                        voiceSearch = voice.name
+                                        voiceSearch = "Voice ${installedPool.indexOf(voice) + 1}"
                                         ttsEngine?.let { it.stop(); it.setLanguage(voice.locale); it.voice = voice }
                                         statusMessage = "${voice.name} selected."
                                     }) {
                                         Text(
-                                            installedVoiceDisplayName(voice, filteredInstalled.indexOf(voice) + 1),
+                                            installedVoiceDisplayName(voice, installedPool.indexOf(voice) + 1),
                                             color = T2SText,
                                             fontWeight = FontWeight.SemiBold,
                                             maxLines = 1
