@@ -514,6 +514,11 @@ fun SpeechStudioScreen(
                             SarvamVoiceCloneClient.generateCentral(sarvamVoiceId, sample, languageCode, previewFile)
                         localSamplePath != null ->
                             error("This voice's saved recording is missing. Re-add the voice sample to preview it.")
+                        provider == "India API" || provider == "Vakyam" ->
+                            CentralOnlineTtsClient.generate(
+                                provider, sample, voiceId, languageCode,
+                                1f, previewFile, format = "mp3"
+                            )
                         else ->
                             error("This saved voice has no playable recording or registered voice ID. Re-add or register it before previewing.")
                     }
