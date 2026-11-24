@@ -304,15 +304,6 @@ fun AccountPageScreen(
             )
         }
 
-        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center) {
-            Button(
-                onClick = onSignIn,
-                colors = ButtonDefaults.buttonColors(containerColor = T2SOrange, contentColor = T2SBackground),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Text(if (user == null) "Sign in / Create account" else "Account sign-in options", fontSize = 11.sp)
-            }
-        }
         Spacer(Modifier.size(8.dp))
     }
 }
