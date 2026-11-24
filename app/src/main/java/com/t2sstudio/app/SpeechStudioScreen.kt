@@ -851,20 +851,34 @@ fun SpeechStudioScreen(
                         languages.forEach { language ->
                             DropdownMenuItem(
                                 text = {
+                                    val isSelected = selectedLanguage == language.label
                                     Card(
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                                        shape = RoundedCornerShape(9.dp),
-                                        colors = CardDefaults.cardColors(containerColor = if (selectedLanguage == language.label) Color(0xFFFFEBDD) else Color(0xFFFFF7F0)),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, if (selectedLanguage == language.label) T2SOrange else Color(0xFFF0D7C2))
-                                    ) {
-                                        Text(
-                                            language.label,
-                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-                                            color = if (selectedLanguage == language.label) Color(0xFFF47721) else Color(0xFF101B35),
-                                            fontSize = 14.sp,
-                                            fontWeight = if (selectedLanguage == language.label) FontWeight.Bold else FontWeight.Medium
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isSelected) Color(0xFFFFEBDD) else Color(0xFFFFFAF6)
+                                        ),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 1.dp else 0.dp),
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            if (isSelected) 1.2.dp else 0.7.dp,
+                                            if (isSelected) T2SOrange else Color(0xFFF0E3D9)
                                         )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                language.label,
+                                                modifier = Modifier.weight(1f),
+                                                color = if (isSelected) Color(0xFFF47721) else Color(0xFF101B35),
+                                                fontSize = 12.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                            )
+                                            if (isSelected) {
+                                                Text("✓", color = T2SOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
                                     }
                                 },
                                 onClick = {
