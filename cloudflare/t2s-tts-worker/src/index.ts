@@ -266,9 +266,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const root: unknown = await response.json();
     const language = url.searchParams.get("language") || "te";
     const records = extractVoiceRecords(root, language);
-    if (records.length === 0) {
-      return json({ error: "Vakyam returned an empty or unsupported voice catalogue response." }, 502);
-    }
+    // A successful but empty/unrecognized provider response must not prevent
+    // the documented public roster from being returned.
     const providerVoices = records.filter(item =>
       typeof item.voice_name === "string" || typeof item.name === "string"
     );
