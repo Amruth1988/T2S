@@ -1,19 +1,19 @@
 package com.t2sstudio.app
 
-import android.util.Base64
-import com.google.firebase.auth.FirebaseAuth
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-import com.google.android.gms.tasks.Tasks
-import java.io.File
-import java.io.ByteArrayOutputStream
-import java.io.FileOutputStream
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import android.util.Base64
+import com.google.android.gms.tasks.Tasks
+import com.google.firebase.auth.FirebaseAuth
+import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 
-/** Sarvam Instant Voice Cloning client. Provider credentials remain in Firebase Functions Secret Manager. */
+/** Sarvam Instant Voice Cloning client. Provider credentials remain in the deployed Apps Script gateway. */
 object SarvamVoiceCloneClient {
     // Existing deployed Firebase-Spark-compatible Apps Script gateway.
     private const val SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzreX70ong9CQwtGMZ4tcSSLLY3iZ28MFL0ny6L6pitmRLUq6duHCJXiYZ_O2Do8wPP/exec"
