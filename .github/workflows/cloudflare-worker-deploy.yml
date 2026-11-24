@@ -59,5 +59,9 @@ jobs:
                 console.error("VAKYAM_API_KEY is not configured as a Cloudflare Worker secret.");
                 process.exit(1);
               }
+              if (health.vakyamPublicVoiceCount !== 16) {
+                console.error("The deployed Worker does not contain the expected 16-voice Vakyam public catalogue fallback.");
+                process.exit(1);
+              }
             });
           '
