@@ -534,9 +534,8 @@ fun SpeechStudioScreen(
             if (activePreviewKey != previewKey) { previewFile.delete(); return@launch }
             runCatching {
                 val player = ExoPlayer.Builder(context).build()
-                            // Match the clean Add Voice audition path; ExoPlayer silence skipping can
-                // introduce a dead-air lead-in with some registered voice samples.
-                player.skipSilenceEnabled = false
+                // Skip leading and internal silence in saved/registered voice previews.
+                player.skipSilenceEnabled = true
                 mediaPlayer = player
                 player.setAudioAttributes(
                     Media3AudioAttributes.Builder()
