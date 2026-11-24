@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -69,7 +70,8 @@ fun AccountPageScreen(
     onAbout: () -> Unit,
     onPrivacy: () -> Unit,
     onTerms: () -> Unit,
-    onContact: () -> Unit
+    onContact: () -> Unit,
+    scrollState: ScrollState
 ) {
     val auth = remember { FirebaseAuth.getInstance() }
     var user by remember { mutableStateOf(auth.currentUser) }
@@ -107,7 +109,7 @@ fun AccountPageScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(T2SBackground).statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+        modifier = Modifier.fillMaxSize().background(T2SBackground).statusBarsPadding().navigationBarsPadding().verticalScroll(scrollState).padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column(
