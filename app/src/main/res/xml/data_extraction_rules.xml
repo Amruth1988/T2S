@@ -3,6 +3,8 @@
     <cloud-backup>
         <!-- Keep user work restorable, but exclude personal voice recordings. -->
         <exclude domain="file" path="voice_samples/" />
+        <!-- Do not restore Firebase Auth session after reinstall. -->
+        <exclude domain="sharedpref" path="." />
     </cloud-backup>
     <device-transfer>
         <!-- Apply the same privacy boundary during phone-to-phone transfer. -->
