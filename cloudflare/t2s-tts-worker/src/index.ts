@@ -269,10 +269,21 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (records.length === 0) {
       return json({ error: "Vakyam returned an empty or unsupported voice catalogue response." }, 502);
     }
-    const voices = records.filter(item =>
+    const providerVoices = records.filter(item =>
       typeof item.voice_name === "string" || typeof item.name === "string"
     );
-    return json({ voices });
+    // Vakyam documents all 16 public preset voices for every supported language.
+    // Merge that stable public roster with the live catalogue so a partial
+    // successful upstream response cannot hide documented public voices.
+    const merged = new Map<string, Record<string, unknown>>();
+    for (const voice of vakyamPublicVoiceFallback(language)) {
+      merged.set(voice.voice_name, voice);
+    }
+    for (const voice of providerVoices) {
+      const name = String(voice.voice_name || voice.name || "").trim();
+      if (name) merged.set(name, { ...merged.get(name), ...voice });
+    }
+    return json({ voices: Array.from(merged.values()), source: "public-roster-plus-provider" });
   }
 
   if (url.pathname === "/v1/vakyam/tts" && request.method === "POST") {
