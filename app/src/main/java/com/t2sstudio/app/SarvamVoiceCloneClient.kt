@@ -2,7 +2,9 @@ package com.t2sstudio.app
 
 import android.util.Base64
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.functions.FirebaseFunctions
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 import com.google.android.gms.tasks.Tasks
 import java.io.File
 import java.io.ByteArrayOutputStream
@@ -13,22 +15,66 @@ import android.media.MediaFormat
 
 /** Sarvam Instant Voice Cloning client. Provider credentials remain in Firebase Functions Secret Manager. */
 object SarvamVoiceCloneClient {
+    // Existing deployed Firebase-Spark-compatible Apps Script gateway.
+    private const val SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzreX70ong9CQwtGMZ4tcSSLLY3iZ28MFL0ny6L6pitmRLUq6duHCJXiYZ_O2Do8wPP/exec"
+
     private fun centralCall(name: String, data: Map<String, Any?> = emptyMap()): Map<*, *> {
-        FirebaseAuth.getInstance().currentUser
+        val user = FirebaseAuth.getInstance().currentUser
             ?: error("Sign in to T2S before using shared Sarvam voices.")
-        val supported = setOf(
-            "listCentralSarvamVoices",
-            "createCentralSarvamVoice",
-            "generateCentralSarvamClone"
-        )
-        require(name in supported) { "Unsupported shared Sarvam operation." }
-        val result = Tasks.await(
-            FirebaseFunctions.getInstance("asia-south1")
-                .getHttpsCallable(name)
-                .call(data)
-        )
-        return result.getData() as? Map<*, *>
-            ?: error("T2S server returned an invalid Sarvam response.")
+        val token = Tasks.await(user.getIdToken(false)).token
+            ?: error("Could not verify your T2S sign-in. Sign in again.")
+        val action = when (name) {
+            "listCentralSarvamVoices" -> "list"
+            "createCentralSarvamVoice" -> "create"
+            "generateCentralSarvamClone" -> "generate"
+            else -> error("Unsupported shared Sarvam operation.")
+        }
+        val payload = JSONObject().put("action", action).put("idToken", token)
+        data.forEach { (key, value) -> payload.put(key, value) }
+
+        var url = URL(SCRIPT_URL)
+        var method = "POST"
+        repeat(5) {
+            val connection = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = method
+                connectTimeout = 30000
+                readTimeout = 120000
+                instanceFollowRedirects = false
+                setRequestProperty("Accept", "application/json")
+                if (method == "POST") {
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                }
+            }
+            try {
+                if (method == "POST") connection.outputStream.use {
+                    it.write(payload.toString().toByteArray(Charsets.UTF_8))
+                }
+                val status = connection.responseCode
+                if (status in 300..399) {
+                    val location = connection.getHeaderField("Location")
+                        ?: error("T2S gateway redirect did not include a destination.")
+                    url = URL(url, location)
+                    method = "GET"
+                    return@repeat
+                }
+                val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
+                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                val result = runCatching { JSONObject(body) }.getOrElse {
+                    error("T2S gateway returned an invalid response (HTTP $status).")
+                }
+                if (status !in 200..299) error("T2S gateway request failed (HTTP $status).")
+                if (result.has("error")) error(result.optString("error", "Shared Sarvam request failed."))
+                val map = mutableMapOf<String, Any?>()
+                result.keys().forEach { key ->
+                    map[key] = if (result.isNull(key)) null else result.get(key)
+                }
+                return map
+            } finally {
+                connection.disconnect()
+            }
+        }
+        error("T2S gateway redirect limit exceeded.")
     }
 
     fun testCentralConnection(): String {
