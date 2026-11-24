@@ -141,28 +141,7 @@ fun AccountPageScreen(
                 QuickAccountAction("Recent", Icons.Filled.AccessTime, Modifier.weight(1f)) { onNavigate(2) }
             }
     
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = T2SOrange,
-                shape = RoundedCornerShape(24.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Surface(shape = RoundedCornerShape(16.dp), color = T2SCream) {
-                        Icon(Icons.Filled.RecordVoiceOver, contentDescription = null, tint = T2SOrange,
-                            modifier = Modifier.padding(16.dp).size(30.dp))
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text("Your voice, your creativity", color = androidx.compose.ui.graphics.Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Create, manage and revisit your speech projects.",
-                            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.9f), fontSize = 14.sp)
-                    }
-                }
-            }
-    
+
             AccountSectionCard(
                 title = "Your information",
                 subtitle = "Personal account details",
