@@ -46,12 +46,12 @@ fun TermsPageScreen(onBack: () -> Unit) {
                 Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = T2SOrange,
                     modifier = Modifier.padding(10.dp).size(22.dp))
             }
-            Text("Terms & Conditions", color = T2SText, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+            Text("Terms & Conditions", color = T2SOrange, fontSize = 25.sp, fontWeight = FontWeight.Bold)
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Using T2S Studio", color = T2SOrange, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-            Text("Clear terms for a responsible experience", color = T2SText, fontSize = 26.sp,
+            Text("Clear terms for a responsible experience", color = T2SOrange, fontSize = 26.sp,
                 lineHeight = 32.sp, fontWeight = FontWeight.ExtraBold)
             Text(
                 "These Terms & Conditions explain the rules that apply when you access or use the T2S Studio text-to-speech application, including its projects, drafts, audio and voice features. Please read them carefully before using the app.",
@@ -103,7 +103,7 @@ fun TermsPageScreen(onBack: () -> Unit) {
 @Composable
 private fun TermsTextSection(title: String, body: String) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text(title, color = T2SText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text(title, color = T2SOrange, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Text(body, color = T2SSecondaryText, fontSize = 14.sp, lineHeight = 22.sp)
     }
 }
