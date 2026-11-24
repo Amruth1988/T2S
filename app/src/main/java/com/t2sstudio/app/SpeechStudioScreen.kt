@@ -204,6 +204,10 @@ fun SpeechStudioScreen(
     var isSavingDraft by remember { mutableStateOf(false) }
     var generatedFile by remember { mutableStateOf<File?>(null) }
     var statusMessage by remember { mutableStateOf("Enter text to create your first voice recording.") }
+    fun showGenerationNotification(message: String) {
+        android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+        statusMessage = ""
+    }
     LaunchedEffect(initialScriptText) {
         if (initialScriptText != null) {
             inputText = initialScriptText.take(inputCharacterLimit)
@@ -1327,31 +1331,31 @@ fun SpeechStudioScreen(
                 val directory = generatedAudioDirectory(context, com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid)
                 val output = File(directory, "speech_" + System.currentTimeMillis() + "." + outputFormatForRequest)
                 when {
-                    textToSpeak.isBlank() -> statusMessage = "Please enter some text first."
-                    languageCode.isBlank() -> statusMessage = "This language is not supported by the speech service."
+                    textToSpeak.isBlank() -> showGenerationNotification("Please enter some text first.")
+                    languageCode.isBlank() -> showGenerationNotification("This language is not supported by the speech service.")
                     personalVoice != null && languageCode !in setOf("te", "en") ->
-                        statusMessage = "My Voices generation currently supports Telugu and English. Choose one of those languages."
+                        showGenerationNotification("My Voices generation currently supports Telugu and English. Choose one of those languages.")
                     personalVoice != null && (when (personalVoice.language.lowercase(Locale.ROOT).substringBefore('-')) {
                         "te", "telugu" -> "te"
                         "en", "english" -> "en"
                         "hi", "hindi" -> "hi"
                         else -> ""
                     }) != languageCode ->
-                        statusMessage = "The selected My Voice profile language does not match the script language."
+                        showGenerationNotification("The selected My Voice profile language does not match the script language.")
                     personalVoice != null && personalVoice.sarvamVoiceId.isBlank() ->
-                        statusMessage = "${personalVoice.name} is saved locally but is not registered with Sarvam yet. Open My Voices and complete voice registration before generating."
+                        showGenerationNotification("${personalVoice.name} is saved locally but is not registered with Sarvam yet. Open My Voices and complete voice registration before generating.")
                     personalVoice != null && textToSpeak.length > 1000 ->
-                        statusMessage = "My Voices supports up to 1,000 characters per generation. Shorten your text and try again."
+                        showGenerationNotification("My Voices supports up to 1,000 characters per generation. Shorten your text and try again.")
                     guestMode && (!engineReady || installedVoice == null) ->
-                        statusMessage = "No installed ${selectedLanguage} voice is available. Install an offline voice in Android Text-to-speech settings and try again."
+                        showGenerationNotification("No installed ${selectedLanguage} voice is available. Install an offline voice in Android Text-to-speech settings and try again.")
                     guestMode && installedVoice?.isNetworkConnectionRequired == true ->
-                        statusMessage = "This voice requires a network connection. Choose an installed offline voice for Guest mode."
+                        showGenerationNotification("This voice requires a network connection. Choose an installed offline voice for Guest mode.")
                     guestMode && textToSpeak.length > 2000 ->
-                        statusMessage = "Guest audio is limited to 2,000 characters. Shorten your text and try again."
+                        showGenerationNotification("Guest audio is limited to 2,000 characters. Shorten your text and try again.")
                     !guestMode && personalVoice == null && textToSpeak.length > 3000 ->
-                        statusMessage = "Online TTS supports up to 3,000 characters per request. Shorten your text and try again."
+                        showGenerationNotification("Online TTS supports up to 3,000 characters per request. Shorten your text and try again.")
                     !guestMode && personalVoice == null && (onlineVoice == null || !onlineVoice.language.substringBefore('-').equals(languageCode, ignoreCase = true)) ->
-                        statusMessage = "Choose an online ${selectedLanguage} voice before generating speech."
+                        showGenerationNotification("Choose an online ${selectedLanguage} voice before generating speech.")
                     else -> {
                         isGenerating = true
                         generatedFile = null
@@ -1419,12 +1423,12 @@ fun SpeechStudioScreen(
                                 if (generationError.contains("Daily limit reached", ignoreCase = true)) {
                                     dailyGenerationLimitReached = true
                                 }
-                                statusMessage = (when {
+                                showGenerationNotification((when {
                                     guestMode -> "Guest audio generation failed: "
                                     personalVoice != null -> "My Voice generation failed: "
                                     else -> "Online TTS failed: "
                                 }) + generationError +
-                                    if (dailyGenerationLimitReached) "" else " Check the selected voice and try again."
+                                    if (dailyGenerationLimitReached) "" else " Check the selected voice and try again.")
                             }
                         }
                     }
