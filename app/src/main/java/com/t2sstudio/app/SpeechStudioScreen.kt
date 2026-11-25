@@ -783,7 +783,7 @@ fun SpeechStudioScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.Bottom
           ) {
-            Column(modifier = Modifier.weight(0.78f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(modifier = Modifier.weight(0.62f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Language", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 var languageMenuExpanded by remember { mutableStateOf(false) }
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -891,12 +891,12 @@ fun SpeechStudioScreen(
                     }
                 }
             }
-            Column(modifier = Modifier.weight(1.22f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(modifier = Modifier.weight(1.38f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Gender", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                     listOf("All", "Male", "Female").forEach { gender ->
                         FilterChip(
-                            modifier = Modifier.weight(when (gender) { "All" -> 0.8f; "Male" -> 0.9f; else -> 1.3f }).height(36.dp),
+                            modifier = Modifier.weight(when (gender) { "All" -> 0.75f; "Male" -> 1.1f; else -> 1.35f }).height(36.dp),
                             selected = selectedGender == gender,
                             colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color(0xFFF47721),
@@ -924,7 +924,7 @@ fun SpeechStudioScreen(
                                 ) {
                                     Text(
                                         gender,
-                                        modifier = Modifier.padding(horizontal = 2.dp),
+                                        modifier = Modifier.padding(horizontal = 0.dp),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
