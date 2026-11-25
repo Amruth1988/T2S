@@ -123,7 +123,6 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
         previewingVoiceId = voice.id
         loadMessage = null
         kotlinx.coroutines.CoroutineScope(Dispatchers.Main).launch {
-            var generatedPreview: File? = null
             val result = runCatching {
                 val localSample = voice.localSamplePath?.let(::File)?.takeIf { it.isFile && it.length() > 1024L }
                 val audioFile = if (localSample != null) localSample else {
@@ -135,18 +134,16 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
                         "hi", "hindi" -> "hi"
                         else -> "en"
                     }
-                    val sampleText = when (languageCode) {
-                        "te" -> "నమస్కారం. ఇది మీ వాయిస్ ప్రివ్యూ నమూనా."
-                        "hi" -> "नमस्ते। यह आपकी आवाज़ का नमूना है."
-                        else -> "Hello. This is a sample of your saved voice."
-                    }
-                    File(context.cacheDir, "saved_voice_preview_" + voice.id + "_" + System.currentTimeMillis() + ".wav")
-                        .also { output ->
-                            generatedPreview = output
-                            withContext(Dispatchers.IO) {
-                                SarvamVoiceCloneClient.generateCentral(voice.sarvamVoiceId, sampleText, languageCode, output)
-                            }
+                    val sampleText = VoicePreviewCache.previewText(languageCode)
+                    withContext(Dispatchers.IO) {
+                        VoicePreviewCache.getOrGenerate(
+                            context, uid, voice.sarvamVoiceId, languageCode, sampleText, "wav"
+                        ) { output ->
+                            SarvamVoiceCloneClient.generateCentral(
+                                voice.sarvamVoiceId, sampleText, languageCode, output
+                            )
                         }
+                    }
                 }
                 check(previewingVoiceId == voice.id) { "Preview was cancelled." }
                 val player = ExoPlayer.Builder(context).build()
@@ -164,14 +161,12 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
                         if (playbackState == Player.STATE_ENDED) {
                             player.release()
                             if (previewPlayer === player) previewPlayer = null
-                            generatedPreview?.delete()
                             if (previewingVoiceId == voice.id) previewingVoiceId = null
                         }
                     }
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                         player.release()
                         if (previewPlayer === player) previewPlayer = null
-                        generatedPreview?.delete()
                         if (previewingVoiceId == voice.id) previewingVoiceId = null
                         loadMessage = "Preview playback failed. Please try again."
                     }
@@ -183,7 +178,6 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
             result.onFailure { error ->
                 runCatching { previewPlayer?.release() }
                 previewPlayer = null
-                generatedPreview?.delete()
                 if (previewingVoiceId == voice.id) previewingVoiceId = null
                 if (error.localizedMessage != "Preview was cancelled.") {
                     loadMessage = error.localizedMessage ?: "Could not preview this voice."

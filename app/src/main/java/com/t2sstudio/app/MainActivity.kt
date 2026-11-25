@@ -342,6 +342,13 @@ private fun T2SApp() {
 
     var pendingScriptText by remember { mutableStateOf<String?>(null) }
     val scriptDrafts = remember { mutableStateListOf<T2SScriptDraft>() }
+    // Preload the signed-in user's private generated voice-preview cache at launch/sign-in.
+    LaunchedEffect(currentUid) {
+        val uid = currentUid ?: return@LaunchedEffect
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            VoicePreviewCache.preload(context, uid)
+        }
+    }
     // Reconcile only the current signed-in account local metadata on app launch/sign-in.
     // Audio bytes remain local; only project and script descriptors/content are uploaded.
     LaunchedEffect(currentUid) {
