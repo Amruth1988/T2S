@@ -367,7 +367,7 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Text(
-                                            if (previewingVoiceId == voice.id) "Stop" else "Preview",
+                                            if (previewingVoiceId == voice.id) "Stop recording" else "Play my recording",
                                             modifier = Modifier.padding(start = 5.dp)
                                         )
                                     }
