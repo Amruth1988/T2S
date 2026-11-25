@@ -165,13 +165,21 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
                     true
                 )
                 player.volume = 1f
+                previewPlayer = player
                 player.addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
-                        if (playbackState == Player.STATE_ENDED) {
-                            player.release()
-                            if (previewPlayer === player) previewPlayer = null
-                            generatedPreview?.delete()
-                            previewingVoiceId = null
+                        when (playbackState) {
+                            Player.STATE_READY -> {
+                                if (previewPlayer === player && previewingVoiceId == voice.id) {
+                                    player.play()
+                                }
+                            }
+                            Player.STATE_ENDED -> {
+                                player.release()
+                                if (previewPlayer === player) previewPlayer = null
+                                generatedPreview?.delete()
+                                previewingVoiceId = null
+                            }
                         }
                     }
 
@@ -185,8 +193,6 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
                 })
                 player.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(audioFile)))
                 player.prepare()
-                player.play()
-                previewPlayer = player
             }
             result.onFailure { error ->
                 generatedPreview?.delete()
