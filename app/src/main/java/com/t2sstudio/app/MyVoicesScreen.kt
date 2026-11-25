@@ -92,6 +92,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordingFile by remember { mutableStateOf<File?>(null) }
     var previewPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
+    var savedPreviewPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     var previewingPickedRecording by remember { mutableStateOf(false) }
     var previewingSavedVoiceId by remember { mutableStateOf<String?>(null) }
     var recordingStartedAt by remember { mutableStateOf(0L) }
@@ -161,7 +162,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
 
     LaunchedEffect(Unit) { loadVoices() }
 
-    DisposableEffect(Unit) { onDispose { runCatching { recorder?.stop() }; runCatching { recorder?.release() }; recorder = null; runCatching { previewPlayer?.stop() }; runCatching { previewPlayer?.release() }; previewPlayer = null } }
+    DisposableEffect(Unit) { onDispose { runCatching { recorder?.stop() }; runCatching { recorder?.release() }; recorder = null; runCatching { previewPlayer?.stop() }; runCatching { previewPlayer?.release() }; previewPlayer = null; runCatching { savedPreviewPlayer?.release() }; savedPreviewPlayer = null } }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -703,14 +704,14 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                             enabled = canPreviewVoice,
                             onClick = {
                                 if (previewingSavedVoiceId == voice.id) {
-                                    runCatching { previewPlayer?.stop() }
-                                    runCatching { previewPlayer?.release() }
-                                    previewPlayer = null
+                                    runCatching { savedPreviewPlayer?.stop() }
+                                    runCatching { savedPreviewPlayer?.release() }
+                                    savedPreviewPlayer = null
                                     previewingSavedVoiceId = null
                                     message = "Voice preview stopped."
                                 } else {
-                                    runCatching { previewPlayer?.release() }
-                                    previewPlayer = null
+                                    runCatching { savedPreviewPlayer?.release() }
+                                    savedPreviewPlayer = null
                                     previewingSavedVoiceId = voice.id
                                     scope.launch {
                                         var generatedPreview: File? = null
@@ -743,7 +744,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                                 return@launch
                                             }
                                             val player = MediaPlayer()
-                                            previewPlayer = player
+                                            savedPreviewPlayer = player
                                             player.setAudioAttributes(
                                                 AndroidAudioAttributes.Builder()
                                                     .setUsage(AndroidAudioAttributes.USAGE_MEDIA)
@@ -752,7 +753,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                             )
                                             player.setVolume(1f, 1f)
                                             player.setOnPreparedListener { readyPlayer ->
-                                                if (previewPlayer === readyPlayer && previewingSavedVoiceId == voice.id) {
+                                                if (savedPreviewPlayer === readyPlayer && previewingSavedVoiceId == voice.id) {
                                                     readyPlayer.start()
                                                 } else {
                                                     readyPlayer.release()
@@ -760,14 +761,14 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                             }
                                             player.setOnCompletionListener { completedPlayer ->
                                                 completedPlayer.release()
-                                                if (previewPlayer === completedPlayer) previewPlayer = null
+                                                if (savedPreviewPlayer === completedPlayer) savedPreviewPlayer = null
                                                 generatedPreview?.delete()
                                                 if (previewingSavedVoiceId == voice.id) previewingSavedVoiceId = null
                                                 message = "\${voice.name} preview finished."
                                             }
                                             player.setOnErrorListener { failedPlayer, _, _ ->
                                                 failedPlayer.release()
-                                                if (previewPlayer === failedPlayer) previewPlayer = null
+                                                if (savedPreviewPlayer === failedPlayer) savedPreviewPlayer = null
                                                 generatedPreview?.delete()
                                                 if (previewingSavedVoiceId == voice.id) previewingSavedVoiceId = null
                                                 message = "Voice preview failed. Please try again."
@@ -782,8 +783,8 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                             }
                                         } catch (error: Exception) {
                                             generatedPreview?.delete()
-                                            runCatching { previewPlayer?.release() }
-                                            previewPlayer = null
+                                            runCatching { savedPreviewPlayer?.release() }
+                                            savedPreviewPlayer = null
                                             previewingSavedVoiceId = null
                                             message = error.localizedMessage ?: "Could not preview this voice. Please try again."
                                         }
@@ -803,8 +804,8 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                     }
                         TextButton(onClick = {
                             if (previewingSavedVoiceId == voice.id) {
-                                runCatching { previewPlayer?.release() }
-                                previewPlayer = null
+                                runCatching { savedPreviewPlayer?.release() }
+                                savedPreviewPlayer = null
                                 previewingSavedVoiceId = null
                             }
                             runCatching { MyVoicesClient.deleteLocal(context, accountUid, voice.id); loadVoices(); message = "Voice profile deleted from this device." }
@@ -819,4 +820,3 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
         }
         
     }
-}
