@@ -737,7 +737,7 @@ fun SpeechStudioScreen(
                             Text(
                                 "You've used today's speech allowance. You can still edit your text and manage voices. Generation resets at 5:30 AM IST.",
                                 color = T2SSecondaryText,
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 lineHeight = 16.sp
                             )
                         }
