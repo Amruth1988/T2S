@@ -221,6 +221,7 @@ fun SpeechStudioScreen(
     }
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
     var mediaPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
+    var savedRecordingPlayer by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
     var isPreviewing by remember { mutableStateOf(false) }
     var activePreviewKey by remember { mutableStateOf<String?>(null) }
@@ -478,10 +479,15 @@ fun SpeechStudioScreen(
         onDispose {
             mediaPlayer?.release()
             mediaPlayer = null
+            runCatching { savedRecordingPlayer?.release() }
+            savedRecordingPlayer = null
         }
     }
 
     fun stopVoicePreview() {
+        runCatching { savedRecordingPlayer?.stop() }
+        runCatching { savedRecordingPlayer?.release() }
+        savedRecordingPlayer = null
         runCatching { mediaPlayer?.stop() }
         mediaPlayer?.release()
         mediaPlayer = null
@@ -499,7 +505,64 @@ fun SpeechStudioScreen(
     fun previewOnlineVoice(voiceId: String, previewKey: String = voiceId, localSamplePath: String? = null, languageOverride: String? = null, provider: String = "India API", sarvamVoiceId: String = "") {
         if (isPreviewing && activePreviewKey == previewKey) { stopVoicePreview(); statusMessage = "Preview stopped."; return }
         stopVoicePreview()
-        val localSample = localSamplePath?.let { File(it) }?.takeIf { it.exists() && it.length() > 1024L }
+        val localSample = localSamplePath?.let { File(it) }?.takeIf { it.isFile && it.canRead() && it.length() > 1024L }
+        if (previewKey.startsWith("personal:") && localSample != null) {
+            isPreviewing = true
+            activePreviewKey = previewKey
+            statusMessage = "Preparing your saved recording…"
+            runCatching { savedRecordingPlayer?.stop() }
+            runCatching { savedRecordingPlayer?.release() }
+            savedRecordingPlayer = null
+            runCatching {
+                val player = android.media.MediaPlayer()
+                savedRecordingPlayer = player
+                player.setAudioAttributes(
+                    android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                player.setVolume(1f, 1f)
+                player.setOnPreparedListener { ready ->
+                    if (savedRecordingPlayer === ready && activePreviewKey == previewKey) {
+                        ready.start()
+                        isPlaying = true
+                        statusMessage = "Playing your saved recording."
+                    } else ready.release()
+                }
+                player.setOnCompletionListener { completed ->
+                    completed.release()
+                    if (savedRecordingPlayer === completed) savedRecordingPlayer = null
+                    if (activePreviewKey == previewKey) {
+                        isPlaying = false
+                        isPreviewing = false
+                        activePreviewKey = null
+                        statusMessage = "Recording preview finished."
+                    }
+                }
+                player.setOnErrorListener { failed, _, _ ->
+                    failed.release()
+                    if (savedRecordingPlayer === failed) savedRecordingPlayer = null
+                    if (activePreviewKey == previewKey) {
+                        isPlaying = false
+                        isPreviewing = false
+                        activePreviewKey = null
+                        statusMessage = "Saved recording playback failed. Check that the original sample is available."
+                    }
+                    true
+                }
+                player.setDataSource(localSample.absolutePath)
+                player.prepareAsync()
+            }.onFailure { error ->
+                runCatching { savedRecordingPlayer?.release() }
+                savedRecordingPlayer = null
+                isPlaying = false
+                isPreviewing = false
+                activePreviewKey = null
+                statusMessage = "Could not play saved recording: ${error.localizedMessage ?: "unsupported or unavailable audio"}"
+            }
+            return
+        }
         val languageCode = languageOverride ?: when (selectedLanguage) { "English" -> "en"; "Hindi" -> "hi"; "Telugu" -> "te"; else -> "en" }
         isPreviewing = true
         activePreviewKey = previewKey
