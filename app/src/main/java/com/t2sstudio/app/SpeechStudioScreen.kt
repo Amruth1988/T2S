@@ -808,7 +808,7 @@ fun SpeechStudioScreen(
                             selectedLanguage,
                             modifier = Modifier.weight(1f),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White,
                             maxLines = 1,
