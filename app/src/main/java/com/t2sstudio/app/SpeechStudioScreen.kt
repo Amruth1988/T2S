@@ -925,7 +925,7 @@ fun SpeechStudioScreen(
                                     Text(
                                         gender,
                                         modifier = Modifier.padding(horizontal = 2.dp),
-                                        fontSize = 11.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
                                         softWrap = false,
