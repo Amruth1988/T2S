@@ -193,6 +193,7 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
                 })
                 player.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(audioFile)))
                 player.prepare()
+                player.playWhenReady = true
             }
             result.onFailure { error ->
                 generatedPreview?.delete()
