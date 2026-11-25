@@ -3,8 +3,6 @@ package com.t2sstudio.app
 import android.Manifest
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
-import android.media.MediaPlayer
-import android.media.AudioAttributes as AndroidAudioAttributes
 import android.widget.Toast
 import androidx.media3.common.AudioAttributes as Media3AudioAttributes
 import androidx.media3.common.C
@@ -92,7 +90,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordingFile by remember { mutableStateOf<File?>(null) }
     var previewPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
-    var savedPreviewPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var savedPreviewPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
     var previewingPickedRecording by remember { mutableStateOf(false) }
     var previewingSavedVoiceId by remember { mutableStateOf<String?>(null) }
     var recordingStartedAt by remember { mutableStateOf(0L) }
@@ -513,7 +511,12 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
         }
         }
         if (busy) CircularProgressIndicator()
-        Text("My saved voices", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("My saved voices", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = T2SText)
+            if (voices.any { it.firebaseSynced }) {
+                Text("Registered cloud voices", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = T2SOrange)
+            }
+        }
         val orderedVoices = voices.sortedBy { voice ->
             when {
                 voice.firebaseSynced -> 0
@@ -535,7 +538,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                     else -> 2
                 }
             } else -1
-            if (groupKey != previousGroupKey) {
+            if (groupKey != previousGroupKey && groupKey != 0) {
                 Text(
                     when (groupKey) {
                         0 -> "Registered cloud voices"
@@ -557,7 +560,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
             }
             val sampleFileForStatus = voice.localSamplePath?.let(::File)
             val sampleAvailable = sampleFileForStatus != null &&
-                sampleFileForStatus.isFile && sampleFileForStatus.length() > 1024L
+                sampleFileForStatus.isFile && sampleFileForStatus.canRead() && sampleFileForStatus.length() > 1024L
             val remotePreviewAvailable = voice.sarvamVoiceId.startsWith("svc-")
             val canPreviewVoice = sampleAvailable || remotePreviewAvailable
             Card(
@@ -743,39 +746,38 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                                 generatedPreview?.delete()
                                                 return@launch
                                             }
-                                            val player = MediaPlayer()
+                                            val player = ExoPlayer.Builder(context).build()
                                             savedPreviewPlayer = player
                                             player.setAudioAttributes(
-                                                AndroidAudioAttributes.Builder()
-                                                    .setUsage(AndroidAudioAttributes.USAGE_MEDIA)
-                                                    .setContentType(AndroidAudioAttributes.CONTENT_TYPE_SPEECH)
-                                                    .build()
-                                            )
-                                            player.setVolume(1f, 1f)
-                                            player.setOnPreparedListener { readyPlayer ->
-                                                if (savedPreviewPlayer === readyPlayer && previewingSavedVoiceId == voice.id) {
-                                                    readyPlayer.start()
-                                                } else {
-                                                    readyPlayer.release()
-                                                }
-                                            }
-                                            player.setOnCompletionListener { completedPlayer ->
-                                                completedPlayer.release()
-                                                if (savedPreviewPlayer === completedPlayer) savedPreviewPlayer = null
-                                                generatedPreview?.delete()
-                                                if (previewingSavedVoiceId == voice.id) previewingSavedVoiceId = null
-                                                message = "\${voice.name} preview finished."
-                                            }
-                                            player.setOnErrorListener { failedPlayer, _, _ ->
-                                                failedPlayer.release()
-                                                if (savedPreviewPlayer === failedPlayer) savedPreviewPlayer = null
-                                                generatedPreview?.delete()
-                                                if (previewingSavedVoiceId == voice.id) previewingSavedVoiceId = null
-                                                message = "Voice preview failed. Please try again."
+                                                Media3AudioAttributes.Builder()
+                                                    .setUsage(C.USAGE_MEDIA)
+                                                    .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                                                    .build(),
                                                 true
-                                            }
-                                            player.setDataSource(audioFile.absolutePath)
-                                            player.prepareAsync()
+                                            )
+                                            player.volume = 1f
+                                            player.addListener(object : Player.Listener {
+                                                override fun onPlaybackStateChanged(playbackState: Int) {
+                                                    if (playbackState == Player.STATE_ENDED) {
+                                                        player.release()
+                                                        if (savedPreviewPlayer === player) savedPreviewPlayer = null
+                                                        generatedPreview?.delete()
+                                                        if (previewingSavedVoiceId == voice.id) previewingSavedVoiceId = null
+                                                        message = "${voice.name} preview finished."
+                                                    }
+                                                }
+
+                                                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                                                    player.release()
+                                                    if (savedPreviewPlayer === player) savedPreviewPlayer = null
+                                                    generatedPreview?.delete()
+                                                    if (previewingSavedVoiceId == voice.id) previewingSavedVoiceId = null
+                                                    message = "Voice preview failed: ${error.localizedMessage ?: "Please try again."}"
+                                                }
+                                            })
+                                            player.setMediaItem(androidx.media3.common.MediaItem.fromUri(android.net.Uri.fromFile(audioFile)))
+                                            player.prepare()
+                                            player.playWhenReady = true
                                             message = if (sampleAvailable) {
                                                 "Playing your original recording for \${voice.name}."
                                             } else {
