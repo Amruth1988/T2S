@@ -3,6 +3,8 @@ package com.t2sstudio.app
 import android.Manifest
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
+import android.media.MediaPlayer
+import android.media.AudioAttributes as AndroidAudioAttributes
 import android.widget.Toast
 import androidx.media3.common.AudioAttributes as Media3AudioAttributes
 import androidx.media3.common.C
@@ -554,7 +556,9 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
             }
             val sampleFileForStatus = voice.localSamplePath?.let(::File)
             val sampleAvailable = sampleFileForStatus != null &&
-                sampleFileForStatus.exists() && sampleFileForStatus.length() > 1024L
+                sampleFileForStatus.isFile && sampleFileForStatus.length() > 1024L
+            val remotePreviewAvailable = voice.sarvamVoiceId.startsWith("svc-")
+            val canPreviewVoice = sampleAvailable || remotePreviewAvailable
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
@@ -687,68 +691,116 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Text(
-                            if (sampleAvailable) "Saved sample • preview the original recording" else "No local audio sample",
+                            when {
+                                sampleAvailable -> "Saved sample • play your original recording"
+                                remotePreviewAvailable -> "Original recording unavailable • AI voice preview available"
+                                else -> "No local recording or registered AI voice preview"
+                            },
                             color = T2SSecondaryText, fontSize = 11.sp, lineHeight = 13.sp,
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(
-                            enabled = sampleAvailable,
+                            enabled = canPreviewVoice,
                             onClick = {
-                                if (!sampleAvailable) {
-                                    message = "Original recording is not available on this device. Restore the voice backup to play it."
+                                if (previewingSavedVoiceId == voice.id) {
+                                    runCatching { previewPlayer?.stop() }
+                                    runCatching { previewPlayer?.release() }
+                                    previewPlayer = null
+                                    previewingSavedVoiceId = null
+                                    message = "Voice preview stopped."
                                 } else {
-                                    val currentPlayer = previewPlayer
-                                    if (previewingSavedVoiceId == voice.id) {
-                                        currentPlayer?.stop()
-                                        currentPlayer?.release()
-                                        previewPlayer = null
-                                        previewingSavedVoiceId = null
-                                        message = "Voice sample preview stopped."
-                                    } else runCatching {
-                                        currentPlayer?.release()
-                                        previewPlayer = null
-                                        previewingSavedVoiceId = null
-                                        val sampleFile = voice.localSamplePath?.let(::File)
-                                            ?: error("Saved voice sample file is missing.")
-                                        require(sampleFile.exists() && sampleFile.length() > 1024L) { "Saved voice sample file is missing or empty." }
-                                        val player = ExoPlayer.Builder(context).build()
-                                        previewPlayer = player
-                                        player.setAudioAttributes(
-                                            Media3AudioAttributes.Builder()
-                                                .setUsage(C.USAGE_MEDIA)
-                                                .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                                                .build(),
-                                            true
-                                        )
-                                        player.volume = 1f
-                                        player.addListener(object : Player.Listener {
-                                            override fun onPlaybackStateChanged(playbackState: Int) {
-                                                if (playbackState == Player.STATE_ENDED) {
-                                                    player.release()
-                                                    if (previewPlayer === player) previewPlayer = null
-                                                    previewingSavedVoiceId = null
-                                                    message = "${voice.name} sample preview finished."
+                                    runCatching { previewPlayer?.release() }
+                                    previewPlayer = null
+                                    previewingSavedVoiceId = voice.id
+                                    scope.launch {
+                                        var generatedPreview: File? = null
+                                        try {
+                                            val audioFile = if (sampleAvailable) {
+                                                sampleFileForStatus!!
+                                            } else {
+                                                val languageCode = when (voice.language.lowercase().substringBefore('-')) {
+                                                    "te", "telugu" -> "te"
+                                                    "hi", "hindi" -> "hi"
+                                                    else -> "en"
+                                                }
+                                                val sampleText = when (languageCode) {
+                                                    "te" -> "నమస్కారం. ఇది మీ వాయిస్ ప్రివ్యూ నమూనా."
+                                                    "hi" -> "नमस्ते। यह आपकी आवाज़ का नमूना है।"
+                                                    else -> "Hello. This is a sample of your saved voice."
+                                                }
+                                                File(context.cacheDir, "my_voice_preview_" + voice.id + "_" + System.currentTimeMillis() + ".wav")
+                                                    .also { output ->
+                                                        generatedPreview = output
+                                                        withContext(Dispatchers.IO) {
+                                                            SarvamVoiceCloneClient.generateCentral(
+                                                                voice.sarvamVoiceId, sampleText, languageCode, output
+                                                            )
+                                                        }
+                                                    }
+                                            }
+                                            if (previewingSavedVoiceId != voice.id) {
+                                                generatedPreview?.delete()
+                                                return@launch
+                                            }
+                                            val player = MediaPlayer()
+                                            previewPlayer = player
+                                            player.setAudioAttributes(
+                                                AndroidAudioAttributes.Builder()
+                                                    .setUsage(AndroidAudioAttributes.USAGE_MEDIA)
+                                                    .setContentType(AndroidAudioAttributes.CONTENT_TYPE_SPEECH)
+                                                    .build()
+                                            )
+                                            player.setVolume(1f, 1f)
+                                            player.setOnPreparedListener { readyPlayer ->
+                                                if (previewPlayer === readyPlayer && previewingSavedVoiceId == voice.id) {
+                                                    readyPlayer.start()
+                                                } else {
+                                                    readyPlayer.release()
                                                 }
                                             }
-                                            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                                                player.release()
-                                                if (previewPlayer === player) previewPlayer = null
-                                                previewingSavedVoiceId = null
-                                                message = "Sample preview failed. Please try again."
+                                            player.setOnCompletionListener { completedPlayer ->
+                                                completedPlayer.release()
+                                                if (previewPlayer === completedPlayer) previewPlayer = null
+                                                generatedPreview?.delete()
+                                                if (previewingSavedVoiceId == voice.id) previewingSavedVoiceId = null
+                                                message = "\${voice.name} preview finished."
                                             }
-                                        })
-                                        player.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(sampleFile)))
-                                        player.prepare()
-                                        player.play()
-                                        previewingSavedVoiceId = voice.id
-                                        message = "Playing saved sample for ${voice.name}. This is the original recording, not generated speech."
-                                    }.onFailure {
-                                        previewingSavedVoiceId = null
-                                        message = "Could not preview saved voice. Please try again."
+                                            player.setOnErrorListener { failedPlayer, _, _ ->
+                                                failedPlayer.release()
+                                                if (previewPlayer === failedPlayer) previewPlayer = null
+                                                generatedPreview?.delete()
+                                                if (previewingSavedVoiceId == voice.id) previewingSavedVoiceId = null
+                                                message = "Voice preview failed. Please try again."
+                                                true
+                                            }
+                                            player.setDataSource(audioFile.absolutePath)
+                                            player.prepareAsync()
+                                            message = if (sampleAvailable) {
+                                                "Playing your original recording for \${voice.name}."
+                                            } else {
+                                                "Generating a preview with your saved AI voice."
+                                            }
+                                        } catch (error: Exception) {
+                                            generatedPreview?.delete()
+                                            runCatching { previewPlayer?.release() }
+                                            previewPlayer = null
+                                            previewingSavedVoiceId = null
+                                            message = error.localizedMessage ?: "Could not preview this voice. Please try again."
+                                        }
                                     }
                                 }
                             }
-                        ) { Text(if (previewingSavedVoiceId == voice.id) "■ Stop recording" else "▶ Play my recording") }
+                        ) {
+                            Text(
+                                when {
+                                    previewingSavedVoiceId == voice.id -> "■ Stop preview"
+                                    sampleAvailable -> "▶ Play my recording"
+                                    remotePreviewAvailable -> "▶ Preview AI voice"
+                                    else -> "Preview unavailable"
+                                }
+                            )
+                        }
+                    }
                         TextButton(onClick = {
                             if (previewingSavedVoiceId == voice.id) {
                                 runCatching { previewPlayer?.release() }
