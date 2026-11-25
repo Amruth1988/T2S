@@ -511,10 +511,12 @@ fun SpeechStudioScreen(
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     when {
+                        // In Voice Search, My Voices should play the original recording
+                        // when it is available locally. Only synthesize a sample when the
+                        // original recording is unavailable and the profile has an AI voice.
+                        localSample != null -> Unit
                         sarvamVoiceId.startsWith("svc-") ->
                             SarvamVoiceCloneClient.generateCentral(sarvamVoiceId, sample, previewLanguageCode, previewFile)
-                        localSample != null ->
-                            error("This saved voice is only a recording. Register it as an AI voice to preview the standard T2S greeting in your voice.")
                         localSamplePath != null ->
                             error("This voice's saved recording is missing. Re-add the voice sample and register it as an AI voice to preview.")
                         provider == "India API" || provider == "Vakyam" ->
@@ -577,8 +579,9 @@ fun SpeechStudioScreen(
                         statusMessage = "Preview playback failed: ${error.errorCodeName}"
                     }
                 })
-                player.setMediaItem(MediaItem.fromUri(Uri.fromFile(previewFile)))
+                player.setMediaItem(MediaItem.fromUri(Uri.fromFile(localSample ?: previewFile)))
                 player.prepare()
+                player.playWhenReady = true
             }.onFailure {
                 previewFile.delete(); mediaPlayer?.release(); mediaPlayer = null
                 isPlaying = false; isPreviewing = false; activePreviewKey = null
