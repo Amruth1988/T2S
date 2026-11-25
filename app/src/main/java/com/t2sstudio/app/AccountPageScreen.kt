@@ -158,7 +158,7 @@ fun AccountPageScreen(
                 icon = Icons.Filled.Folder
             ) {
                 AccountMenuRow("Projects", "Manage your projects", Icons.Filled.Folder) { onNavigate(1) }
-                AccountMenuRow("My Voices", "Manage your saved voice profiles", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
+                AccountMenuRow("My Voices", "View and preview your saved voices", Icons.Filled.RecordVoiceOver) { onNavigate(3) }
                 AccountMenuRow("Recent audio", "Listen to your generated speech", Icons.Filled.AccessTime) { onNavigate(2) }
             }
     
@@ -170,13 +170,13 @@ fun AccountPageScreen(
             icon = Icons.Filled.Info
         ) {
             AccountMenuRow("About", "About T2S Studio", Icons.Filled.Info, onAbout)
-            AccountMenuRow("Privacy", "How your audio and information are handled", Icons.Filled.PrivacyTip, onPrivacy)
+            AccountMenuRow("Privacy", "How your information is handled", Icons.Filled.PrivacyTip, onPrivacy)
             AccountMenuRow("Terms & Conditions", "Read the terms for using T2S Studio", Icons.Filled.Gavel, onTerms)
             AccountMenuRow("Contact", "Email or call T2S Studio support", Icons.Filled.MailOutline, onContact)
             if (user != null) {
                 AccountMenuRow(
                     "Export my data",
-                    "Create a ZIP of your cloud and on-device T2S data",
+                    "Create a ZIP of your T2S data",
                     Icons.Filled.Description
                 ) {
                     exportLauncher.launch("T2S-Studio-Account-Export.zip")
@@ -309,7 +309,7 @@ private fun AccountSectionCard(
     ) {
         Column {
             Row(
-                modifier = Modifier.fillMaxWidth().background(T2SOrange).padding(horizontal = 16.dp, vertical = 11.dp),
+                modifier = Modifier.fillMaxWidth().background(T2SOrange).padding(horizontal = 16.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -349,7 +349,7 @@ private fun QuickAccountAction(label: String, icon: androidx.compose.ui.graphics
 @Composable
 private fun AccountMenuRow(label: String, description: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
