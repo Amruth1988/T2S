@@ -41,11 +41,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.media3.common.AudioAttributes as Media3AudioAttributes
-import androidx.media3.common.C
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
+import android.media.MediaPlayer
+import android.media.AudioAttributes as AndroidAudioAttributes
 import com.google.firebase.auth.FirebaseAuth
 import com.t2sstudio.app.data.firebase.T2SFirestoreRepository
 import com.t2sstudio.app.ui.theme.T2SBackground
@@ -66,7 +63,7 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
     val voices = remember(uid) { mutableStateListOf<SavedUserVoice>() }
     var loading by remember { mutableStateOf(true) }
     var loadMessage by remember { mutableStateOf<String?>(null) }
-    var previewPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
+    var previewPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     var previewingVoiceId by remember { mutableStateOf<String?>(null) }
 
     fun loadVoices() {
@@ -111,13 +108,14 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
 
     fun togglePreview(voice: SavedUserVoice) {
         if (previewingVoiceId == voice.id) {
-            previewPlayer?.stop()
-            previewPlayer?.release()
+            runCatching { previewPlayer?.stop() }
+            runCatching { previewPlayer?.release() }
             previewPlayer = null
             previewingVoiceId = null
             return
         }
 
+        runCatching { previewPlayer?.stop() }
         runCatching { previewPlayer?.release() }
         previewPlayer = null
         previewingVoiceId = voice.id
@@ -155,47 +153,42 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
                         }
                 }
 
-                val player = ExoPlayer.Builder(context).build()
-                player.skipSilenceEnabled = false
+                val player = MediaPlayer()
                 player.setAudioAttributes(
-                    Media3AudioAttributes.Builder()
-                        .setUsage(C.USAGE_MEDIA)
-                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                        .build(),
-                    true
+                    AndroidAudioAttributes.Builder()
+                        .setUsage(AndroidAudioAttributes.USAGE_MEDIA)
+                        .setContentType(AndroidAudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
                 )
-                player.volume = 1f
+                player.setVolume(1f, 1f)
                 previewPlayer = player
-                player.addListener(object : Player.Listener {
-                    override fun onPlaybackStateChanged(playbackState: Int) {
-                        when (playbackState) {
-                            Player.STATE_READY -> {
-                                if (previewPlayer === player && previewingVoiceId == voice.id) {
-                                    player.play()
-                                }
-                            }
-                            Player.STATE_ENDED -> {
-                                player.release()
-                                if (previewPlayer === player) previewPlayer = null
-                                generatedPreview?.delete()
-                                previewingVoiceId = null
-                            }
-                        }
+                player.setOnPreparedListener { readyPlayer ->
+                    if (previewPlayer === readyPlayer && previewingVoiceId == voice.id) {
+                        readyPlayer.start()
+                    } else {
+                        readyPlayer.release()
                     }
-
-                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                        player.release()
-                        if (previewPlayer === player) previewPlayer = null
-                        generatedPreview?.delete()
-                        previewingVoiceId = null
-                        loadMessage = "Preview playback failed. Please try again."
-                    }
-                })
-                player.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(audioFile)))
-                player.prepare()
-                player.playWhenReady = true
+                }
+                player.setOnCompletionListener { completedPlayer ->
+                    completedPlayer.release()
+                    if (previewPlayer === completedPlayer) previewPlayer = null
+                    generatedPreview?.delete()
+                    if (previewingVoiceId == voice.id) previewingVoiceId = null
+                }
+                player.setOnErrorListener { failedPlayer, _, _ ->
+                    failedPlayer.release()
+                    if (previewPlayer === failedPlayer) previewPlayer = null
+                    generatedPreview?.delete()
+                    if (previewingVoiceId == voice.id) previewingVoiceId = null
+                    loadMessage = "Preview playback failed. Please try again."
+                    true
+                }
+                player.setDataSource(audioFile.absolutePath)
+                player.prepareAsync()
             }
             result.onFailure { error ->
+                runCatching { previewPlayer?.release() }
+                previewPlayer = null
                 generatedPreview?.delete()
                 previewingVoiceId = null
                 loadMessage = error.localizedMessage ?: "Could not preview this voice."
