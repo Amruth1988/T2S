@@ -41,8 +41,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.media.MediaPlayer
-import android.media.AudioAttributes as AndroidAudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.AudioAttributes as Media3AudioAttributes
 import com.google.firebase.auth.FirebaseAuth
 import com.t2sstudio.app.data.firebase.T2SFirestoreRepository
 import com.t2sstudio.app.ui.theme.T2SBackground
@@ -63,7 +66,7 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
     val voices = remember(uid) { mutableStateListOf<SavedUserVoice>() }
     var loading by remember { mutableStateOf(true) }
     var loadMessage by remember { mutableStateOf<String?>(null) }
-    var previewPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var previewPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
     var previewingVoiceId by remember { mutableStateOf<String?>(null) }
 
     fun loadVoices() {
@@ -114,21 +117,16 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
             previewingVoiceId = null
             return
         }
-
         runCatching { previewPlayer?.stop() }
         runCatching { previewPlayer?.release() }
         previewPlayer = null
         previewingVoiceId = voice.id
         loadMessage = null
-
         kotlinx.coroutines.CoroutineScope(Dispatchers.Main).launch {
             var generatedPreview: File? = null
             val result = runCatching {
-                val localSample = voice.localSamplePath?.let(::File)
-                    ?.takeIf { it.isFile && it.length() > 1024L }
-                val audioFile = if (localSample != null) {
-                    localSample
-                } else {
+                val localSample = voice.localSamplePath?.let(::File)?.takeIf { it.isFile && it.length() > 1024L }
+                val audioFile = if (localSample != null) localSample else {
                     require(voice.sarvamVoiceId.startsWith("svc-")) {
                         "This voice has no recording on this device or registered AI voice to preview."
                     }
@@ -139,63 +137,60 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
                     }
                     val sampleText = when (languageCode) {
                         "te" -> "నమస్కారం. ఇది మీ వాయిస్ ప్రివ్యూ నమూనా."
-                        "hi" -> "नमस्ते। यह आपकी आवाज़ का नमूना है।"
+                        "hi" -> "नमस्ते। यह आपकी आवाज़ का नमूना है."
                         else -> "Hello. This is a sample of your saved voice."
                     }
                     File(context.cacheDir, "saved_voice_preview_" + voice.id + "_" + System.currentTimeMillis() + ".wav")
                         .also { output ->
                             generatedPreview = output
                             withContext(Dispatchers.IO) {
-                                SarvamVoiceCloneClient.generateCentral(
-                                    voice.sarvamVoiceId, sampleText, languageCode, output
-                                )
+                                SarvamVoiceCloneClient.generateCentral(voice.sarvamVoiceId, sampleText, languageCode, output)
                             }
                         }
                 }
-
-                val player = MediaPlayer()
-                player.setAudioAttributes(
-                    AndroidAudioAttributes.Builder()
-                        .setUsage(AndroidAudioAttributes.USAGE_MEDIA)
-                        .setContentType(AndroidAudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
-                )
-                player.setVolume(1f, 1f)
+                check(previewingVoiceId == voice.id) { "Preview was cancelled." }
+                val player = ExoPlayer.Builder(context).build()
                 previewPlayer = player
-                player.setOnPreparedListener { readyPlayer ->
-                    if (previewPlayer === readyPlayer && previewingVoiceId == voice.id) {
-                        readyPlayer.start()
-                    } else {
-                        readyPlayer.release()
-                    }
-                }
-                player.setOnCompletionListener { completedPlayer ->
-                    completedPlayer.release()
-                    if (previewPlayer === completedPlayer) previewPlayer = null
-                    generatedPreview?.delete()
-                    if (previewingVoiceId == voice.id) previewingVoiceId = null
-                }
-                player.setOnErrorListener { failedPlayer, _, _ ->
-                    failedPlayer.release()
-                    if (previewPlayer === failedPlayer) previewPlayer = null
-                    generatedPreview?.delete()
-                    if (previewingVoiceId == voice.id) previewingVoiceId = null
-                    loadMessage = "Preview playback failed. Please try again."
+                player.setAudioAttributes(
+                    Media3AudioAttributes.Builder()
+                        .setUsage(C.USAGE_MEDIA)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                        .build(),
                     true
-                }
-                player.setDataSource(audioFile.absolutePath)
-                player.prepareAsync()
+                )
+                player.volume = 1f
+                player.addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        if (playbackState == Player.STATE_ENDED) {
+                            player.release()
+                            if (previewPlayer === player) previewPlayer = null
+                            generatedPreview?.delete()
+                            if (previewingVoiceId == voice.id) previewingVoiceId = null
+                        }
+                    }
+                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                        player.release()
+                        if (previewPlayer === player) previewPlayer = null
+                        generatedPreview?.delete()
+                        if (previewingVoiceId == voice.id) previewingVoiceId = null
+                        loadMessage = "Preview playback failed. Please try again."
+                    }
+                })
+                player.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(audioFile)))
+                player.prepare()
+                player.playWhenReady = true
             }
             result.onFailure { error ->
                 runCatching { previewPlayer?.release() }
                 previewPlayer = null
                 generatedPreview?.delete()
-                previewingVoiceId = null
-                loadMessage = error.localizedMessage ?: "Could not preview this voice."
+                if (previewingVoiceId == voice.id) previewingVoiceId = null
+                if (error.localizedMessage != "Preview was cancelled.") {
+                    loadMessage = error.localizedMessage ?: "Could not preview this voice."
+                }
             }
         }
     }
-
     LaunchedEffect(uid) { loadVoices() }
     DisposableEffect(Unit) {
         onDispose {
@@ -339,11 +334,7 @@ fun MyVoicesListScreen(onBack: () -> Unit) {
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(
-                                        if (voice.firebaseSynced) "Saved to Firebase" else "Saved on this device",
-                                        color = T2SSecondaryText,
-                                        fontSize = 11.sp
-                                    )
+                                    Spacer(modifier = Modifier.weight(1f))
                                     Button(
                                         onClick = { togglePreview(voice) },
                                         enabled = canPreview,
