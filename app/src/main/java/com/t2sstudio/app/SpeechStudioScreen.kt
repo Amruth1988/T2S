@@ -490,6 +490,12 @@ fun SpeechStudioScreen(
         activePreviewKey = null
     }
 
+    fun voicePreviewGreeting(language: String = selectedLanguage): String = when (language) {
+        "Telugu" -> "అందరికి నమస్కారం. టీ టు ఎస్ స్టూడియో కి స్వాగతం"
+        "Hindi" -> "सभी को नमस्कार। टी टू एस स्टूडियो में आपका स्वागत है।"
+        else -> "Welcome to T to S studio"
+    }
+
     fun previewOnlineVoice(voiceId: String, previewKey: String = voiceId, localSamplePath: String? = null, languageOverride: String? = null, provider: String = "India API", sarvamVoiceId: String = "") {
         if (isPreviewing && activePreviewKey == previewKey) { stopVoicePreview(); statusMessage = "Preview stopped."; return }
         stopVoicePreview()
@@ -500,8 +506,8 @@ fun SpeechStudioScreen(
         statusMessage = if (localSample != null) "Preparing your saved recording…" else "Generating preview…"
         coroutineScope.launch {
             val previewFile = File(context.cacheDir, "voice_preview_${System.currentTimeMillis()}.${localSample?.extension ?: "mp3"}")
-            val sample = "అందరికి నమస్కారం. T2S స్టూడియో కి స్వాగతం."
-            val previewLanguageCode = "te"
+            val sample = voicePreviewGreeting()
+            val previewLanguageCode = when (selectedLanguage) { "Telugu" -> "te"; "Hindi" -> "hi"; else -> "en" }
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     when {
@@ -1138,7 +1144,7 @@ fun SpeechStudioScreen(
                                                         mainHandler.post { isPlaying = false; isPreviewing = false; activePreviewKey = null; statusMessage = "Voice preview failed (code $errorCode)." }
                                                     }
                                                 })
-                                                val sample = "అందరికి నమస్కారం. T2S స్టూడియో కి స్వాగతం."
+                                                val sample = voicePreviewGreeting()
                                                 val speakResult = engine.speak(sample, TextToSpeech.QUEUE_FLUSH, Bundle(), "t2s-preview-${voice.name}")
                                                 if (speakResult == TextToSpeech.ERROR) {
                                                     isPreviewing = false
