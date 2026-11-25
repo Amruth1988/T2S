@@ -160,7 +160,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
 
     LaunchedEffect(Unit) { loadVoices() }
 
-    DisposableEffect(Unit) { onDispose { runCatching { recorder?.stop() }; runCatching { recorder?.release() }; recorder = null; runCatching { previewPlayer?.stop() }; runCatching { previewPlayer?.release() }; previewPlayer = null; runCatching { savedPreviewPlayer?.release() }; savedPreviewPlayer = null } }
+    DisposableEffect(Unit) { onDispose { runCatching { recorder?.stop() }; runCatching { recorder?.release() }; recorder = null; runCatching { previewPlayer?.stop() }; runCatching { previewPlayer?.release() }; previewPlayer = null; runCatching { savedPreviewPlayer?.stop() }; runCatching { savedPreviewPlayer?.release() }; savedPreviewPlayer = null } }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
