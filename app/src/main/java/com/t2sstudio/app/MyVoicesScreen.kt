@@ -90,6 +90,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordingFile by remember { mutableStateOf<File?>(null) }
     var previewPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
+    var previewingPickedRecording by remember { mutableStateOf(false) }
     var previewingSavedVoiceId by remember { mutableStateOf<String?>(null) }
     var recordingStartedAt by remember { mutableStateOf(0L) }
     var hasMicPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
@@ -376,40 +377,58 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                 OutlinedTextField(value = pickedLabel, onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth(), label = { Text("Reference recording") })
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     TextButton(onClick = {
-                        val uri = pickedUri
-                        if (uri == null) message = "Record or select an audio file first."
-                        else runCatching {
-                            previewPlayer?.release()
-                            val player = ExoPlayer.Builder(context).build()
-                            previewPlayer = player
-                            player.setAudioAttributes(
-                                Media3AudioAttributes.Builder()
-                                    .setUsage(C.USAGE_MEDIA)
-                                    .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                                    .build(),
-                                true
-                            )
-                            player.volume = 1f
-                            player.addListener(object : Player.Listener {
-                                override fun onPlaybackStateChanged(playbackState: Int) {
-                                    if (playbackState == Player.STATE_ENDED) {
+                        if (previewingPickedRecording) {
+                            runCatching { previewPlayer?.stop() }
+                            runCatching { previewPlayer?.release() }
+                            previewPlayer = null
+                            previewingPickedRecording = false
+                            message = "Recording preview stopped."
+                        } else {
+                            val uri = pickedUri
+                            if (uri == null) message = "Record or select an audio file first."
+                            else runCatching {
+                                runCatching { previewPlayer?.release() }
+                                previewPlayer = null
+                                previewingSavedVoiceId = null
+                                val player = ExoPlayer.Builder(context).build()
+                                previewPlayer = player
+                                previewingPickedRecording = true
+                                player.setAudioAttributes(
+                                    Media3AudioAttributes.Builder()
+                                        .setUsage(C.USAGE_MEDIA)
+                                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                                        .build(),
+                                    true
+                                )
+                                player.volume = 1f
+                                player.addListener(object : Player.Listener {
+                                    override fun onPlaybackStateChanged(playbackState: Int) {
+                                        if (playbackState == Player.STATE_ENDED) {
+                                            player.release()
+                                            if (previewPlayer === player) previewPlayer = null
+                                            previewingPickedRecording = false
+                                            message = "Recording preview finished."
+                                        }
+                                    }
+                                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                                         player.release()
                                         if (previewPlayer === player) previewPlayer = null
-                                        message = "Recording preview finished."
+                                        previewingPickedRecording = false
+                                        message = "Recording preview failed. Please try again."
                                     }
-                                }
-                                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                                    player.release()
-                                    if (previewPlayer === player) previewPlayer = null
-                                    message = "Recording preview failed. Please try again."
-                                }
-                            })
-                            player.setMediaItem(MediaItem.fromUri(uri))
-                            player.prepare()
-                            player.play()
-                            message = "Playing your recording…"
-                        }.onFailure { message = "Preview failed. Please try again." }
-                    }, enabled = pickedUri != null && !recording) { Text("▶ Preview recording") }
+                                })
+                                player.setMediaItem(MediaItem.fromUri(uri))
+                                player.prepare()
+                                player.playWhenReady = true
+                                message = "Playing your recording…"
+                            }.onFailure {
+                                previewingPickedRecording = false
+                                message = "Preview failed. Please try again."
+                            }
+                        }
+                    }, enabled = (pickedUri != null || previewingPickedRecording) && !recording) {
+                        Text(if (previewingPickedRecording) "■ Stop recording" else "▶ Preview recording")
+                    }
                     TextButton(onClick = { picker.launch("audio/*") }, enabled = !recording) { Text("Upload audio") }
                 }
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -677,9 +696,10 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                     message = "Original recording is not available on this device. Restore the voice backup to play it."
                                 } else {
                                     val currentPlayer = previewPlayer
-                                    if (previewingSavedVoiceId == voice.id && currentPlayer?.isPlaying == true) {
-                                        currentPlayer.pause()
-                                        currentPlayer.seekTo(0)
+                                    if (previewingSavedVoiceId == voice.id) {
+                                        currentPlayer?.stop()
+                                        currentPlayer?.release()
+                                        previewPlayer = null
                                         previewingSavedVoiceId = null
                                         message = "Voice sample preview stopped."
                                     } else runCatching {
@@ -726,7 +746,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                     }
                                 }
                             }
-                        ) { Text(if (previewingSavedVoiceId == voice.id) "■ Stop" else "▶ Play my recording") }
+                        ) { Text(if (previewingSavedVoiceId == voice.id) "■ Stop recording" else "▶ Play my recording") }
                         TextButton(onClick = {
                             if (previewingSavedVoiceId == voice.id) {
                                 runCatching { previewPlayer?.release() }
