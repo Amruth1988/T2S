@@ -574,19 +574,28 @@ fun SpeechStudioScreen(
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     when {
-                        // In Voice Search, My Voices should play the original recording
-                        // when it is available locally. Only synthesize a sample when the
-                        // original recording is unavailable and the profile has an AI voice.
-                        localSample != null -> Unit
-                        sarvamVoiceId.startsWith("svc-") ->
-                            SarvamVoiceCloneClient.generateCentral(sarvamVoiceId, sample, previewLanguageCode, previewFile)
+                        // Prefer the user's original sample when it exists locally.
+                        localSample != null -> localSample
+                        sarvamVoiceId.startsWith("svc-") -> {
+                            val cacheText = VoicePreviewCache.previewText(previewLanguageCode)
+                            VoicePreviewCache.getOrGenerate(
+                                context, signedInUidForVoiceSelection, sarvamVoiceId,
+                                previewLanguageCode, cacheText, "wav"
+                            ) { output ->
+                                SarvamVoiceCloneClient.generateCentral(
+                                    sarvamVoiceId, cacheText, previewLanguageCode, output
+                                )
+                            }
+                        }
                         localSamplePath != null ->
                             error("This voice's saved recording is missing. Re-add the voice sample and register it as an AI voice to preview.")
-                        provider == "India API" || provider == "Vakyam" ->
+                        provider == "India API" || provider == "Vakyam" -> {
                             CentralOnlineTtsClient.generate(
                                 provider, sample, voiceId, languageCode,
                                 1f, previewFile, format = "mp3"
                             )
+                            previewFile
+                        }
                         else ->
                             error("This saved voice has no playable recording or registered voice ID. Re-add or register it before previewing.")
                     }
@@ -601,7 +610,12 @@ fun SpeechStudioScreen(
                 statusMessage = "Preview failed: $previewError"
                 return@launch
             }
-            if (activePreviewKey != previewKey) { previewFile.delete(); return@launch }
+            val generatedAudio = result.getOrThrow()
+            if (activePreviewKey != previewKey) {
+                if (generatedAudio != localSample && generatedAudio.parentFile == context.cacheDir) generatedAudio.delete()
+                if (previewFile != generatedAudio) previewFile.delete()
+                return@launch
+            }
             runCatching {
                 val player = ExoPlayer.Builder(context).build()
                 // Skip leading and internal silence in saved/registered voice previews.
@@ -628,7 +642,8 @@ fun SpeechStudioScreen(
                             Player.STATE_ENDED -> {
                                 player.release()
                                 if (mediaPlayer === player) mediaPlayer = null
-                                previewFile.delete()
+                                if (generatedAudio != localSample && generatedAudio.parentFile == context.cacheDir) generatedAudio.delete()
+                                if (previewFile != generatedAudio) previewFile.delete()
                                 isPlaying = false; isPreviewing = false; activePreviewKey = null
                                 statusMessage = "Preview finished."
                             }
@@ -637,16 +652,19 @@ fun SpeechStudioScreen(
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                         player.release()
                         if (mediaPlayer === player) mediaPlayer = null
-                        previewFile.delete()
+                        if (generatedAudio != localSample && generatedAudio.parentFile == context.cacheDir) generatedAudio.delete()
+                        if (previewFile != generatedAudio) previewFile.delete()
                         isPlaying = false; isPreviewing = false; activePreviewKey = null
                         statusMessage = "Preview playback failed: ${error.errorCodeName}"
                     }
                 })
-                player.setMediaItem(MediaItem.fromUri(Uri.fromFile(localSample ?: previewFile)))
+                player.setMediaItem(MediaItem.fromUri(Uri.fromFile(generatedAudio)))
                 player.prepare()
                 player.playWhenReady = true
             }.onFailure {
-                previewFile.delete(); mediaPlayer?.release(); mediaPlayer = null
+                if (generatedAudio != localSample && generatedAudio.parentFile == context.cacheDir) generatedAudio.delete()
+                if (previewFile != generatedAudio) previewFile.delete()
+                mediaPlayer?.release(); mediaPlayer = null
                 isPlaying = false; isPreviewing = false; activePreviewKey = null
                 statusMessage = "Preview playback error: ${it.message ?: "unknown error"}"
             }

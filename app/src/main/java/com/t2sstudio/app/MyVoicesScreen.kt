@@ -718,7 +718,6 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                     savedPreviewPlayer = null
                                     previewingSavedVoiceId = voice.id
                                     scope.launch {
-                                        var generatedPreview: File? = null
                                         try {
                                             val audioFile = if (sampleAvailable) {
                                                 sampleFileForStatus!!
@@ -728,23 +727,19 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                                     "hi", "hindi" -> "hi"
                                                     else -> "en"
                                                 }
-                                                val sampleText = when (languageCode) {
-                                                    "te" -> "నమస్కారం. ఇది మీ వాయిస్ ప్రివ్యూ నమూనా."
-                                                    "hi" -> "नमस्ते। यह आपकी आवाज़ का नमूना है।"
-                                                    else -> "Hello. This is a sample of your saved voice."
-                                                }
-                                                File(context.cacheDir, "my_voice_preview_" + voice.id + "_" + System.currentTimeMillis() + ".wav")
-                                                    .also { output ->
-                                                        generatedPreview = output
-                                                        withContext(Dispatchers.IO) {
-                                                            SarvamVoiceCloneClient.generateCentral(
-                                                                voice.sarvamVoiceId, sampleText, languageCode, output
-                                                            )
-                                                        }
+                                                val sampleText = VoicePreviewCache.previewText(languageCode)
+                                                withContext(Dispatchers.IO) {
+                                                    VoicePreviewCache.getOrGenerate(
+                                                        context, accountUid, voice.sarvamVoiceId,
+                                                        languageCode, sampleText, "wav"
+                                                    ) { output ->
+                                                        SarvamVoiceCloneClient.generateCentral(
+                                                            voice.sarvamVoiceId, sampleText, languageCode, output
+                                                        )
                                                     }
+                                                }
                                             }
                                             if (previewingSavedVoiceId != voice.id) {
-                                                generatedPreview?.delete()
                                                 return@launch
                                             }
                                             val player = ExoPlayer.Builder(context).build()
@@ -771,7 +766,6 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                                     if (playbackState == Player.STATE_ENDED) {
                                                         player.release()
                                                         if (savedPreviewPlayer === player) savedPreviewPlayer = null
-                                                        generatedPreview?.delete()
                                                         if (previewingSavedVoiceId == voice.id) previewingSavedVoiceId = null
                                                         message = "${voice.name} preview finished."
                                                     }
@@ -780,7 +774,6 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                                                     player.release()
                                                     if (savedPreviewPlayer === player) savedPreviewPlayer = null
-                                                    generatedPreview?.delete()
                                                     if (previewingSavedVoiceId == voice.id) previewingSavedVoiceId = null
                                                     message = "Voice preview failed: ${error.errorCodeName}. Check the saved recording and try again."
                                                 }
@@ -790,7 +783,6 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                             player.playWhenReady = true
                                             message = "Preparing voice preview…"
                                         } catch (error: Exception) {
-                                            generatedPreview?.delete()
                                             runCatching { savedPreviewPlayer?.release() }
                                             savedPreviewPlayer = null
                                             previewingSavedVoiceId = null
