@@ -174,11 +174,16 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                 Text("My Voices", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = T2SText)
                 Text("${voices.size} saved ${if (voices.size == 1) "voice" else "voices"}", fontSize = 13.sp, color = T2SSecondaryText)
             }
-            androidx.compose.foundation.layout.Box(
-                modifier = Modifier.size(46.dp).background(T2SOrange.copy(alpha = 0.12f), RoundedCornerShape(50)),
-                contentAlignment = androidx.compose.ui.Alignment.Center
-            ) {
-                Icon(Icons.Filled.RecordVoiceOver, contentDescription = null, tint = T2SOrange, modifier = Modifier.size(24.dp))
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier.size(46.dp).background(T2SOrange.copy(alpha = 0.12f), RoundedCornerShape(50)),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
+                    Icon(Icons.Filled.RecordVoiceOver, contentDescription = null, tint = T2SOrange, modifier = Modifier.size(24.dp))
+                }
+                IconButton(onClick = { loadVoices() }, enabled = !busy) {
+                    Text("↻", color = T2SOrange, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
         androidx.compose.material3.TabRow(selectedTabIndex = if (selectedAddTab == "Add Voice") 0 else 1) {
@@ -505,10 +510,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
         }
         }
         if (busy) CircularProgressIndicator()
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Text("My saved voices", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
-            TextButton(onClick = { loadVoices() }, enabled = !busy, modifier = Modifier.padding(0.dp)) { Text("↻ Refresh") }
-        }
+        Text("My saved voices", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = T2SText)
         val orderedVoices = voices.sortedBy { voice ->
             when {
                 voice.firebaseSynced -> 0
