@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AudioLines, BookOpen, CircleHelp, Cloud, Download, FileAudio,
-  FolderKanban, Headphones, Home, Languages, LogIn, LogOut, Menu, Mic,
+  FolderKanban, Headphones, Home, LogIn, LogOut, Menu, Mic,
   Pause, Play, Plus, Search, Settings, ShieldCheck, Sparkles, Square, Trash2,
   UserRound, Volume2, WandSparkles, X
 } from "lucide-react";
 import {
-  createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged,
+  createUserWithEmailAndPassword, onAuthStateChanged,
   sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut,
   updateProfile, type User
 } from "firebase/auth";
@@ -124,16 +124,18 @@ export default function App() {
     setMessage("Project created.");
   }
   async function syncDrafts() {
-    if (!user || !db) { setMessage("Sign in to enable cloud sync after Firebase web setup."); return; }
-    await Promise.all(drafts.map(d => setDoc(doc(db, "users", user.uid, "scripts", d.id), {
+    const firestore = db;
+    if (!user || !firestore) { setMessage("Sign in to enable cloud sync after Firebase web setup."); return; }
+    await Promise.all(drafts.map(d => setDoc(doc(firestore, "users", user.uid, "scripts", d.id), {
       title: d.title, content: d.text, language: languageNames[d.language], isDraft: true,
       isDeleted: false, updatedAt: serverTimestamp()
     }, { merge: true })));
     setMessage("Draft metadata synced to your T2S account.");
   }
   async function loadCloudDrafts() {
-    if (!user || !db) return;
-    const snap = await getDocs(collection(db, "users", user.uid, "scripts"));
+    const firestore = db;
+    if (!user || !firestore) return;
+    const snap = await getDocs(collection(firestore, "users", user.uid, "scripts"));
     const cloud = snap.docs.filter(d => d.data().isDraft && !d.data().isDeleted).map(d => {
       const v = d.data();
       return { id: d.id, title: String(v.title || "Untitled"), text: String(v.content || ""), language: v.language === "Telugu" ? "te" : v.language === "Hindi" ? "hi" : "en", updatedAt: v.updatedAt?.toMillis?.() ?? Date.now() };
