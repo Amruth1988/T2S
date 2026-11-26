@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  AudioLines, BookOpen, ChevronDown, CircleHelp, Cloud, Download, FileAudio,
+  AudioLines, BookOpen, CircleHelp, Cloud, Download, FileAudio,
   FolderKanban, Headphones, Home, Languages, LogIn, LogOut, Menu, Mic,
   Pause, Play, Plus, Search, Settings, ShieldCheck, Sparkles, Square, Trash2,
-  Upload, UserRound, Volume2, WandSparkles, X
+  UserRound, Volume2, WandSparkles, X
 } from "lucide-react";
 import {
   createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged,
