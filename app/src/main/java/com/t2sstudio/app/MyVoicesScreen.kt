@@ -839,11 +839,14 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
         }
         
     }
-    androidx.compose.material3.SnackbarHost(
-        hostState = snackbarHostState,
-        modifier = Modifier
-            .align(androidx.compose.ui.Alignment.BottomCenter)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-    )
+    androidx.compose.foundation.layout.Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = androidx.compose.ui.Alignment.BottomCenter
+    ) {
+        androidx.compose.material3.SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        )
+    }
     }
 }
