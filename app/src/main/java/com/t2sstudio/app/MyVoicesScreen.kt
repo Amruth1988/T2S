@@ -3,7 +3,6 @@ package com.t2sstudio.app
 import android.Manifest
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
-import android.widget.Toast
 import androidx.media3.common.AudioAttributes as Media3AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -96,23 +95,13 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
     var recordingStartedAt by remember { mutableStateOf(0L) }
     var hasMicPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
     var message by remember { mutableStateOf("Add a clear recording of your own voice to create a reusable voice profile.") }
-    var lastToastMessage by remember { mutableStateOf(message) }
-    val messageIsError = message.contains("failed", ignoreCase = true) ||
-        message.contains("error", ignoreCase = true) ||
-        message.contains("could not", ignoreCase = true) ||
-        message.contains("not fully saved", ignoreCase = true) ||
-        message.contains("required", ignoreCase = true) ||
-        message.contains("must be", ignoreCase = true) ||
-        message.contains("missing", ignoreCase = true) ||
-        message.contains("invalid", ignoreCase = true)
+    var lastSnackbarMessage by remember { mutableStateOf(message) }
+    val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     LaunchedEffect(message) {
-        if (message != lastToastMessage) {
-            Toast.makeText(
-                context,
-                message,
-                Toast.LENGTH_SHORT
-            ).show()
-            lastToastMessage = message
+        if (message != lastSnackbarMessage) {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message)
+            lastSnackbarMessage = message
         }
     }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> hasMicPermission = granted; message = if (granted) "Microphone ready. Tap Start recording." else "Microphone permission is required." }
@@ -162,6 +151,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
 
     DisposableEffect(Unit) { onDispose { runCatching { recorder?.stop() }; runCatching { recorder?.release() }; recorder = null; runCatching { previewPlayer?.stop() }; runCatching { previewPlayer?.release() }; previewPlayer = null; runCatching { savedPreviewPlayer?.stop() }; runCatching { savedPreviewPlayer?.release() }; savedPreviewPlayer = null } }
 
+    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -821,3 +811,11 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
         }
         
     }
+    androidx.compose.material3.SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier
+            .align(androidx.compose.ui.Alignment.BottomCenter)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    )
+    }
+}
