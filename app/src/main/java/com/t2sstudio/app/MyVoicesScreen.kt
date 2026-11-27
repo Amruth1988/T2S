@@ -673,7 +673,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                     result.onSuccess { loadVoices() }
                                     message = result.fold(
                                         { "${voice.name} Saved successfully. Sarvam voice ID: ${voice.sarvamVoiceId}" },
-                                        { "Could not finish saving ${voice.name}. Please try again later. If a voice ID was created, you can retry syncing its metadata." }
+                                        { "Could not finish saving ${voice.name}: " + (error.message.orEmpty().take(160).ifBlank { "Please retry Firebase metadata sync if a Sarvam voice ID was already created." }) }
                                     )
                                     busy = false
                                 }
