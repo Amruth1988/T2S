@@ -21,7 +21,12 @@ function publicError_(x){
   "Invalid gender value.","Unsupported or oversized audio sample.","Sample must be",
   "Generation temporarily unavailable.","Sarvam returned an invalid voice ID.",
   "Invalid saved voice ID.","Text must contain","Choose Telugu or English.",
-  "Sarvam returned missing or oversized audio."
+  "Sarvam returned missing or oversized audio.",
+  "Sarvam could not validate the voice sample.",
+  "Sarvam rejected the voice sample.",
+  "Sarvam voice registration is temporarily unavailable.",
+  "Sarvam voice registration limit reached.",
+  "Sarvam account needs attention."
  ];
  return safePrefixes.some(prefix=>message.startsWith(prefix))
   ? message.slice(0,180)
