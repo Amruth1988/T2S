@@ -57,7 +57,7 @@ function quotaReserve_(uid,kind,n){
   const reservedCreates=pending.filter(x=>x.kind==="create").length;
   if(kind==="generate"){
    if((c.calls||0)+reservedCalls>=10||(c.chars||0)+reservedChars+n>10000)throw new Error("Generation temporarily unavailable. Please try again later.");
-  }else if((c.creates||0)+reservedCreates>=3)throw new Error("Generation temporarily unavailable. Please try again later.");
+  }else if((c.creates||0)+reservedCreates>=3)throw new Error("Sarvam voice registration limit reached. Try again tomorrow.");
   const id=Utilities.getUuid();
   pending.push({id:id,at:now,kind:kind,chars:n});
   c.pending=pending;p.setProperty(key,JSON.stringify(c));
