@@ -332,7 +332,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                 modifier = Modifier.background(T2SBackground, RoundedCornerShape(8.dp)).padding(horizontal = 9.dp, vertical = 6.dp))
                         }
                         androidx.compose.material3.HorizontalDivider(color = T2SOrange.copy(alpha = 0.18f))
-                        Text("Speak for 10–30 sec in a quiet room.", color = T2SSecondaryText, fontSize = 12.sp)
+                        Text("Best results: record 10–15 seconds of clear speech in a quiet room, with only one speaker.", color = T2SSecondaryText, fontSize = 12.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = {
                                 if (!hasMicPermission) micPermission.launch(Manifest.permission.RECORD_AUDIO)
@@ -498,7 +498,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                             "Audio validation failed. Please use a clear recording of at least 4 seconds."
                                         details.contains("HTTP 422", ignoreCase = true) ->
                                             "Voice sample was rejected. Please check the recording and try again."
-                                        else -> "Could not create AI voice. Your local recording is saved; please try again."
+                                        else -> "AI voice registration failed: " + (details.ifBlank { "Unknown error. Please try again." }.take(180))
                                     }
                                 }
                                 busy = false
@@ -635,7 +635,7 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                             message = "${registered.name} Saved successfully. Sarvam voice ID: ${registered.sarvamVoiceId}"
                                         }.onFailure { error ->
                                             loadVoices()
-                                            message = "Could not finish saving ${voice.name}. Please try again later. If a voice ID was created, you can retry syncing its metadata."
+                                            message = "Could not finish saving ${voice.name}: " + (error.message.orEmpty().take(160).ifBlank { "Please retry Firebase metadata sync if a Sarvam voice ID was already created." })
                                         }
                                         busy = false
                                     }
