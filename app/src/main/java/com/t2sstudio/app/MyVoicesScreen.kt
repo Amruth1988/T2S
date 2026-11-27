@@ -478,17 +478,40 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                                     consentConfirmed = false
                                     message = if (saved.sarvamVoiceId.isNotBlank()) "${saved.name} AI voice created and saved. Sarvam voice ID: ${saved.sarvamVoiceId}" else "${saved.name} saved as a local voice."
                                 }.onFailure { error ->
+                                    val localFallback = runCatching {
+                                        MyVoicesClient.list(context, accountUid)
+                                            .firstOrNull { it.name.equals(voiceName.trim(), ignoreCase = true) }
+                                    }.getOrNull()
                                     loadVoices()
                                     val details = error.message.orEmpty()
-                                    message = when {
+                                        .replace(Regex("\\s+"), " ")
+                                        .take(220)
+                                        .ifBlank { "The voice service returned no explanation." }
+                                    val reason = when {
                                         details.contains("Total speech duration is too short", ignoreCase = true) ->
-                                            "Recording too short. Please record at least 4 seconds and try again."
+                                            "The recording is too short. Record 10–15 seconds of clear speech."
                                         details.contains("VALIDATION_FAILED", ignoreCase = true) ||
-                                            details.contains("Audio validation failed", ignoreCase = true) ->
-                                            "Audio validation failed. Please use a clear recording of at least 4 seconds."
-                                        details.contains("HTTP 422", ignoreCase = true) ->
-                                            "Voice sample was rejected. Please check the recording and try again."
-                                        else -> "AI voice registration failed: " + (details.ifBlank { "Unknown error. Please try again." }.take(180))
+                                            details.contains("Audio validation failed", ignoreCase = true) ||
+                                            details.contains("HTTP 422", ignoreCase = true) ->
+                                            "Sarvam rejected the audio. Use a clear 10–15-second, single-speaker recording in a quiet room."
+                                        details.contains("HTTP 401", ignoreCase = true) ||
+                                            details.contains("HTTP 403", ignoreCase = true) ->
+                                            "The Sarvam service credentials or account permissions need attention."
+                                        details.contains("HTTP 402", ignoreCase = true) ->
+                                            "The Sarvam service reports that its available allowance is insufficient."
+                                        details.contains("HTTP 413", ignoreCase = true) ->
+                                            "The audio file is too large for the voice service."
+                                        details.contains("HTTP 429", ignoreCase = true) ->
+                                            "The voice service is receiving too many requests. Wait and retry."
+                                        else -> details
+                                    }
+                                    message = when {
+                                        localFallback?.sarvamVoiceId?.startsWith("svc-") == true ->
+                                            "AI voice generated, but cloud database saving failed. ${localFallback.name} is saved on this device and can be synced again. Reason: $reason"
+                                        localFallback != null ->
+                                            "AI voice was not generated. ${localFallback.name} and its original recording were saved locally, so you can retry registration from My Voices. Reason: $reason"
+                                        else ->
+                                            "AI voice was not generated and no local voice profile was saved. Reason: $reason"
                                     }
                                 }
                                 busy = false
