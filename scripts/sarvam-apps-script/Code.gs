@@ -107,6 +107,17 @@ function create_(uid,b){
   return {voiceId:id};
  }catch(error){quotaFinish_(reservation,false);throw error;}
 }
+
+function sarvamCreateError_(code){
+  if(code===400) return "Sarvam rejected the request. Check the voice name, language and audio file format.";
+  if(code===401||code===403) return "Sarvam account needs attention. The voice service credentials or account permissions were rejected.";
+  if(code===402) return "Sarvam requires an active allowance for voice cloning. No payment or plan change was made by T2S.";
+  if(code===413) return "The voice recording is too large. Use a shorter recording under 6 MB.";
+  if(code===422) return "Sarvam could not validate the voice sample. Record 10–15 seconds of clear, single-speaker speech in a quiet room, then try again.";
+  if(code===429) return "Sarvam voice registration is temporarily unavailable due to a rate limit. Wait and try again later.";
+  if(code>=500) return "Sarvam voice registration is temporarily unavailable. Try again later.";
+  return "Sarvam rejected the voice registration request (HTTP "+code+").";
+}
 function generate_(uid,b){
  const id=String(b.voiceId||""),text=String(b.text||""),lang=String(b.language||"");
  if(!/^svc-[A-Za-z0-9_-]{3,100}$/.test(id))throw new Error("Invalid saved voice ID.");
