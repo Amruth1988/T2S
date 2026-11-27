@@ -63,7 +63,10 @@ object SarvamVoiceCloneClient {
                 val result = runCatching { JSONObject(body) }.getOrElse {
                     error("T2S gateway returned an invalid response (HTTP $status).")
                 }
-                if (status !in 200..299) error("T2S gateway request failed (HTTP $status).")
+                if (status !in 200..299) {
+                    val detail = result.optString("error").takeIf { it.isNotBlank() }
+                    error(detail ?: "T2S gateway request failed (HTTP $status).")
+                }
                 if (result.has("error")) error(result.optString("error", "Shared Sarvam request failed."))
                 val map = mutableMapOf<String, Any?>()
                 result.keys().forEach { key ->
