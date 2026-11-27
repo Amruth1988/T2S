@@ -398,20 +398,31 @@ fun SpeechStudioScreen(
                     }.toMutableList()
                     val cloudIds = cloudSaved.mapTo(mutableSetOf()) { it.id }
                     merged.addAll(localSaved.filterNot { it.id in cloudIds })
+                    // The Speech Studio "My Voices" dropdown is reserved for voices
+                    // that have an actual Sarvam registration ID. Local-only recordings
+                    // remain available in the My Voices management screen, but are not
+                    // selectable as AI voices for speech generation.
+                    val registeredSarvamVoices = merged.distinctBy { it.id }
+                        .filter { it.sarvamVoiceId.trim().startsWith("svc-", ignoreCase = true) }
                     myVoices.clear()
-                    myVoices.addAll(merged.distinctBy { it.id })
+                    myVoices.addAll(registeredSarvamVoices)
                     restoreSavedVoiceSelection()
-                    if (merged.isEmpty()) statusMessage = "No saved voices found on this device or in Firebase."
+                    if (registeredSarvamVoices.isEmpty()) {
+                        statusMessage = "No Sarvam-registered AI voices found. Register a voice with Sarvam to show it here."
+                    }
                 }.onFailure { error ->
                     // Even if Firebase is offline, local voice recordings remain playable.
                     val localSaved = MyVoicesClient.list(context, uid)
+                    val registeredSarvamVoices = localSaved.filter {
+                        it.sarvamVoiceId.trim().startsWith("svc-", ignoreCase = true)
+                    }
                     myVoices.clear()
-                    myVoices.addAll(localSaved)
+                    myVoices.addAll(registeredSarvamVoices)
                     restoreSavedVoiceSelection()
-                    statusMessage = if (localSaved.isNotEmpty()) {
-                        "Showing your locally saved voices. Cloud sync is unavailable."
+                    statusMessage = if (registeredSarvamVoices.isNotEmpty()) {
+                        "Showing Sarvam-registered voices saved on this device. Firebase sync is unavailable."
                     } else {
-                    "Could not load My Voices from Firebase: ${error.localizedMessage ?: "unknown error"}"
+                        "Could not load Sarvam-registered voices from Firebase: ${error.localizedMessage ?: "unknown error"}"
                     }
                 }
             }
