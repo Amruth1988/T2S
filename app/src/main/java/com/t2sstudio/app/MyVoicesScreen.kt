@@ -141,8 +141,13 @@ fun MyVoicesScreen(onBack: () -> Unit = {}) {
                 voices.addAll(mergedCloud + localOnly)
                 if (voices.isEmpty()) message = "No voice profiles were found in your account."
             }.onFailure { error ->
+                // Firebase may be unavailable; keep device-saved voice profiles visible.
+                val localProfiles = runCatching { MyVoicesClient.list(context, uid) }.getOrDefault(emptyList())
                 voices.clear()
-                message = "Could not load voice profiles. Check your connection and try again."
+                voices.addAll(localProfiles)
+                if (localProfiles.isEmpty()) {
+                    message = "Could not load cloud voice profiles. Check your connection and try again."
+                }
             }
         }
     }
