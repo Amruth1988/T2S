@@ -25,16 +25,18 @@ Register a **Web app** inside the existing Firebase project `t2s-studio` (do not
 - `VITE_FIREBASE_AUTH_DOMAIN`
 - `VITE_FIREBASE_PROJECT_ID` (must be `t2s-studio`)
 - `VITE_FIREBASE_APP_ID` (the registered Web App ID, not the Android App ID)
+- `VITE_FIREBASE_APPCHECK_SITE_KEY` (the reCAPTCHA v3 site key registered for Firebase App Check on the Web app)
+- `VITE_T2S_WORKER_URL` (optional; defaults to `https://t2s.amruth4official.workers.dev`)
 
-Add the deployed web hostname to Firebase Authentication's authorized domains and enable the existing Email/Password and Google providers. Do not commit private credentials. Firebase web API keys are client identifiers, but should still be restricted to the required Firebase APIs.
+Add the deployed web hostname to Firebase Authentication authorized domains and register the Web app with Firebase App Check using reCAPTCHA v3. Enable the existing Email/Password and Google providers. Add the Web App ID to the existing Cloudflare Worker FIREBASE_APP_IDS variable alongside the Android App ID, then deploy the existing Worker. Do not replace the Android app ID or weaken App Check. Do not commit private credentials. Firebase web API keys and the reCAPTCHA site key are public client configuration, but should be restricted to the required Firebase services.
 
 ## Current capability boundary
 
-The initial browser release includes responsive navigation, browser-installed speech preview (English, Telugu and Hindi where the browser provides voices), speed/pitch controls, local projects/drafts, microphone recording, and recording download. Firebase sign-in and Firestore draft sync become available once the Web App configuration and authorized domain are supplied.
+The browser app includes responsive navigation, browser-installed speech preview, projects and drafts, microphone recording, secure online voice catalogue and speech-generation screens for India API/Vakyam, and Sarvam voice registration/generation through the existing authenticated gateway. Cloud voice functions require the Web Firebase app, App Check site key, authorized domain, and the Web App ID added to the existing Worker allow-list. Firebase sign-in and Firestore draft sync also require the Web App configuration.
 
 Browser speech synthesis does not expose an audio file, so it cannot honestly offer an MP3/WAV export. Browser-installed voices are not the Android voice catalogue. Android-private recordings are not accessible to the browser.
 
-Online India/Vakyam TTS, Sarvam cloned voice registration/generation, cloud voice catalogue, and cross-device audio storage are not enabled in this initial scaffold. They require a web App Check registration and a reviewed browser authentication/CORS path for the existing Cloudflare Worker and Apps Script gateway. Do not bypass App Check, expose provider keys, deploy new backend services, or enable paid billing to make these features appear enabled.
+The web app uses the existing Cloudflare Worker for India/Vakyam calls and a Worker-to-Apps-Script proxy for Sarvam. Provider keys remain server-side. This web release does not claim cross-device transfer of Android-private recordings or local browser recordings. Do not bypass App Check, expose provider keys, deploy new backend services, or enable paid billing.
 
 ## Hosting
 
