@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AudioLines, Cloud, Download, Mic, Pause, Play, RefreshCw, ShieldCheck, Square, WandSparkles } from "lucide-react";
+import { AudioLines, Cloud, Download, Mic, RefreshCw, ShieldCheck, Square, WandSparkles } from "lucide-react";
 import type { User } from "firebase/auth";
 import { generateOnlineSpeech, generateSarvamSpeech, listOnlineVoices, listSarvamVoices, registerSarvamVoice, type OnlineProvider, type Voice, type SarvamVoice } from "./tts";
 
