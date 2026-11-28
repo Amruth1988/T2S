@@ -16,6 +16,7 @@ export default function CloudVoices({ user, onMessage }: Props) {
   const [sarvamId, setSarvamId] = useState("");
   const [text, setText] = useState(greeting.te);
   const [speed, setSpeed] = useState(1);
+  const [purohitPreset, setPurohitPreset] = useState("");
   const [format, setFormat] = useState<"mp3"|"wav">("mp3");
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -59,6 +60,14 @@ export default function CloudVoices({ user, onMessage }: Props) {
       onMessage(`${found.length} registered Sarvam voices loaded.`);
     } catch (error) { onMessage(error instanceof Error ? error.message : "Could not load Sarvam voices."); }
     finally { setLoading(false); }
+  }
+  function applyPurohitPreset(preset: string) {
+    const presets: Record<string, number> = { "Purohit 1": 0.84, "Purohit 2": 0.72, "Purohit 3": 0.96 };
+    setPurohitPreset(preset);
+    setSpeed(presets[preset]);
+    const maleVoice = voices.find(voice => voice.gender.toLowerCase() === "male");
+    if (maleVoice) setVoiceId(maleVoice.id);
+    else onMessage("Pacing preset applied. This provider did not label a male voice in the loaded catalogue.");
   }
   async function generate() {
     if (!user) { onMessage("Sign in to generate cloud speech."); return; }
@@ -123,7 +132,7 @@ export default function CloudVoices({ user, onMessage }: Props) {
     </section>
     <section className="panel cloud-panel">
       <div className="cloud-panel-heading"><div className="content-icon"><WandSparkles/></div><div><h3>Generate speech</h3><p>Generate a real provider audio file, then play or download it.</p></div></div>
-      <label>Script<textarea rows={7} value={text} maxLength={3000} onChange={e=>setText(e.target.value)} placeholder="Type your script…"/></label>
+      <label>Script<textarea rows={7} value={text} maxLength={3000} onChange={e=>setText(e.target.value)} placeholder="Type your script…"/></label><div className="purohit-presets"><span>Telugu Purohit pacing presets</span><div>{["Purohit 1","Purohit 2","Purohit 3"].map(preset=><button key={preset} className={purohitPreset===preset?"subtle selected-preset":"outline"} onClick={()=>applyPurohitPreset(preset)}>{preset}</button>)}</div><small>Applies a slower recitation speed and selects a male-labelled catalogue voice when available. Voice character depends on the provider.</small></div>
       <div className="catalogue-tools">
         <label>Speed <strong>{speed.toFixed(1)}×</strong><input type="range" min="0.5" max="2" step="0.1" value={speed} onChange={e=>setSpeed(Number(e.target.value))}/></label>
         <label>Output format<select value={format} onChange={e=>setFormat(e.target.value as "mp3"|"wav")}><option value="mp3">MP3</option><option value="wav">WAV</option></select></label>
