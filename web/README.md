@@ -30,6 +30,21 @@ Register a **Web app** inside the existing Firebase project `t2s-studio` (do not
 
 Add the deployed web hostname to Firebase Authentication authorized domains and register the Web app with Firebase App Check using reCAPTCHA v3. Enable the existing Email/Password and Google providers. Add the Web App ID to the existing Cloudflare Worker FIREBASE_APP_IDS variable alongside the Android App ID, then deploy the existing Worker. Do not replace the Android app ID or weaken App Check. Do not commit private credentials. Firebase web API keys and the reCAPTCHA site key are public client configuration, but should be restricted to the required Firebase services.
 
+## GitHub Pages variables and existing Worker
+
+In **Settings → Secrets and variables → Actions → Variables**, add the following repository variables (the Firebase values come from the Web app registered inside the existing `t2s-studio` project):
+
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID` = `t2s-studio`
+- `VITE_FIREBASE_APP_ID` = the Web App ID
+- `VITE_FIREBASE_APPCHECK_SITE_KEY` = the reCAPTCHA v3 site key
+- `VITE_T2S_WORKER_URL` = `https://t2s.amruth4official.workers.dev`
+
+In the existing Cloudflare Worker configuration, set `FIREBASE_APP_IDS` to a comma-separated list containing **both** the current Android App ID and the Web App ID. Keep `FIREBASE_APP_ID` unchanged for backward compatibility. Deploy only the existing `t2s` Worker after confirming the Web app's App Check registration. The repository workflow `.github/workflows/cloudflare-worker-deploy.yml` is manual (`workflow_dispatch`).
+
+The browser UI can be built without these variables, but Firebase login and cloud voice calls remain unavailable until they are configured.
+
 ## Current capability boundary
 
 The browser app includes responsive navigation, browser-installed speech preview, projects and drafts, microphone recording, secure online voice catalogue and speech-generation screens for India API/Vakyam, and Sarvam voice registration/generation through the existing authenticated gateway. Cloud voice functions require the Web Firebase app, App Check site key, authorized domain, and the Web App ID added to the existing Worker allow-list. Firebase sign-in and Firestore draft sync also require the Web App configuration.
