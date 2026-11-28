@@ -12,12 +12,13 @@ import {
 } from "firebase/auth";
 import { collection, doc, getDocs, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db, firebaseReady, googleProvider } from "./firebase";
+import CloudVoices from "./CloudVoices";
 
-type Page = "Home" | "Studio" | "Voice Library" | "Projects" | "Drafts" | "My Voices" | "Settings";
+type Page = "Home" | "Studio" | "Cloud Studio" | "Voice Library" | "Projects" | "Drafts" | "My Voices" | "Settings";
 type Draft = { id: string; title: string; text: string; language: string; updatedAt: number };
 type Project = { id: string; name: string; createdAt: number };
 const pages: { name: Page; icon: typeof Home }[] = [
-  { name: "Home", icon: Home }, { name: "Studio", icon: WandSparkles },
+  { name: "Home", icon: Home }, { name: "Studio", icon: WandSparkles }, { name: "Cloud Studio", icon: Cloud },
   { name: "Voice Library", icon: Headphones }, { name: "Projects", icon: FolderKanban },
   { name: "Drafts", icon: BookOpen }, { name: "My Voices", icon: AudioLines },
   { name: "Settings", icon: Settings }
@@ -189,6 +190,7 @@ export default function App() {
   }
 
   const content = () => {
+    if (page === "Cloud Studio") return <CloudVoices user={user} onMessage={setMessage}/>;
     if (page === "Home") return <div className="page-stack">
       <section className="hero"><div><span className="eyebrow">YOUR PERSONAL SPEECH WORKSPACE</span><h1>Give your words<br/><em>a voice.</em></h1><p>Create speech, explore voices and keep every script organized in one studio.</p><button className="primary" onClick={() => setPage("Studio")}><WandSparkles size={17}/> Open Studio</button></div><div className="hero-art"><div className="orb"><AudioLines size={76}/></div><span className="floating-chip chip-one">English · Telugu · Hindi</span><span className="floating-chip chip-two"><Volume2 size={15}/> Voice studio</span></div></section>
       <div className="section-heading"><div><span className="eyebrow">WORKSPACE</span><h2>Pick up where you left off</h2></div><button className="text-button" onClick={() => setPage("Projects")}>All projects ↗</button></div>
