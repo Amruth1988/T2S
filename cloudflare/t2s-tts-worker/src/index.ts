@@ -16,6 +16,8 @@ interface Env {
   FIREBASE_PROJECT_ID: string;
   FIREBASE_PROJECT_NUMBER: string;
   FIREBASE_APP_ID: string;
+  FIREBASE_APP_IDS?: string;
+  SARVAM_GATEWAY_URL?: string;
   VAKYAM_API_KEY: string;
   INDIA_API_KEY?: string;
   USAGE_DB?: D1Database;
@@ -67,7 +69,8 @@ async function authenticate(request: Request, env: Env): Promise<string> {
   } catch {
     throw new Error("Invalid Firebase App Check token.");
   }
-  if (typeof appCheckSubject !== "string" || appCheckSubject !== env.FIREBASE_APP_ID) {
+  const allowedAppIds = (env.FIREBASE_APP_IDS || env.FIREBASE_APP_ID).split(",").map((value) => value.trim()).filter(Boolean);
+  if (typeof appCheckSubject !== "string" || !allowedAppIds.includes(appCheckSubject)) {
     throw new Error("Invalid Firebase App Check token.");
   }
   return payload.sub;
@@ -207,6 +210,48 @@ async function handle(request: Request, env: Env): Promise<Response> {
     }
     if (!result.success) throw new ProviderRequestError(503);
     return json({ deleted: result.meta?.changes ?? 0 });
+  }
+
+  if (url.pathname.startsWith("/v1/sarvam/")) {
+    const gateway = env.SARVAM_GATEWAY_URL || "https://script.google.com/macros/s/AKfycbzreX70ong9CQwtGMZ4tcSSLLY3iZ28MFL0ny6L6pitmRLUq6duHCJXiYZ_O2Do8wPP/exec";
+    const idToken = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "");
+    if (!idToken) return json({ error: "Sign in to T2S before using Sarvam voices." }, 401);
+    let action: string;
+    let data: Record<string, unknown> = {};
+    if (url.pathname === "/v1/sarvam/voices" && request.method === "GET") action = "list";
+    else if (url.pathname === "/v1/sarvam/voices" && request.method === "POST") {
+      action = "create";
+      data = await request.json() as Record<string, unknown>;
+      const name = typeof data.name === "string" ? data.name.trim() : "";
+      const sampleBase64 = typeof data.sampleBase64 === "string" ? data.sampleBase64 : "";
+      if (!name || name.length > 60 || !sampleBase64 || sampleBase64.length > 8_500_000) {
+        return json({ error: "Provide a voice name and a valid audio sample (maximum 6 MB)." }, 400);
+      }
+      if (!["en-IN", "te-IN", "hi-IN"].includes(String(data.language))) return json({ error: "Unsupported voice language." }, 400);
+      if (!["Male", "Female", "Other"].includes(String(data.gender))) return json({ error: "Choose a valid voice gender." }, 400);
+    } else if (url.pathname === "/v1/sarvam/tts" && request.method === "POST") {
+      action = "generate";
+      data = await request.json() as Record<string, unknown>;
+      if (typeof data.voiceId !== "string" || !data.voiceId.startsWith("svc-")) return json({ error: "Choose a registered Sarvam voice." }, 400);
+      if (typeof data.text !== "string" || !data.text.trim() || data.text.length > 1000) return json({ error: "Text must contain 1–1,000 characters." }, 400);
+      if (!["en-IN", "te-IN", "hi-IN"].includes(String(data.language))) return json({ error: "Unsupported voice language." }, 400);
+    } else return json({ error: "Route not found." }, 404);
+
+    const payload = { action, idToken, ...data };
+    const upstream = await fetch(gateway, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify(payload),
+      redirect: "follow",
+    });
+    const body = await upstream.text();
+    if (!upstream.ok) return json({ error: "Sarvam service request failed. Please try again." }, 502);
+    let result: unknown;
+    try { result = JSON.parse(body); } catch { return json({ error: "Sarvam service returned an invalid response." }, 502); }
+    if (result && typeof result === "object" && "error" in result) {
+      return json({ error: String((result as { error: unknown }).error || "Sarvam request failed.") }, 502);
+    }
+    return json(result);
   }
 
   if (url.pathname === "/v1/india/voices" && request.method === "GET") {
