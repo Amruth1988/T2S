@@ -29,11 +29,6 @@ export default function CloudVoices({ user, onMessage }: Props) {
   const stream = useRef<MediaStream|null>(null);
   const chunks = useRef<BlobPart[]>([]);
 
-  useEffect(() => {
-    setText(greeting[language]);
-    setVoiceId("");
-  }, [language]);
-
   useEffect(() => () => {
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     if (sampleUrl) URL.revokeObjectURL(sampleUrl);
@@ -46,6 +41,7 @@ export default function CloudVoices({ user, onMessage }: Props) {
     setLoading(true);
     try {
       const found = await listOnlineVoices(provider, language);
+      setSarvamId("");
       setVoices(found);
       setVoiceId(found[0]?.id || "");
       onMessage(`${found.length} ${provider} voices loaded.`);
@@ -57,6 +53,7 @@ export default function CloudVoices({ user, onMessage }: Props) {
     setLoading(true);
     try {
       const found = await listSarvamVoices();
+      setVoiceId("");
       setMyVoices(found);
       setSarvamId(found[0]?.id || "");
       onMessage(`${found.length} registered Sarvam voices loaded.`);
