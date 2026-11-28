@@ -9,3 +9,6 @@
 @media(max-width:700px){.catalogue-tools{align-items:stretch}.catalogue-tools>*{flex:1 1 100%}.generated-audio audio{min-width:100%}.cloud-panel{padding:16px}}
 
 .purohit-presets{display:grid;gap:8px;padding:13px;background:#fff9f3;border:1px solid #f2e5d8;border-radius:10px}.purohit-presets>span{font-size:11px;font-weight:700;color:#6e6257}.purohit-presets>div{display:flex;gap:8px;flex-wrap:wrap}.purohit-presets button{height:34px;font-size:10px}.purohit-presets small{font-size:10px;color:#9b8e81;line-height:1.5}.selected-preset{background:#fff0e3;border:1px solid #edc5a4;color:#d66b1c}
+
+.studio-header-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+@media(max-width:700px){.studio-header-actions{justify-content:flex-start}}
